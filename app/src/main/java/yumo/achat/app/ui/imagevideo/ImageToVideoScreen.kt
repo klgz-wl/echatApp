@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -153,6 +154,17 @@ private fun TemplateBrowserScreen(
         return
     }
 
+    if (selectedNavigation == 3) {
+        MeScreen(
+            selectedNavigation = selectedNavigation,
+            onNavigationSelect = {
+                onNavigationSelect(it)
+                onTabSelect(0)
+            },
+        )
+        return
+    }
+
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
     Column(
         modifier = Modifier
@@ -186,6 +198,245 @@ private fun TemplateBrowserScreen(
                 onTabSelect(0)
             },
         )
+    }
+}
+
+@Composable
+private fun MeScreen(
+    selectedNavigation: Int,
+    onNavigationSelect: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        MeHeader()
+        Spacer(Modifier.height(28.dp))
+        ProfileCard()
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            DiamondIcon(7.dp)
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = stringResource(R.string.system_modules),
+                color = AchatCyan,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ModuleRow(
+                icon = ModuleIcon.Chat,
+                title = stringResource(R.string.conversation_log),
+                subtitle = stringResource(R.string.conversation_log_subtitle),
+                trailing = stringResource(R.string.module_count, 108),
+            )
+            ModuleRow(
+                icon = ModuleIcon.Feedback,
+                title = stringResource(R.string.feedback),
+                subtitle = stringResource(R.string.feedback_subtitle),
+                trailing = stringResource(R.string.module_new),
+            )
+            ModuleRow(
+                icon = ModuleIcon.Edit,
+                title = stringResource(R.string.edit_name),
+                subtitle = stringResource(R.string.edit_name_subtitle),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        BottomNavigation(
+            selectedIndex = selectedNavigation,
+            onSelect = onNavigationSelect,
+        )
+    }
+}
+
+@Composable
+private fun MeHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.me_title),
+            color = AchatCyan,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(
+            modifier = Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
+                .background(Color(0xB20A111C))
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DiamondIcon(12.dp)
+            Spacer(Modifier.width(6.dp))
+            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun ProfileCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(82.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xE0161F35), Color(0xD90A0B14))))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.45f), AchatPink.copy(alpha = 0.35f))),
+                RoundedCornerShape(6.dp),
+            )
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(Color(0xFF3EDBF2), AchatPink)))
+                .padding(2.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(Color(0xFF7449E7), Color(0xFF15111E)))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Q", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.profile_name),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                text = stringResource(R.string.profile_id),
+                color = AchatMuted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        Text(
+            text = stringResource(R.string.profile_edit),
+            color = AchatCyan,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0x5913D7EF))
+                .border(1.dp, AchatCyan.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 5.dp),
+        )
+    }
+}
+
+private enum class ModuleIcon { Chat, Feedback, Edit }
+
+@Composable
+private fun ModuleRow(
+    icon: ModuleIcon,
+    title: String,
+    subtitle: String,
+    trailing: String? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color(0xBA090D19))
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(5.dp))
+            .clickable { }
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ModuleGlyph(icon = icon)
+        Spacer(Modifier.width(11.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (trailing != null) {
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text = trailing,
+                        color = AchatPink,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                color = AchatMuted,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        Text("›", color = AchatMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ModuleGlyph(icon: ModuleIcon) {
+    val tint = when (icon) {
+        ModuleIcon.Chat -> AchatCyan
+        ModuleIcon.Feedback -> AchatPink
+        ModuleIcon.Edit -> Color(0xFF7D55E9)
+    }
+    Canvas(
+        Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(tint.copy(alpha = 0.1f))
+            .border(1.dp, tint.copy(alpha = 0.38f), RoundedCornerShape(4.dp))
+            .padding(7.dp),
+    ) {
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(1.6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        when (icon) {
+            ModuleIcon.Chat -> {
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(size.width * 0.08f, size.height * 0.14f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 0.74f, size.height * 0.56f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
+                    style = stroke,
+                )
+                drawLine(tint, Offset(size.width * 0.34f, size.height * 0.7f), Offset(size.width * 0.24f, size.height * 0.9f), 1.6.dp.toPx())
+            }
+            ModuleIcon.Feedback -> {
+                drawCircle(tint, size.minDimension * 0.36f, center, style = stroke)
+                drawLine(tint, Offset(size.width * 0.5f, size.height * 0.28f), Offset(size.width * 0.5f, size.height * 0.52f), 1.6.dp.toPx())
+                drawCircle(tint, size.minDimension * 0.035f, Offset(size.width * 0.5f, size.height * 0.68f))
+            }
+            ModuleIcon.Edit -> {
+                drawLine(tint, Offset(size.width * 0.18f, size.height * 0.78f), Offset(size.width * 0.74f, size.height * 0.22f), 1.8.dp.toPx())
+                drawLine(tint, Offset(size.width * 0.58f, size.height * 0.18f), Offset(size.width * 0.78f, size.height * 0.38f), 1.8.dp.toPx())
+                drawLine(tint, Offset(size.width * 0.18f, size.height * 0.82f), Offset(size.width * 0.4f, size.height * 0.78f), 1.4.dp.toPx())
+            }
+        }
     }
 }
 

@@ -80,6 +80,19 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun meNavigationShowsProfileAndSystemModules() {
+        composeRule.onNodeWithText("ME").performClick()
+
+        composeRule.onNodeWithText("Me").assertIsDisplayed()
+        composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
+        composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
+        composeRule.onNodeWithText("Conversation Log").assertIsDisplayed()
+        composeRule.onNodeWithText("Feedback").assertIsDisplayed()
+        composeRule.onNodeWithText("Edit Name").assertIsDisplayed()
+        composeRule.onNodeWithText("ME").assertIsSelected()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 
