@@ -1,8 +1,11 @@
 <resources>
     <string name="app_name">Achat</string>
     <string name="image_to_video_title">Image To Video</string>
+    <string name="image_to_image_title">IMAGE TO IMAGE</string>
     <string name="tab_hot">Hot</string>
     <string name="tab_new">New</string>
+    <string name="tab_single_image">SINGLE IMAGE</string>
+    <string name="tab_multi_image">MULTI IMAGE</string>
     <string name="template_portrait_description">Template portrait</string>
     <string name="play_template_description">Play template</string>
     <string name="pause_template_description">Pause template</string>

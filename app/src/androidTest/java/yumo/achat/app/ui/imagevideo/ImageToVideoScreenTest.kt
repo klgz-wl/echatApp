@@ -57,6 +57,16 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun imageNavigationShowsImageToImageDesign() {
+        composeRule.onNodeWithText("IMAGE").performClick()
+
+        composeRule.onNodeWithText("IMAGE TO IMAGE").assertIsDisplayed()
+        composeRule.onNodeWithText("SINGLE IMAGE").assertIsDisplayed()
+        composeRule.onNodeWithText("MULTI IMAGE").assertIsDisplayed()
+        composeRule.onNodeWithText("USE THIS TEMPLATE").assertIsDisplayed()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 

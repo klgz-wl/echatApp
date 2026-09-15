@@ -55,6 +55,11 @@ private enum class ImageToVideoDestination {
     UploadPhoto,
 }
 
+private enum class TemplateSection {
+    Video,
+    Image,
+}
+
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -114,6 +119,7 @@ private fun TemplateBrowserScreen(
     onUseTemplate: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
 ) {
+    val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -121,9 +127,9 @@ private fun TemplateBrowserScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Header()
+        Header(section = section)
         Spacer(Modifier.height(8.dp))
-        CategoryTabs(selectedTab = selectedTab, onSelect = onTabSelect)
+        CategoryTabs(section = section, selectedTab = selectedTab, onSelect = onTabSelect)
         Spacer(Modifier.height(7.dp))
         HeroCard(
             currentPage = currentTemplate,
@@ -141,7 +147,10 @@ private fun TemplateBrowserScreen(
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
-            onSelect = onNavigationSelect,
+            onSelect = {
+                onNavigationSelect(it)
+                onTabSelect(0)
+            },
         )
     }
 }
@@ -260,16 +269,19 @@ private fun BackgroundGlow() {
 }
 
 @Composable
-private fun Header() {
+private fun Header(section: TemplateSection) {
+    val title = stringResource(
+        if (section == TemplateSection.Image) R.string.image_to_image_title else R.string.image_to_video_title,
+    )
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = stringResource(R.string.image_to_video_title),
+            text = title,
             color = Color.White,
-            fontSize = 24.sp,
+            fontSize = if (section == TemplateSection.Image) 20.sp else 24.sp,
             fontWeight = FontWeight.Bold,
         )
         Row(
@@ -289,10 +301,16 @@ private fun Header() {
 }
 
 @Composable
-private fun CategoryTabs(selectedTab: Int, onSelect: (Int) -> Unit) {
+private fun CategoryTabs(section: TemplateSection, selectedTab: Int, onSelect: (Int) -> Unit) {
+    val firstLabel = stringResource(
+        if (section == TemplateSection.Image) R.string.tab_single_image else R.string.tab_hot,
+    )
+    val secondLabel = stringResource(
+        if (section == TemplateSection.Image) R.string.tab_multi_image else R.string.tab_new,
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-        CategoryTab(stringResource(R.string.tab_hot), selectedTab == 0) { onSelect(0) }
-        CategoryTab(stringResource(R.string.tab_new), selectedTab == 1) { onSelect(1) }
+        CategoryTab(firstLabel, selectedTab == 0) { onSelect(0) }
+        CategoryTab(secondLabel, selectedTab == 1) { onSelect(1) }
     }
 }
 
