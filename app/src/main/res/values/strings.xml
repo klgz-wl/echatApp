@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Achat</string>
+    <string name="image_to_video_title">Image To Video</string>
+    <string name="tab_hot">Hot</string>
+    <string name="tab_new">New</string>
+    <string name="template_portrait_description">Template portrait</string>
+    <string name="play_template_description">Play template</string>
+    <string name="pause_template_description">Pause template</string>
+    <string name="previous_template_description">Previous template</string>
+    <string name="next_template_description">Next template</string>
+    <string name="template_page_count">%1$d/%2$d</string>
+    <string name="template_duration">%1$ds</string>
+    <string name="template_quality">%1$s</string>
+    <string name="use_this_template">USE THIS TEMPLATE</string>
+    <string name="nav_video">VIDEO</string>
+    <string name="nav_image">IMAGE</string>
+    <string name="nav_top_up">TOP UP</string>
+    <string name="nav_me">ME</string>
+</resources>

@@ -1,0 +1,32 @@
+# Local build and IDE state
+*.iml
+.gradle/
+**/.gradle/
+.idea/
+**/.idea/
+.kotlin/
+**/build/
+
+# Machine-specific Android configuration
+local.properties
+**/local.properties
+
+# Native build output
+.externalNativeBuild/
+.cxx/
+
+# Local captures and generated artifacts
+captures/
+artifacts/
+
+# Signing material and credentials
+*.jks
+*.keystore
+keystore.properties
+
+# macOS
+.DS_Store
+
+# Project documentation must override the user's global `*.md` ignore rule.
+!AGENTS.md
+!docs/**/*.md
