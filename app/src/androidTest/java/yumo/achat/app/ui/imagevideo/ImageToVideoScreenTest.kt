@@ -121,6 +121,18 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun editNameOpensNamePickerSheet() {
+        composeRule.onNodeWithText("ME").performClick()
+        composeRule.onNodeWithText("Edit Name").performClick()
+
+        composeRule.onNodeWithText("Selene Marlowe").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Name option Nova Quinn").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Name option Iris Vale").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Close name picker").performClick()
+        composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 

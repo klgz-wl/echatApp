@@ -60,6 +60,7 @@ private enum class ImageToVideoDestination {
     UploadPhoto,
     MyTasks,
     Feedback,
+    EditName,
 }
 
 private enum class TemplateSection {
@@ -116,6 +117,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
                     onConversationLog = { destination = ImageToVideoDestination.MyTasks },
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
+                    onEditName = { destination = ImageToVideoDestination.EditName },
                     onNavigationSelect = { selectedNavigation = it },
                     selectedCreditPack = selectedCreditPack,
                     onCreditPackSelect = { selectedCreditPack = it },
@@ -144,6 +146,32 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+
+            ImageToVideoDestination.EditName -> {
+                Box(Modifier.fillMaxSize()) {
+                    MeScreen(
+                        selectedNavigation = 3,
+                        onConversationLog = { destination = ImageToVideoDestination.MyTasks },
+                        onFeedback = { destination = ImageToVideoDestination.Feedback },
+                        onEditName = {},
+                        onNavigationSelect = {
+                            destination = ImageToVideoDestination.Templates
+                            selectedNavigation = it
+                            selectedTab = 0
+                        },
+                    )
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.68f))
+                            .clickable { destination = ImageToVideoDestination.Templates },
+                    )
+                    NamePickerSheet(
+                        onClose = { destination = ImageToVideoDestination.Templates },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
+            }
         }
     }
 }
@@ -162,6 +190,7 @@ private fun TemplateBrowserScreen(
     onUseTemplate: () -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onEditName: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onCreditPackSelect: (Int) -> Unit,
 ) {
@@ -183,6 +212,7 @@ private fun TemplateBrowserScreen(
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
+            onEditName = onEditName,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -232,6 +262,7 @@ private fun MeScreen(
     selectedNavigation: Int,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onEditName: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
 ) {
     Column(
@@ -275,6 +306,7 @@ private fun MeScreen(
                 icon = ModuleIcon.Edit,
                 title = stringResource(R.string.edit_name),
                 subtitle = stringResource(R.string.edit_name_subtitle),
+                onClick = onEditName,
             )
         }
         Spacer(Modifier.weight(1f))
@@ -739,6 +771,108 @@ private fun FeedbackSubmitButton() {
         )
         Spacer(Modifier.width(8.dp))
         Text("✦", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun NamePickerSheet(
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val closeDescription = stringResource(R.string.close_name_picker_description)
+    val options = listOf(
+        "Nova Quinn",
+        "Iris Vale",
+        "Luna Cross",
+        "Mira Stone",
+        "Vera Lane",
+        "Ari Bloom",
+        "Nora West",
+        "Eden Ray",
+    )
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xF31A1130), Color(0xFF070812))))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.28f), AchatPink.copy(alpha = 0.34f))),
+                RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+            )
+            .padding(horizontal = 22.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(38.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.7f))
+                .semantics { contentDescription = closeDescription }
+                .clickable(onClick = onClose),
+        )
+        Spacer(Modifier.height(18.dp))
+        Text(
+            text = stringResource(R.string.name_picker_selected),
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            options.chunked(4).forEach { rowOptions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowOptions.forEach { option ->
+                        NameOptionButton(
+                            name = option,
+                            selected = option == options.first(),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+@Composable
+private fun NameOptionButton(
+    name: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val description = stringResource(R.string.name_option_description, name)
+    Box(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(
+                if (selected) {
+                    Brush.verticalGradient(listOf(Color(0xFF872CF0), Color(0xFF45156D)))
+                } else {
+                    Brush.verticalGradient(listOf(Color(0xD5131A2A), Color(0xD80B0F1D)))
+                },
+            )
+            .border(
+                1.dp,
+                if (selected) AchatPink.copy(alpha = 0.48f) else AchatCyan.copy(alpha = 0.24f),
+                RoundedCornerShape(6.dp),
+            )
+            .semantics { contentDescription = description }
+            .clickable { },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = name.first().uppercase(),
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

@@ -58,6 +58,9 @@
     <string name="library">Library</string>
     <string name="feedback_input_placeholder">Describe what happened...</string>
     <string name="submit_feedback">Submit Feedback</string>
+    <string name="name_picker_selected">Selene Marlowe</string>
+    <string name="close_name_picker_description">Close name picker</string>
+    <string name="name_option_description">Name option %1$s</string>
     <string name="nav_video">VIDEO</string>
     <string name="nav_image">IMAGE</string>
     <string name="nav_top_up">TOP UP</string>
