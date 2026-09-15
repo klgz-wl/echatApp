@@ -27,6 +27,15 @@
     <string name="continue_action">CONTINUE</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
+    <string name="system_credits">SYSTEM CREDITS</string>
+    <string name="top_up_title">TOP UP</string>
+    <string name="choose_pack">CHOOSE A PACK</string>
+    <string name="credit_pack_validity">VALID FOR %1$d DAYS</string>
+    <string name="credit_pack_protocol">LOCKED PROTOCOL</string>
+    <string name="credit_pack_bonus">+%1$d bonus</string>
+    <string name="credit_pack_starter">STARTER</string>
+    <string name="credit_pack_summary">You\'ll get %1$d diamonds this time</string>
+    <string name="start_chat">START CHAT</string>
     <string name="nav_video">VIDEO</string>
     <string name="nav_image">IMAGE</string>
     <string name="nav_top_up">TOP UP</string>

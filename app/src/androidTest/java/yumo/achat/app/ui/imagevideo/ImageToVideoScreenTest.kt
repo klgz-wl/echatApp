@@ -67,6 +67,19 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun topUpNavigationShowsCreditPackDesign() {
+        composeRule.onNodeWithText("TOP UP").performClick()
+
+        composeRule.onNodeWithText("SYSTEM CREDITS").assertIsDisplayed()
+        composeRule.onNodeWithText("CHOOSE A PACK").assertIsDisplayed()
+        composeRule.onNodeWithText("200").assertIsDisplayed()
+        composeRule.onNodeWithText("\$39.99").assertIsDisplayed()
+        composeRule.onNodeWithText("10").assertIsDisplayed()
+        composeRule.onNodeWithText("\$1.99").assertIsDisplayed()
+        composeRule.onNodeWithText("START CHAT").assertIsDisplayed()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 

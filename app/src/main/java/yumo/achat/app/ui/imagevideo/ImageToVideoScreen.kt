@@ -60,12 +60,29 @@ private enum class TemplateSection {
     Image,
 }
 
+private data class CreditPack(
+    val credits: Int,
+    val validityDays: Int,
+    val price: String,
+    val bonus: Int? = null,
+    val badgeTextRes: Int? = null,
+)
+
+private val CreditPacks = listOf(
+    CreditPack(credits = 200, validityDays = 90, price = "$39.99", bonus = 150),
+    CreditPack(credits = 100, validityDays = 60, price = "$19.99", bonus = 50),
+    CreditPack(credits = 50, validityDays = 30, price = "$9.99", bonus = 20),
+    CreditPack(credits = 25, validityDays = 15, price = "$4.99", bonus = 5),
+    CreditPack(credits = 10, validityDays = 15, price = "$1.99", badgeTextRes = R.string.credit_pack_starter),
+)
+
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(false) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
+    var selectedCreditPack by rememberSaveable { mutableIntStateOf(0) }
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
 
     Box(
@@ -91,6 +108,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
                     onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
                     onNavigationSelect = { selectedNavigation = it },
+                    selectedCreditPack = selectedCreditPack,
+                    onCreditPackSelect = { selectedCreditPack = it },
                 )
             }
 
@@ -112,13 +131,28 @@ private fun TemplateBrowserScreen(
     currentTemplate: Int,
     isPlaying: Boolean,
     selectedNavigation: Int,
+    selectedCreditPack: Int,
     onTabSelect: (Int) -> Unit,
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onUseTemplate: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
+    onCreditPackSelect: (Int) -> Unit,
 ) {
+    if (selectedNavigation == 2) {
+        TopUpScreen(
+            selectedNavigation = selectedNavigation,
+            selectedCreditPack = selectedCreditPack,
+            onCreditPackSelect = onCreditPackSelect,
+            onNavigationSelect = {
+                onNavigationSelect(it)
+                onTabSelect(0)
+            },
+        )
+        return
+    }
+
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
     Column(
         modifier = Modifier
@@ -152,6 +186,223 @@ private fun TemplateBrowserScreen(
                 onTabSelect(0)
             },
         )
+    }
+}
+
+@Composable
+private fun TopUpScreen(
+    selectedNavigation: Int,
+    selectedCreditPack: Int,
+    onCreditPackSelect: (Int) -> Unit,
+    onNavigationSelect: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        TopUpHeader()
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            DiamondIcon(8.dp)
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = stringResource(R.string.choose_pack),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CreditPacks.forEachIndexed { index, pack ->
+                CreditPackCard(
+                    pack = pack,
+                    selected = selectedCreditPack == index,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    onSelect = { onCreditPackSelect(index) },
+                )
+            }
+        }
+        Spacer(Modifier.height(9.dp))
+        Text(
+            text = stringResource(
+                R.string.credit_pack_summary,
+                CreditPacks[selectedCreditPack].credits + (CreditPacks[selectedCreditPack].bonus ?: 0),
+            ),
+            color = AchatCyan,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+        Spacer(Modifier.height(8.dp))
+        StartChatButton()
+        Spacer(Modifier.height(12.dp))
+        BottomNavigation(
+            selectedIndex = selectedNavigation,
+            onSelect = onNavigationSelect,
+        )
+    }
+}
+
+@Composable
+private fun TopUpHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column {
+            Text(
+                text = stringResource(R.string.system_credits),
+                color = AchatPink,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = stringResource(R.string.top_up_title),
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
+                .background(Color(0xB20A111C))
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DiamondIcon(12.dp)
+            Spacer(Modifier.width(6.dp))
+            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun CreditPackCard(
+    pack: CreditPack,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val borderBrush = if (selected) {
+        Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.95f), AchatPink.copy(alpha = 0.82f)))
+    } else {
+        Brush.linearGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.03f)))
+    }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(
+                Brush.horizontalGradient(
+                    if (selected) {
+                        listOf(Color(0xEE16244A), Color(0xEE161126))
+                    } else {
+                        listOf(Color(0xD90C1324), Color(0xD9080A13))
+                    },
+                ),
+            )
+            .border(1.dp, borderBrush, RoundedCornerShape(6.dp))
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xB20B1322))
+                .border(1.dp, AchatCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            DiamondIcon(13.dp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = pack.credits.toString(),
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (pack.bonus != null || pack.badgeTextRes != null) {
+                    Spacer(Modifier.width(8.dp))
+                    BonusBadge(pack = pack)
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = stringResource(R.string.credit_pack_validity, pack.validityDays),
+                color = Color(0xFF767A92),
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = stringResource(R.string.credit_pack_protocol),
+                color = AchatMuted,
+                fontSize = 7.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        Text(
+            text = pack.price,
+            color = if (selected) AchatCyan else Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun BonusBadge(pack: CreditPack) {
+    val label = pack.bonus?.let { stringResource(R.string.credit_pack_bonus, it) }
+        ?: pack.badgeTextRes?.let { stringResource(it) }
+        ?: return
+    Text(
+        text = label,
+        color = Color.White,
+        fontSize = 7.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(Brush.horizontalGradient(listOf(AchatPink, Color(0xFF7A52E8))))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+    )
+}
+
+@Composable
+private fun StartChatButton() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF30DDF3), Color(0xFF7D55E9), AchatPink))),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.start_chat),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text("➜", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
