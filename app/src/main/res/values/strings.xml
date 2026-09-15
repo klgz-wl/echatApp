@@ -52,6 +52,12 @@
     <string name="my_tasks_title">My Tasks</string>
     <string name="back_to_me_description">Back to me</string>
     <string name="no_tasks_empty">NO TASKA YES</string>
+    <string name="feedback_prompt_title">Tell us what feels off</string>
+    <string name="feedback_prompt_body">Screenshots help us reproduce layout glitches, style mismatch, or crashes faster.</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="library">Library</string>
+    <string name="feedback_input_placeholder">Describe what happened...</string>
+    <string name="submit_feedback">Submit Feedback</string>
     <string name="nav_video">VIDEO</string>
     <string name="nav_image">IMAGE</string>
     <string name="nav_top_up">TOP UP</string>

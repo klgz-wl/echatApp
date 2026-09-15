@@ -59,6 +59,7 @@ private enum class ImageToVideoDestination {
     Templates,
     UploadPhoto,
     MyTasks,
+    Feedback,
 }
 
 private enum class TemplateSection {
@@ -114,6 +115,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
                     onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
                     onConversationLog = { destination = ImageToVideoDestination.MyTasks },
+                    onFeedback = { destination = ImageToVideoDestination.Feedback },
                     onNavigationSelect = { selectedNavigation = it },
                     selectedCreditPack = selectedCreditPack,
                     onCreditPackSelect = { selectedCreditPack = it },
@@ -135,6 +137,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+
+            ImageToVideoDestination.Feedback -> {
+                FeedbackScreen(
+                    onBack = { destination = ImageToVideoDestination.Templates },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -152,6 +161,7 @@ private fun TemplateBrowserScreen(
     onNext: () -> Unit,
     onUseTemplate: () -> Unit,
     onConversationLog: () -> Unit,
+    onFeedback: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onCreditPackSelect: (Int) -> Unit,
 ) {
@@ -172,6 +182,7 @@ private fun TemplateBrowserScreen(
         MeScreen(
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
+            onFeedback = onFeedback,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -220,6 +231,7 @@ private fun TemplateBrowserScreen(
 private fun MeScreen(
     selectedNavigation: Int,
     onConversationLog: () -> Unit,
+    onFeedback: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
 ) {
     Column(
@@ -257,6 +269,7 @@ private fun MeScreen(
                 title = stringResource(R.string.feedback),
                 subtitle = stringResource(R.string.feedback_subtitle),
                 trailing = stringResource(R.string.module_new),
+                onClick = onFeedback,
             )
             ModuleRow(
                 icon = ModuleIcon.Edit,
@@ -564,6 +577,168 @@ private fun EmptyTasksCard() {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.Center).padding(top = 86.dp),
         )
+    }
+}
+
+@Composable
+private fun FeedbackScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        SecondaryHeader(
+            title = stringResource(R.string.feedback),
+            backDescription = stringResource(R.string.back_to_me_description),
+            onBack = onBack,
+        )
+        Spacer(Modifier.height(30.dp))
+        FeedbackPromptCard()
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FeedbackMediaButton(
+                label = stringResource(R.string.take_photo),
+                primary = false,
+                modifier = Modifier.weight(1f),
+            )
+            FeedbackMediaButton(
+                label = stringResource(R.string.library),
+                primary = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        FeedbackInputBox()
+        Spacer(Modifier.weight(1f))
+        FeedbackSubmitButton()
+    }
+}
+
+@Composable
+private fun FeedbackPromptCard() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(154.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(Brush.radialGradient(listOf(Color(0xB4161830), Color(0xEA090A13))))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatPink.copy(alpha = 0.75f), AchatCyan.copy(alpha = 0.55f))),
+                RoundedCornerShape(4.dp),
+            )
+            .padding(14.dp),
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val corner = 24.dp.toPx()
+            drawLine(AchatPink, Offset.Zero, Offset(corner, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset.Zero, Offset(0f, corner), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width - corner, 0f), Offset(size.width, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width, size.height - corner), Offset(size.width, size.height), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width - corner, size.height), Offset(size.width, size.height), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+        }
+        Column(modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 8.dp)) {
+            Text(
+                text = stringResource(R.string.feedback_prompt_title),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.feedback_prompt_body),
+                color = AchatMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 14.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeedbackMediaButton(
+    label: String,
+    primary: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val background = if (primary) {
+        Brush.horizontalGradient(listOf(Color(0xFF7D55E9), AchatPink))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xCF0B1422), Color(0xCF090C17)))
+    }
+    Row(
+        modifier = modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(background)
+            .border(
+                1.dp,
+                if (primary) Color.White.copy(alpha = 0.12f) else AchatCyan.copy(alpha = 0.45f),
+                RoundedCornerShape(6.dp),
+            )
+            .clickable { },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        DiamondIcon(9.dp)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun FeedbackInputBox() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(112.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xD40B1020))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .padding(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.feedback_input_placeholder),
+            color = AchatMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun FeedbackSubmitButton() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF2FDDF3), Color(0xFF7952E8), AchatPink)))
+            .clickable { },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.submit_feedback),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text("✦", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 

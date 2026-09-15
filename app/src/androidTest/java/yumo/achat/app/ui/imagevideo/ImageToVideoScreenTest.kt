@@ -105,6 +105,22 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun feedbackOpensFeedbackForm() {
+        composeRule.onNodeWithText("ME").performClick()
+        composeRule.onNodeWithText("Feedback").performClick()
+
+        composeRule.onNodeWithText("Feedback").assertIsDisplayed()
+        composeRule.onNodeWithText("Tell us what feels off").assertIsDisplayed()
+        composeRule.onNodeWithText("Take Photo").assertIsDisplayed()
+        composeRule.onNodeWithText("Library").assertIsDisplayed()
+        composeRule.onNodeWithText("Describe what happened...").assertIsDisplayed()
+        composeRule.onNodeWithText("Submit Feedback").assertIsDisplayed()
+
+        composeRule.onNodeWithContentDescription("Back to me").performClick()
+        composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 
