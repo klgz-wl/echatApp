@@ -231,7 +231,7 @@ private fun RoundArrow(up: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun TemplateButton() {
+internal fun TemplateButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -241,7 +241,8 @@ internal fun TemplateButton() {
                 Brush.horizontalGradient(
                     listOf(Color(0xFF21D9F2), Color(0xFF7952E8), AchatPink),
                 ),
-            ),
+            )
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -255,6 +256,184 @@ internal fun TemplateButton() {
         DiamondIcon(11.dp)
         Spacer(Modifier.width(5.dp))
         Text("22", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
+    val selectedTemplateDescription = stringResource(R.string.selected_template_description)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xEE080A13))
+            .border(1.dp, AchatPink.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+            .semantics { contentDescription = selectedTemplateDescription },
+    ) {
+        Image(
+            painter = painterResource(R.drawable.hero_portrait),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xF0070710), Color.Transparent, Color(0xF0070710)),
+                    ),
+                ),
+        )
+        FrameCorners()
+        Text(
+            text = stringResource(R.string.template_ratio),
+            color = AchatCyan,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 9.dp, end = 10.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(Color(0x99080B12))
+                .border(1.dp, AchatCyan.copy(alpha = 0.45f), RoundedCornerShape(11.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+@Composable
+internal fun PhotoUploadPanel(modifier: Modifier = Modifier) {
+    val photoPickerDescription = stringResource(R.string.photo_picker_description)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xF0121727), Color(0xF6080A13)),
+                ),
+            )
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.65f), AchatPink.copy(alpha = 0.62f))),
+                RoundedCornerShape(8.dp),
+            )
+            .padding(1.dp)
+            .semantics { contentDescription = photoPickerDescription },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(AchatPink.copy(alpha = 0.18f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, size.height * 0.08f),
+                    radius = size.minDimension * 0.55f,
+                ),
+                radius = size.minDimension * 0.55f,
+                center = Offset(size.width * 0.5f, size.height * 0.08f),
+            )
+        }
+        Column(
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            PhotoGlyph(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xD60C1625))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
+                    .padding(13.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.upload_photo_prompt),
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+                letterSpacing = 0.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.supported_upload_formats),
+                color = AchatCyan.copy(alpha = 0.75f),
+                fontSize = 9.sp,
+                letterSpacing = 0.sp,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun UploadActions() {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        UploadActionButton(
+            label = stringResource(R.string.choose_photo),
+            modifier = Modifier.weight(1f),
+            primary = false,
+        )
+        UploadActionButton(
+            label = stringResource(R.string.continue_action),
+            modifier = Modifier.weight(1.15f),
+            primary = true,
+        )
+    }
+}
+
+@Composable
+private fun UploadActionButton(label: String, primary: Boolean, modifier: Modifier = Modifier) {
+    val background = if (primary) {
+        Brush.horizontalGradient(listOf(Color(0xFF784CE8), AchatPink, Color(0xFF42DDF4)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFF11192A), Color(0xFF101420)))
+    }
+    Row(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(6.dp))
+            .background(background)
+            .border(
+                1.dp,
+                if (primary) Color.White.copy(alpha = 0.12f) else AchatCyan.copy(alpha = 0.45f),
+                RoundedCornerShape(6.dp),
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.sp,
+        )
+    }
+}
+
+@Composable
+internal fun BackGlyph(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round)
+        drawCircle(Color(0xB20A111C), radius = size.minDimension * 0.48f, center = center)
+        drawCircle(AchatCyan.copy(alpha = 0.35f), radius = size.minDimension * 0.48f, center = center, style = stroke)
+        drawLine(AchatCyan, Offset(size.width * 0.62f, size.height * 0.26f), Offset(size.width * 0.36f, size.height * 0.5f), 1.8.dp.toPx(), StrokeCap.Round)
+        drawLine(AchatCyan, Offset(size.width * 0.36f, size.height * 0.5f), Offset(size.width * 0.62f, size.height * 0.74f), 1.8.dp.toPx(), StrokeCap.Round)
+    }
+}
+
+@Composable
+private fun PhotoGlyph(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
+        drawRoundRect(
+            color = AchatCyan,
+            size = size,
+            cornerRadius = CornerRadius(4.dp.toPx()),
+            style = stroke,
+        )
+        drawCircle(AchatCyan, size.width * 0.08f, Offset(size.width * 0.7f, size.height * 0.3f))
+        drawLine(AchatCyan, Offset(size.width * 0.16f, size.height * 0.72f), Offset(size.width * 0.4f, size.height * 0.48f), 2.dp.toPx())
+        drawLine(AchatCyan, Offset(size.width * 0.4f, size.height * 0.48f), Offset(size.width * 0.82f, size.height * 0.78f), 2.dp.toPx())
     }
 }
 

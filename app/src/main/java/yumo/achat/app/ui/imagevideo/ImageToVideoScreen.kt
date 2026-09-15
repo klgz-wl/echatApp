@@ -3,6 +3,7 @@ package yumo.achat.app.ui.imagevideo
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -33,6 +35,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,12 +50,18 @@ import yumo.achat.app.ui.theme.AchatTheme
 
 private const val TotalTemplateCount = 109
 
+private enum class ImageToVideoDestination {
+    Templates,
+    UploadPhoto,
+}
+
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(false) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
+    var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
 
     Box(
         modifier = modifier
@@ -63,35 +73,164 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             ),
     ) {
         BackgroundGlow()
-        Column(
+        when (destination) {
+            ImageToVideoDestination.Templates -> {
+                TemplateBrowserScreen(
+                    selectedTab = selectedTab,
+                    currentTemplate = currentTemplate,
+                    isPlaying = isPlaying,
+                    selectedNavigation = selectedNavigation,
+                    onTabSelect = { selectedTab = it },
+                    onPlayToggle = { isPlaying = !isPlaying },
+                    onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
+                    onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
+                    onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
+                    onNavigationSelect = { selectedNavigation = it },
+                )
+            }
+
+            ImageToVideoDestination.UploadPhoto -> {
+                UploadPhotoScreen(
+                    selectedNavigation = selectedNavigation,
+                    onBack = { destination = ImageToVideoDestination.Templates },
+                    onNavigationSelect = { selectedNavigation = it },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemplateBrowserScreen(
+    selectedTab: Int,
+    currentTemplate: Int,
+    isPlaying: Boolean,
+    selectedNavigation: Int,
+    onTabSelect: (Int) -> Unit,
+    onPlayToggle: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onUseTemplate: () -> Unit,
+    onNavigationSelect: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Header()
+        Spacer(Modifier.height(8.dp))
+        CategoryTabs(selectedTab = selectedTab, onSelect = onTabSelect)
+        Spacer(Modifier.height(7.dp))
+        HeroCard(
+            currentPage = currentTemplate,
+            totalPages = TotalTemplateCount,
+            isPlaying = isPlaying,
+            onPlayToggle = onPlayToggle,
+            onPrevious = onPrevious,
+            onNext = onNext,
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Header()
-            Spacer(Modifier.height(8.dp))
-            CategoryTabs(selectedTab = selectedTab, onSelect = { selectedTab = it })
-            Spacer(Modifier.height(7.dp))
-            HeroCard(
-                currentPage = currentTemplate,
-                totalPages = TotalTemplateCount,
-                isPlaying = isPlaying,
-                onPlayToggle = { isPlaying = !isPlaying },
-                onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
-                onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
+                .fillMaxWidth()
+                .weight(1f),
+        )
+        Spacer(Modifier.height(12.dp))
+        TemplateButton(onClick = onUseTemplate)
+        Spacer(Modifier.height(12.dp))
+        BottomNavigation(
+            selectedIndex = selectedNavigation,
+            onSelect = onNavigationSelect,
+        )
+    }
+}
+
+@Composable
+private fun UploadPhotoScreen(
+    selectedNavigation: Int,
+    onBack: () -> Unit,
+    onNavigationSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        UploadPhotoHeader(onBack = onBack)
+        Spacer(Modifier.height(22.dp))
+        Text(
+            text = stringResource(R.string.template_preview_heading),
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(7.dp))
+        TemplatePreviewPanel(Modifier.fillMaxWidth().height(132.dp))
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.template_upload_heading),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(8.dp))
+        PhotoUploadPanel(Modifier.fillMaxWidth().weight(1f))
+        Spacer(Modifier.height(10.dp))
+        UploadActions()
+        Spacer(Modifier.height(12.dp))
+        BottomNavigation(
+            selectedIndex = selectedNavigation,
+            onSelect = onNavigationSelect,
+        )
+    }
+}
+
+@Composable
+private fun UploadPhotoHeader(onBack: () -> Unit) {
+    val backDescription = stringResource(R.string.back_to_templates_description)
+    val balanceDescription = stringResource(R.string.balance_panel_description)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x78101524))
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BackGlyph(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                    .size(28.dp)
+                    .semantics { contentDescription = backDescription }
+                    .clickable(onClick = onBack),
             )
-            Spacer(Modifier.height(12.dp))
-            TemplateButton()
-            Spacer(Modifier.height(12.dp))
-            BottomNavigation(
-                selectedIndex = selectedNavigation,
-                onSelect = { selectedNavigation = it },
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = stringResource(R.string.upload_photo_title),
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
             )
+        }
+        Row(
+            modifier = Modifier
+                .height(30.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
+                .background(Color(0xB20A111C))
+                .padding(horizontal = 11.dp)
+                .semantics { contentDescription = balanceDescription },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DiamondIcon(11.dp)
+            Spacer(Modifier.width(6.dp))
+            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
