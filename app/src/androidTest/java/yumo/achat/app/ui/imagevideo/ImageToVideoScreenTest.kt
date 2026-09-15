@@ -79,6 +79,17 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun imageTemplateOpensUploadPhotoScreenWithImageNavigationSelected() {
+        composeRule.onNodeWithText("IMAGE").performClick()
+        composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
+
+        composeRule.onNodeWithText("Upload photo").assertIsDisplayed()
+        composeRule.onNodeWithText("TEMPLATE PREVIEW").assertIsDisplayed()
+        composeRule.onNodeWithText("YOUR PHOTO").assertIsDisplayed()
+        composeRule.onNodeWithText("IMAGE").assertIsSelected()
+    }
+
+    @Test
     fun backFromUploadPhotoReturnsToTemplateBrowser() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
         composeRule.onNodeWithContentDescription("Back to templates").performClick()
