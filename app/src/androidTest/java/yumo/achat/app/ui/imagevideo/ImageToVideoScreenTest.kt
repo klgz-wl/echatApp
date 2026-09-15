@@ -93,6 +93,18 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun conversationLogOpensMyTasksEmptyState() {
+        composeRule.onNodeWithText("ME").performClick()
+        composeRule.onNodeWithText("Conversation Log").performClick()
+
+        composeRule.onNodeWithText("My Tasks").assertIsDisplayed()
+        composeRule.onNodeWithText("NO TASKA YES").assertIsDisplayed()
+
+        composeRule.onNodeWithContentDescription("Back to me").performClick()
+        composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
+    }
+
+    @Test
     fun useTemplateOpensUploadPhotoScreen() {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
 

@@ -49,6 +49,9 @@
     <string name="module_new">NEW</string>
     <string name="edit_name">Edit Name</string>
     <string name="edit_name_subtitle">Update your companion style</string>
+    <string name="my_tasks_title">My Tasks</string>
+    <string name="back_to_me_description">Back to me</string>
+    <string name="no_tasks_empty">NO TASKA YES</string>
     <string name="nav_video">VIDEO</string>
     <string name="nav_image">IMAGE</string>
     <string name="nav_top_up">TOP UP</string>

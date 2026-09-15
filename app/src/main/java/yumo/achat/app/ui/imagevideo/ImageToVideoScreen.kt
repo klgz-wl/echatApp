@@ -31,9 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -54,6 +58,7 @@ private const val TotalTemplateCount = 109
 private enum class ImageToVideoDestination {
     Templates,
     UploadPhoto,
+    MyTasks,
 }
 
 private enum class TemplateSection {
@@ -108,6 +113,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
                     onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
                     onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
+                    onConversationLog = { destination = ImageToVideoDestination.MyTasks },
                     onNavigationSelect = { selectedNavigation = it },
                     selectedCreditPack = selectedCreditPack,
                     onCreditPackSelect = { selectedCreditPack = it },
@@ -119,6 +125,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     selectedNavigation = selectedNavigation,
                     onBack = { destination = ImageToVideoDestination.Templates },
                     onNavigationSelect = { selectedNavigation = it },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            ImageToVideoDestination.MyTasks -> {
+                MyTasksScreen(
+                    onBack = { destination = ImageToVideoDestination.Templates },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -138,6 +151,7 @@ private fun TemplateBrowserScreen(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onUseTemplate: () -> Unit,
+    onConversationLog: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onCreditPackSelect: (Int) -> Unit,
 ) {
@@ -157,6 +171,7 @@ private fun TemplateBrowserScreen(
     if (selectedNavigation == 3) {
         MeScreen(
             selectedNavigation = selectedNavigation,
+            onConversationLog = onConversationLog,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -204,6 +219,7 @@ private fun TemplateBrowserScreen(
 @Composable
 private fun MeScreen(
     selectedNavigation: Int,
+    onConversationLog: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
 ) {
     Column(
@@ -234,6 +250,7 @@ private fun MeScreen(
                 title = stringResource(R.string.conversation_log),
                 subtitle = stringResource(R.string.conversation_log_subtitle),
                 trailing = stringResource(R.string.module_count, 108),
+                onClick = onConversationLog,
             )
             ModuleRow(
                 icon = ModuleIcon.Feedback,
@@ -355,6 +372,7 @@ private fun ModuleRow(
     title: String,
     subtitle: String,
     trailing: String? = null,
+    onClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -363,7 +381,7 @@ private fun ModuleRow(
             .clip(RoundedCornerShape(5.dp))
             .background(Color(0xBA090D19))
             .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(5.dp))
-            .clickable { }
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -414,14 +432,14 @@ private fun ModuleGlyph(icon: ModuleIcon) {
             .border(1.dp, tint.copy(alpha = 0.38f), RoundedCornerShape(4.dp))
             .padding(7.dp),
     ) {
-        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(1.6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        val stroke = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round)
         when (icon) {
             ModuleIcon.Chat -> {
                 drawRoundRect(
                     color = tint,
                     topLeft = Offset(size.width * 0.08f, size.height * 0.14f),
-                    size = androidx.compose.ui.geometry.Size(size.width * 0.74f, size.height * 0.56f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
+                    size = Size(size.width * 0.74f, size.height * 0.56f),
+                    cornerRadius = CornerRadius(2.dp.toPx()),
                     style = stroke,
                 )
                 drawLine(tint, Offset(size.width * 0.34f, size.height * 0.7f), Offset(size.width * 0.24f, size.height * 0.9f), 1.6.dp.toPx())
@@ -437,6 +455,115 @@ private fun ModuleGlyph(icon: ModuleIcon) {
                 drawLine(tint, Offset(size.width * 0.18f, size.height * 0.82f), Offset(size.width * 0.4f, size.height * 0.78f), 1.4.dp.toPx())
             }
         }
+    }
+}
+
+@Composable
+private fun MyTasksScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        SecondaryHeader(
+            title = stringResource(R.string.my_tasks_title),
+            backDescription = stringResource(R.string.back_to_me_description),
+            onBack = onBack,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            EmptyTasksCard()
+        }
+    }
+}
+
+@Composable
+private fun SecondaryHeader(
+    title: String,
+    backDescription: String,
+    onBack: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(42.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x78101524))
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BackGlyph(
+            modifier = Modifier
+                .size(26.dp)
+                .semantics { contentDescription = backDescription }
+                .clickable(onClick = onBack),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun EmptyTasksCard() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(Brush.radialGradient(listOf(Color(0xA61A1433), Color(0xEA080A13))))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatPink.copy(alpha = 0.72f), AchatCyan.copy(alpha = 0.64f))),
+                RoundedCornerShape(4.dp),
+            ),
+    ) {
+        Canvas(Modifier.fillMaxSize().padding(2.dp)) {
+            val stroke = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
+            val corner = 25.dp.toPx()
+            drawLine(AchatPink, Offset.Zero, Offset(corner, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset.Zero, Offset(0f, corner), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width - corner, 0f), Offset(size.width, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width, 0f), Offset(size.width, corner), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.05f),
+                topLeft = Offset(size.width * 0.16f, size.height * 0.14f),
+                size = Size(size.width * 0.68f, size.height * 0.62f),
+                cornerRadius = CornerRadius(4.dp.toPx()),
+                style = stroke,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0x99111224))
+                .border(1.dp, AchatPink.copy(alpha = 0.48f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            DiamondIcon(21.dp)
+        }
+        Text(
+            text = stringResource(R.string.no_tasks_empty),
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.Center).padding(top = 86.dp),
+        )
     }
 }
 
