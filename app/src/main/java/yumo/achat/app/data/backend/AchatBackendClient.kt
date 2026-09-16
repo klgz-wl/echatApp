@@ -13,7 +13,7 @@ class AchatBackendClient(
         deviceId: String,
         packageName: String = BuildConfig.APPLICATION_ID,
         platform: String = "android",
-        version: String = BuildConfig.VERSION_NAME,
+        version: String = BuildConfig.ACHAT_CLIENT_VERSION,
     ): AuthSession {
         val body = JSONObject()
             .put("device_id", deviceId)

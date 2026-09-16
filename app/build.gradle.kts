@@ -17,6 +17,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
         buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
+        buildConfigField("String", "ACHAT_CLIENT_VERSION", "\"2.0.0\"")
     }
 
     buildTypes {
