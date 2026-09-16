@@ -14,6 +14,8 @@
     <string name="template_page_count">%1$d/%2$d</string>
     <string name="template_duration">%1$ds</string>
     <string name="template_quality">%1$s</string>
+    <string name="template_feed_start">Already at the first template</string>
+    <string name="template_feed_end">No more templates</string>
     <string name="use_this_template">USE THIS TEMPLATE</string>
     <string name="upload_photo_title">Upload photo</string>
     <string name="back_to_templates_description">Back to templates</string>

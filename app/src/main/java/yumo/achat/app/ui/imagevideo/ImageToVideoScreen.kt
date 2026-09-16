@@ -140,7 +140,32 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
     var isLoadingTaskHistory by remember { mutableStateOf(false) }
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
+    var templateEdgeHintRes by remember { mutableStateOf<Int?>(null) }
+    var templateEdgeHintSerial by remember { mutableIntStateOf(0) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
+    val templateEdgeHint = templateEdgeHintRes?.let { stringResource(it) }
+
+    fun showTemplateEdgeHint(direction: TemplateFeedDirection) {
+        templateEdgeHintRes = when (direction) {
+            TemplateFeedDirection.Previous -> R.string.template_feed_start
+            TemplateFeedDirection.Next -> R.string.template_feed_end
+        }
+        templateEdgeHintSerial += 1
+    }
+
+    fun moveTemplate(direction: TemplateFeedDirection, totalItems: Int) {
+        val result = moveTemplateFeedIndex(
+            currentIndex = currentTemplate,
+            totalItems = totalItems,
+            direction = direction,
+        )
+        currentTemplate = result.index
+        if (result.reachedEdge) {
+            showTemplateEdgeHint(direction)
+        } else {
+            templateEdgeHintRes = null
+        }
+    }
 
     LaunchedEffect(context) {
         backendState = backendState.copy(isLoading = true, errorMessage = null)
@@ -185,6 +210,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         isLoadingTaskHistory = false
     }
 
+    LaunchedEffect(templateEdgeHintSerial) {
+        if (templateEdgeHintRes != null) {
+            delay(1_600)
+            templateEdgeHintRes = null
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -205,10 +237,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onTabSelect = {
                         selectedTab = it
                         currentTemplate = 1
+                        templateEdgeHintRes = null
                     },
                     onPlayToggle = { isPlaying = !isPlaying },
-                    onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
-                    onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
+                    onMoveTemplate = ::moveTemplate,
                     onUseTemplate = { template ->
                         selectedGenerationTemplate = template
                         destination = ImageToVideoDestination.UploadPhoto
@@ -219,6 +251,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNavigationSelect = { selectedNavigation = it },
                     selectedCreditPack = selectedCreditPack,
                     onCreditPackSelect = { selectedCreditPack = it },
+                    edgeHint = templateEdgeHint,
                     backendState = backendState,
                 )
             }
@@ -305,14 +338,14 @@ private fun TemplateBrowserScreen(
     selectedCreditPack: Int,
     onTabSelect: (Int) -> Unit,
     onPlayToggle: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
+    onMoveTemplate: (TemplateFeedDirection, Int) -> Unit,
     onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onCreditPackSelect: (Int) -> Unit,
+    edgeHint: String?,
     backendState: AchatBackendUiState,
 ) {
     if (selectedNavigation == 2) {
@@ -357,6 +390,7 @@ private fun TemplateBrowserScreen(
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
     val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
+    val navigationTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
     val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
     val visiblePrice = selectedTemplate?.displayPrice ?: 22
     val selectedGenerationTemplate = selectedTemplate?.let { template ->
@@ -395,8 +429,9 @@ private fun TemplateBrowserScreen(
             previewMedia = selectedTemplate.toPreviewMedia(),
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
-            onPrevious = onPrevious,
-            onNext = onNext,
+            onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous, navigationTotal) },
+            onNext = { onMoveTemplate(TemplateFeedDirection.Next, navigationTotal) },
+            edgeHint = edgeHint,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),

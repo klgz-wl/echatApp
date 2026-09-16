@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -63,6 +65,7 @@ internal fun HeroCard(
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    edgeHint: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val portraitDescription = stringResource(R.string.template_portrait_description)
@@ -71,6 +74,24 @@ internal fun HeroCard(
     )
     Box(
         modifier = modifier
+            .pointerInput(onPrevious, onNext) {
+                var totalDrag = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { totalDrag = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        totalDrag += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        when {
+                            totalDrag < -80f -> onNext()
+                            totalDrag > 80f -> onPrevious()
+                        }
+                        totalDrag = 0f
+                    },
+                    onDragCancel = { totalDrag = 0f },
+                )
+            }
             .clip(RoundedCornerShape(2.dp))
             .background(AchatSurface)
             .border(
@@ -126,6 +147,21 @@ internal fun HeroCard(
             durationSeconds = durationSeconds,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
         )
+        if (!edgeHint.isNullOrBlank()) {
+            Text(
+                text = edgeHint,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 14.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xB8080A13))
+                    .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+            )
+        }
     }
 }
 
