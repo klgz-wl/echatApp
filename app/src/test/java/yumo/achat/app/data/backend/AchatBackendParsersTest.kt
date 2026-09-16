@@ -30,6 +30,30 @@ class AchatBackendParsersTest {
     }
 
     @Test
+    fun `parse auth session when session id is omitted`() {
+        val session = AchatBackendParsers.parseAuthSession(
+            """
+            {
+              "code": 0,
+              "message": "success",
+              "data": {
+                "user_id": "user-1",
+                "token": "access-token",
+                "refresh_token": "refresh-token",
+                "is_anonymous": true
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("user-1", session.userId)
+        assertEquals("access-token", session.token)
+        assertEquals("refresh-token", session.refreshToken)
+        assertEquals("", session.sessionId)
+        assertEquals(true, session.isAnonymous)
+    }
+
+    @Test
     fun `parse templates sorted by hot score`() {
         val templates = AchatBackendParsers.parseTemplates(
             """

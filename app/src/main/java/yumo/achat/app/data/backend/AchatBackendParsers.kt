@@ -9,7 +9,7 @@ object AchatBackendParsers {
             userId = data.getString("user_id"),
             token = data.getString("token"),
             refreshToken = data.getString("refresh_token"),
-            sessionId = data.getString("session_id"),
+            sessionId = data.optNullableString("session_id") ?: "",
             isAnonymous = data.optBoolean("is_anonymous", true),
         )
     }
