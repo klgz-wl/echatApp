@@ -64,6 +64,12 @@ class AchatRepository(
         )
     }
 
+    suspend fun getVisualGenerationTask(taskId: String): VisualGenerationTask = withContext(Dispatchers.IO) {
+        require(taskId.isNotBlank()) { "Task id is required" }
+        val session = ensureSession()
+        client.visualGenerationTask(session.token, taskId)
+    }
+
     private fun ensureSession(): AuthSession =
         sessionStore.readSession() ?: client
             .anonymousLogin(sessionStore.deviceId())

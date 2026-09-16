@@ -31,6 +31,9 @@
     <string name="upload_failed">Upload failed</string>
     <string name="live_template_required">Live template is required</string>
     <string name="task_created">Task %1$s · %2$s</string>
+    <string name="task_status">Task %1$s · %2$s</string>
+    <string name="task_succeeded">Task %1$s succeeded</string>
+    <string name="task_failed">Task failed: %1$s</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
     <string name="system_credits">SYSTEM CREDITS</string>

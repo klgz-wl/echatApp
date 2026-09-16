@@ -94,6 +94,11 @@ class AchatBackendClient(
         return AchatBackendParsers.parseVisualGenerationTask(response)
     }
 
+    fun visualGenerationTask(token: String, taskId: String): VisualGenerationTask =
+        AchatBackendParsers.parseVisualGenerationTask(
+            get("/api/v1/visual-generation/tasks/$taskId", token),
+        )
+
     private fun get(path: String, token: String): String =
         request(
             path = path,

@@ -54,10 +54,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import yumo.achat.app.R
 import yumo.achat.app.data.backend.AchatRepository
+import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.app.data.backend.isVisualGenerationFinished
+import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatDeepNavy
 import yumo.achat.app.ui.theme.AchatMuted
@@ -1200,16 +1204,43 @@ private fun UploadPhotoScreen(
     val scope = rememberCoroutineScope()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }
+    var currentTask by remember { mutableStateOf<VisualGenerationTask?>(null) }
     var uploadInProgress by remember { mutableStateOf(false) }
     var uploadMessage by remember { mutableStateOf<String?>(null) }
     val chooseFirstMessage = stringResource(R.string.upload_choose_first)
     val liveTemplateRequired = stringResource(R.string.live_template_required)
     val taskCreatedPattern = stringResource(R.string.task_created)
+    val taskStatusPattern = stringResource(R.string.task_status)
+    val taskSucceededPattern = stringResource(R.string.task_succeeded)
+    val taskFailedPattern = stringResource(R.string.task_failed)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
     val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         selectedImageUri = uri
         uploadedResourceId = null
+        currentTask = null
         uploadMessage = null
+    }
+
+    LaunchedEffect(currentTask?.taskId, currentTask?.status) {
+        val task = currentTask ?: return@LaunchedEffect
+        if (isVisualGenerationFinished(task.status)) {
+            uploadMessage = if (task.status == "succeeded") {
+                taskSucceededPattern.format(task.taskId.take(8))
+            } else {
+                taskFailedPattern.format(task.errorMessage ?: task.status)
+            }
+            return@LaunchedEffect
+        }
+
+        uploadMessage = taskStatusPattern.format(task.taskId.take(8), task.status)
+        delay(visualGenerationPollIntervalSeconds(task.estimatedPollIntervalSeconds) * 1_000L)
+        runCatching {
+            repository.getVisualGenerationTask(task.taskId)
+        }.onSuccess { updatedTask ->
+            currentTask = updatedTask
+        }.onFailure { error ->
+            uploadMessage = error.message ?: uploadFailedMessage
+        }
     }
 
     Column(
@@ -1271,9 +1302,10 @@ private fun UploadPhotoScreen(
                             quality = template.quality,
                             resourceId = resourceId,
                         )
-                    }.onSuccess { task ->
-                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
-                    }.onFailure { error ->
+	                    }.onSuccess { task ->
+	                        currentTask = task
+	                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
+	                    }.onFailure { error ->
                         uploadMessage = error.message ?: uploadFailedMessage
                     }
                     uploadInProgress = false
