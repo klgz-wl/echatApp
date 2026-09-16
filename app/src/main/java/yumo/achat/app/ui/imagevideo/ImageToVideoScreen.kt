@@ -297,6 +297,7 @@ private fun TemplateBrowserScreen(
             currentPage = visibleTemplatePage,
             totalPages = visibleTemplateTotal,
             durationSeconds = visibleDuration,
+            previewMedia = selectedTemplate.toPreviewMedia(),
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
             onPrevious = onPrevious,

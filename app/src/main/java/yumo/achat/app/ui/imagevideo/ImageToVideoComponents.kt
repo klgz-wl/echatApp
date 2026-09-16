@@ -47,6 +47,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import yumo.achat.app.R
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatPink
@@ -57,6 +58,7 @@ internal fun HeroCard(
     currentPage: Int,
     totalPages: Int,
     durationSeconds: Int,
+    previewMedia: TemplatePreviewMedia = TemplatePreviewMedia.LocalPlaceholder,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
@@ -77,10 +79,9 @@ internal fun HeroCard(
                 RoundedCornerShape(2.dp),
             ),
     ) {
-        Image(
-            painter = painterResource(R.drawable.hero_portrait),
+        TemplatePreviewImage(
+            media = previewMedia,
             contentDescription = portraitDescription,
-            contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
@@ -125,6 +126,36 @@ internal fun HeroCard(
             durationSeconds = durationSeconds,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
         )
+    }
+}
+
+@Composable
+private fun TemplatePreviewImage(
+    media: TemplatePreviewMedia,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    val placeholder = painterResource(R.drawable.hero_portrait)
+    when (media) {
+        TemplatePreviewMedia.LocalPlaceholder -> {
+            Image(
+                painter = placeholder,
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                modifier = modifier,
+            )
+        }
+
+        is TemplatePreviewMedia.RemoteImage -> {
+            AsyncImage(
+                model = media.url,
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                placeholder = placeholder,
+                error = placeholder,
+                modifier = modifier,
+            )
+        }
     }
 }
 
