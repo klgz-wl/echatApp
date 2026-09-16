@@ -236,7 +236,10 @@ private fun TemplatePreviewVideo(
 ) {
     val context = LocalContext.current
     val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context))
+            .build()
+            .apply {
             repeatMode = Player.REPEAT_MODE_ONE
             setMediaItem(MediaItem.fromUri(url))
             prepare()

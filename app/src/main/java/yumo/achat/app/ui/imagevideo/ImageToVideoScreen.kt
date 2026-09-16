@@ -59,8 +59,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import yumo.achat.app.R
 import yumo.achat.app.data.backend.AchatRepository
 import yumo.achat.app.data.backend.VisualCategory
@@ -388,6 +390,11 @@ private fun TemplateBrowserScreen(
     val navigationTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
     val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
     val visiblePrice = selectedTemplate?.displayPrice ?: 22
+    val nearbyVideoUrls = if (section == TemplateSection.Video) {
+        templates.nearbyVideoPreviewUrls(selectedTemplateIndex)
+    } else {
+        emptyList()
+    }
     val selectedGenerationTemplate = selectedTemplate?.let { template ->
         SelectedGenerationTemplate(
             templateId = template.id,
@@ -396,6 +403,7 @@ private fun TemplateBrowserScreen(
             title = template.name,
         )
     }
+    TemplateVideoPreloader(urls = nearbyVideoUrls)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -440,6 +448,18 @@ private fun TemplateBrowserScreen(
                 onTabSelect(0)
             },
         )
+    }
+}
+
+@Composable
+private fun TemplateVideoPreloader(urls: List<String>) {
+    val context = LocalContext.current
+    LaunchedEffect(urls) {
+        if (urls.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                TemplateVideoCache.preload(context, urls)
+            }
+        }
     }
 }
 
