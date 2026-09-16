@@ -1,5 +1,9 @@
 package yumo.achat.app.ui.imagevideo
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import yumo.achat.app.R
 import yumo.achat.app.data.backend.AchatRepository
 import yumo.achat.app.data.backend.VisualTemplate
@@ -1167,6 +1173,21 @@ private fun UploadPhotoScreen(
     diamondBalance: Int,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val repository = remember(appContext) { AchatRepository(appContext) }
+    val scope = rememberCoroutineScope()
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var uploadInProgress by remember { mutableStateOf(false) }
+    var uploadMessage by remember { mutableStateOf<String?>(null) }
+    val chooseFirstMessage = stringResource(R.string.upload_choose_first)
+    val uploadSuccessPattern = stringResource(R.string.upload_success)
+    val uploadFailedMessage = stringResource(R.string.upload_failed)
+    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        selectedImageUri = uri
+        uploadMessage = null
+    }
+
     Column(
         modifier = modifier
             .statusBarsPadding()
@@ -1191,9 +1212,37 @@ private fun UploadPhotoScreen(
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(8.dp))
-        PhotoUploadPanel(Modifier.fillMaxWidth().weight(1f))
+        PhotoUploadPanel(
+            selectedImage = selectedImageUri,
+            uploadMessage = uploadMessage,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        )
         Spacer(Modifier.height(10.dp))
-        UploadActions()
+        UploadActions(
+            uploadInProgress = uploadInProgress,
+            onChoosePhoto = {
+                pickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onContinue = {
+                val uri = selectedImageUri
+                if (uri == null) {
+                    uploadMessage = chooseFirstMessage
+                    return@UploadActions
+                }
+                uploadInProgress = true
+                uploadMessage = null
+                scope.launch {
+                    runCatching {
+                        repository.uploadSourceImage(uri)
+                    }.onSuccess { resource ->
+                        uploadMessage = uploadSuccessPattern.format(resource.id.take(8))
+                    }.onFailure { error ->
+                        uploadMessage = error.message ?: uploadFailedMessage
+                    }
+                    uploadInProgress = false
+                }
+            },
+        )
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,

@@ -48,6 +48,19 @@ data class VisualTemplate(
         get() = fastPrice ?: qualityPrice
 }
 
+data class VisualResource(
+    val id: String,
+    val taskId: String?,
+    val resourceType: String,
+    val modality: String,
+    val url: String,
+    val thumbnailUrl: String?,
+    val mimeType: String,
+    val width: Int,
+    val height: Int,
+    val durationSeconds: Int,
+)
+
 data class AchatHomeData(
     val session: AuthSession,
     val profile: UserProfile?,

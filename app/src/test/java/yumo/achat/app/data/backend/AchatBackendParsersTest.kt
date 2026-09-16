@@ -111,4 +111,34 @@ class AchatBackendParsersTest {
         assertEquals("3095609813", profile.id)
         assertEquals(42, currency.diamondBalance)
     }
+
+    @Test
+    fun `parse uploaded visual resource`() {
+        val resource = AchatBackendParsers.parseVisualResource(
+            """
+            {
+              "code": 0,
+              "message": "ok",
+              "data": {
+                "id": "resource-1",
+                "task_id": "",
+                "resource_type": "upload",
+                "modality": "image",
+                "url": "https://example.test/upload.webp",
+                "thumbnail_url": "https://example.test/thumb.webp",
+                "mime_type": "image/webp",
+                "width": 720,
+                "height": 1280,
+                "duration": 0
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("resource-1", resource.id)
+        assertEquals("upload", resource.resourceType)
+        assertEquals("image", resource.modality)
+        assertEquals("https://example.test/upload.webp", resource.url)
+        assertEquals("https://example.test/thumb.webp", resource.thumbnailUrl)
+    }
 }

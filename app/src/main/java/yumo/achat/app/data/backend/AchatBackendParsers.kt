@@ -63,6 +63,22 @@ object AchatBackendParsers {
         }.sortedByDescending { it.hotScore }
     }
 
+    fun parseVisualResource(json: String): VisualResource {
+        val data = dataObject(json)
+        return VisualResource(
+            id = data.getString("id"),
+            taskId = data.optNullableString("task_id"),
+            resourceType = data.optNullableString("resource_type") ?: "",
+            modality = data.optNullableString("modality") ?: "",
+            url = data.optNullableString("url") ?: "",
+            thumbnailUrl = data.optNullableString("thumbnail_url"),
+            mimeType = data.optNullableString("mime_type") ?: "",
+            width = data.optInt("width", 0),
+            height = data.optInt("height", 0),
+            durationSeconds = data.optDouble("duration", 0.0).toInt(),
+        )
+    }
+
     private fun dataObject(json: String): JSONObject {
         val root = JSONObject(json)
         val code = root.optInt("code", 0)

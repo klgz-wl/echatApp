@@ -25,6 +25,10 @@
     <string name="supported_upload_formats">JPG, PNG, WEBP. Max 20 MB</string>
     <string name="choose_photo">Choose photo</string>
     <string name="continue_action">CONTINUE</string>
+    <string name="uploading_action">UPLOADING...</string>
+    <string name="upload_choose_first">Choose a photo first</string>
+    <string name="upload_success">Uploaded resource %1$s</string>
+    <string name="upload_failed">Upload failed</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
     <string name="system_credits">SYSTEM CREDITS</string>

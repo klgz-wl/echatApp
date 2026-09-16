@@ -1,9 +1,9 @@
 package yumo.achat.app.data.backend
 
 import org.json.JSONObject
-import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import yumo.achat.app.BuildConfig
 
 class AchatBackendClient(
@@ -45,6 +45,22 @@ class AchatBackendClient(
             get("/api/v1/visual-generation/$modality/templates?page=$page&page_size=$pageSize", token),
         )
 
+    fun uploadVisualResource(token: String, imagePart: MultipartFormData.Part): VisualResource {
+        val boundary = "achat-${UUID.randomUUID()}"
+        val response = request(
+            path = "/api/v1/visual-generation/resources",
+            method = "POST",
+            headers = mapOf(
+                "Authorization" to "Bearer $token",
+                "Content-Type" to "multipart/form-data; boundary=$boundary",
+            ),
+            writeBody = { outputStream ->
+                MultipartFormData.write(outputStream, boundary, imagePart)
+            },
+        )
+        return AchatBackendParsers.parseVisualResource(response)
+    }
+
     private fun get(path: String, token: String): String =
         request(
             path = path,
@@ -57,22 +73,26 @@ class AchatBackendClient(
         method: String,
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
+        writeBody: ((java.io.OutputStream) -> Unit)? = null,
     ): String {
         val connection = (URL(baseUrl.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 15_000
             readTimeout = 20_000
             headers.forEach { (name, value) -> setRequestProperty(name, value) }
-            if (body != null) {
+            if (body != null || writeBody != null) {
                 doOutput = true
             }
         }
 
         try {
             if (body != null) {
-                OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
-                    writer.write(body)
+                connection.outputStream.use { output ->
+                    output.write(body.toByteArray(Charsets.UTF_8))
                 }
+            }
+            writeBody?.let { writer ->
+                connection.outputStream.use(writer)
             }
 
             val responseCode = connection.responseCode

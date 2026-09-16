@@ -337,7 +337,11 @@ internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
 }
 
 @Composable
-internal fun PhotoUploadPanel(modifier: Modifier = Modifier) {
+internal fun PhotoUploadPanel(
+    selectedImage: Any? = null,
+    uploadMessage: String? = null,
+    modifier: Modifier = Modifier,
+) {
     val photoPickerDescription = stringResource(R.string.photo_picker_description)
     Box(
         modifier = modifier
@@ -366,38 +370,71 @@ internal fun PhotoUploadPanel(modifier: Modifier = Modifier) {
                 center = Offset(size.width * 0.5f, size.height * 0.08f),
             )
         }
-        Column(
-            modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            PhotoGlyph(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xD60C1625))
-                    .border(1.dp, AchatCyan.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
-                    .padding(13.dp),
+        if (selectedImage != null) {
+            AsyncImage(
+                model = selectedImage,
+                contentDescription = photoPickerDescription,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
             )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.upload_photo_prompt),
-                color = Color.White.copy(alpha = 0.82f),
-                fontSize = 12.sp,
-                letterSpacing = 0.sp,
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD6080A13)))),
             )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.supported_upload_formats),
-                color = AchatCyan.copy(alpha = 0.75f),
-                fontSize = 9.sp,
-                letterSpacing = 0.sp,
-            )
+            uploadMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 18.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xB2080B12))
+                        .border(1.dp, AchatCyan.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                PhotoGlyph(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xD60C1625))
+                        .border(1.dp, AchatCyan.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
+                        .padding(13.dp),
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.upload_photo_prompt),
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 12.sp,
+                    letterSpacing = 0.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.supported_upload_formats),
+                    color = AchatCyan.copy(alpha = 0.75f),
+                    fontSize = 9.sp,
+                    letterSpacing = 0.sp,
+                )
+            }
         }
     }
 }
 
 @Composable
-internal fun UploadActions() {
+internal fun UploadActions(
+    uploadInProgress: Boolean = false,
+    onChoosePhoto: () -> Unit = {},
+    onContinue: () -> Unit = {},
+) {
     Row(
         modifier = Modifier.fillMaxWidth().height(46.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -406,17 +443,27 @@ internal fun UploadActions() {
             label = stringResource(R.string.choose_photo),
             modifier = Modifier.weight(1f),
             primary = false,
+            enabled = !uploadInProgress,
+            onClick = onChoosePhoto,
         )
         UploadActionButton(
-            label = stringResource(R.string.continue_action),
+            label = stringResource(if (uploadInProgress) R.string.uploading_action else R.string.continue_action),
             modifier = Modifier.weight(1.15f),
             primary = true,
+            enabled = !uploadInProgress,
+            onClick = onContinue,
         )
     }
 }
 
 @Composable
-private fun UploadActionButton(label: String, primary: Boolean, modifier: Modifier = Modifier) {
+private fun UploadActionButton(
+    label: String,
+    primary: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val background = if (primary) {
         Brush.horizontalGradient(listOf(Color(0xFF784CE8), AchatPink, Color(0xFF42DDF4)))
     } else {
@@ -431,13 +478,14 @@ private fun UploadActionButton(label: String, primary: Boolean, modifier: Modifi
                 1.dp,
                 if (primary) Color.White.copy(alpha = 0.12f) else AchatCyan.copy(alpha = 0.45f),
                 RoundedCornerShape(6.dp),
-            ),
+            )
+            .clickable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
             text = label,
-            color = Color.White,
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.62f),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.sp,
