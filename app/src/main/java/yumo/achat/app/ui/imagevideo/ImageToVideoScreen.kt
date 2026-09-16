@@ -2,7 +2,6 @@ package yumo.achat.app.ui.imagevideo
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -1534,7 +1533,7 @@ private fun UploadPhotoScreen(
             uploadInProgress = false
         }
     }
-    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         selectedImageUri = uri
         uploadedResourceId = null
@@ -1543,7 +1542,7 @@ private fun UploadPhotoScreen(
     }
     fun launchPhotoPicker() {
         if (!uploadInProgress) {
-            pickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            pickerLauncher.launch("image/*")
         }
     }
 
