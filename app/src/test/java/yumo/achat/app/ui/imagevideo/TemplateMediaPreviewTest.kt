@@ -15,12 +15,12 @@ class TemplateMediaPreviewTest {
     }
 
     @Test
-    fun `uses local placeholder for video templates`() {
+    fun `uses remote video preview for video templates with urls`() {
         val template = template(mimeType = "video/mp4", fileUrl = "https://example.test/template.mp4")
 
         val media = template.toPreviewMedia()
 
-        assertEquals(TemplatePreviewMedia.LocalPlaceholder, media)
+        assertEquals(TemplatePreviewMedia.RemoteVideo("https://example.test/template.mp4"), media)
     }
 
     @Test

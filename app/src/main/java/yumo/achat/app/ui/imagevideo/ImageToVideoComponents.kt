@@ -23,6 +23,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +39,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -102,6 +111,7 @@ internal fun HeroCard(
     ) {
         TemplatePreviewImage(
             media = previewMedia,
+            isPlaying = isPlaying,
             contentDescription = portraitDescription,
             modifier = Modifier.fillMaxSize(),
         )
@@ -168,6 +178,7 @@ internal fun HeroCard(
 @Composable
 private fun TemplatePreviewImage(
     media: TemplatePreviewMedia,
+    isPlaying: Boolean,
     contentDescription: String?,
     modifier: Modifier = Modifier,
 ) {
@@ -192,7 +203,54 @@ private fun TemplatePreviewImage(
                 modifier = modifier,
             )
         }
+
+        is TemplatePreviewMedia.RemoteVideo -> {
+            TemplatePreviewVideo(
+                url = media.url,
+                isPlaying = isPlaying,
+                modifier = modifier,
+            )
+        }
     }
+}
+
+@Composable
+private fun TemplatePreviewVideo(
+    url: String,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val player = remember(url) {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            setMediaItem(MediaItem.fromUri(url))
+            prepare()
+        }
+    }
+
+    LaunchedEffect(player, isPlaying) {
+        player.playWhenReady = isPlaying
+    }
+
+    DisposableEffect(player) {
+        onDispose {
+            player.release()
+        }
+    }
+
+    AndroidView(
+        factory = { viewContext ->
+            PlayerView(viewContext).apply {
+                useController = false
+                this.player = player
+            }
+        },
+        update = { playerView ->
+            playerView.player = player
+        },
+        modifier = modifier.background(Color.Black),
+    )
 }
 
 @Composable

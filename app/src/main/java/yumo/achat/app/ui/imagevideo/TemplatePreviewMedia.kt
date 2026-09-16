@@ -5,6 +5,7 @@ import yumo.achat.app.data.backend.VisualTemplate
 internal sealed interface TemplatePreviewMedia {
     data object LocalPlaceholder : TemplatePreviewMedia
     data class RemoteImage(val url: String) : TemplatePreviewMedia
+    data class RemoteVideo(val url: String) : TemplatePreviewMedia
 }
 
 internal fun VisualTemplate?.toPreviewMedia(): TemplatePreviewMedia {
@@ -12,9 +13,10 @@ internal fun VisualTemplate?.toPreviewMedia(): TemplatePreviewMedia {
         return TemplatePreviewMedia.LocalPlaceholder
     }
 
-    return if (mimeType.startsWith("image/") && fileUrl.isNotBlank()) {
-        TemplatePreviewMedia.RemoteImage(fileUrl)
-    } else {
-        TemplatePreviewMedia.LocalPlaceholder
+    return when {
+        fileUrl.isBlank() -> TemplatePreviewMedia.LocalPlaceholder
+        mimeType.startsWith("image/") -> TemplatePreviewMedia.RemoteImage(fileUrl)
+        mimeType.startsWith("video/") -> TemplatePreviewMedia.RemoteVideo(fileUrl)
+        else -> TemplatePreviewMedia.LocalPlaceholder
     }
 }
