@@ -23,9 +23,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +50,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import yumo.achat.app.R
+import yumo.achat.app.data.backend.AchatRepository
+import yumo.achat.app.data.backend.VisualTemplate
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatDeepNavy
 import yumo.achat.app.ui.theme.AchatMuted
@@ -68,6 +73,16 @@ private enum class TemplateSection {
     Image,
 }
 
+private data class AchatBackendUiState(
+    val isLoading: Boolean = true,
+    val errorMessage: String? = null,
+    val profileName: String = "Quiet wanderer",
+    val profileId: String = "3095609813",
+    val diamondBalance: Int = 0,
+    val videoTemplates: List<VisualTemplate> = emptyList(),
+    val imageTemplates: List<VisualTemplate> = emptyList(),
+)
+
 private data class CreditPack(
     val credits: Int,
     val validityDays: Int,
@@ -86,12 +101,35 @@ private val CreditPacks = listOf(
 
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current.applicationContext
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(false) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var selectedCreditPack by rememberSaveable { mutableIntStateOf(0) }
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
+    var backendState by remember { mutableStateOf(AchatBackendUiState()) }
+
+    LaunchedEffect(context) {
+        backendState = backendState.copy(isLoading = true, errorMessage = null)
+        runCatching {
+            AchatRepository(context).loadHomeData()
+        }.onSuccess { homeData ->
+            backendState = AchatBackendUiState(
+                isLoading = false,
+                profileName = homeData.profile?.displayName ?: backendState.profileName,
+                profileId = homeData.profile?.id ?: homeData.session.userId,
+                diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
+                videoTemplates = homeData.videoTemplates,
+                imageTemplates = homeData.imageTemplates,
+            )
+        }.onFailure { error ->
+            backendState = backendState.copy(
+                isLoading = false,
+                errorMessage = error.message ?: "Backend unavailable",
+            )
+        }
+    }
 
     Box(
         modifier = modifier
@@ -121,6 +159,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNavigationSelect = { selectedNavigation = it },
                     selectedCreditPack = selectedCreditPack,
                     onCreditPackSelect = { selectedCreditPack = it },
+                    backendState = backendState,
                 )
             }
 
@@ -129,6 +168,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     selectedNavigation = selectedNavigation,
                     onBack = { destination = ImageToVideoDestination.Templates },
                     onNavigationSelect = { selectedNavigation = it },
+                    diamondBalance = backendState.diamondBalance,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -154,6 +194,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         onConversationLog = { destination = ImageToVideoDestination.MyTasks },
                         onFeedback = { destination = ImageToVideoDestination.Feedback },
                         onEditName = {},
+                        profileName = backendState.profileName,
+                        profileId = backendState.profileId,
+                        diamondBalance = backendState.diamondBalance,
                         onNavigationSelect = {
                             destination = ImageToVideoDestination.Templates
                             selectedNavigation = it
@@ -193,12 +236,14 @@ private fun TemplateBrowserScreen(
     onEditName: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onCreditPackSelect: (Int) -> Unit,
+    backendState: AchatBackendUiState,
 ) {
     if (selectedNavigation == 2) {
         TopUpScreen(
             selectedNavigation = selectedNavigation,
             selectedCreditPack = selectedCreditPack,
             onCreditPackSelect = onCreditPackSelect,
+            diamondBalance = backendState.diamondBalance,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -213,6 +258,9 @@ private fun TemplateBrowserScreen(
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
             onEditName = onEditName,
+            profileName = backendState.profileName,
+            profileId = backendState.profileId,
+            diamondBalance = backendState.diamondBalance,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -222,6 +270,13 @@ private fun TemplateBrowserScreen(
     }
 
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
+    val templates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
+    val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
+    val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
+    val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
+    val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
+    val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
+    val visiblePrice = selectedTemplate?.displayPrice ?: 22
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -229,13 +284,19 @@ private fun TemplateBrowserScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Header(section = section)
+        Header(section = section, diamondBalance = backendState.diamondBalance)
         Spacer(Modifier.height(8.dp))
         CategoryTabs(section = section, selectedTab = selectedTab, onSelect = onTabSelect)
+        TemplateBackendStatus(
+            isLoading = backendState.isLoading,
+            errorMessage = backendState.errorMessage,
+            selectedTemplate = selectedTemplate,
+        )
         Spacer(Modifier.height(7.dp))
         HeroCard(
-            currentPage = currentTemplate,
-            totalPages = TotalTemplateCount,
+            currentPage = visibleTemplatePage,
+            totalPages = visibleTemplateTotal,
+            durationSeconds = visibleDuration,
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
             onPrevious = onPrevious,
@@ -245,7 +306,7 @@ private fun TemplateBrowserScreen(
                 .weight(1f),
         )
         Spacer(Modifier.height(12.dp))
-        TemplateButton(onClick = onUseTemplate)
+        TemplateButton(price = visiblePrice, onClick = onUseTemplate)
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
@@ -263,6 +324,9 @@ private fun MeScreen(
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
+    profileName: String,
+    profileId: String,
+    diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
 ) {
     Column(
@@ -272,9 +336,9 @@ private fun MeScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        MeHeader()
+        MeHeader(diamondBalance = diamondBalance)
         Spacer(Modifier.height(28.dp))
-        ProfileCard()
+        ProfileCard(profileName = profileName, profileId = profileId)
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             DiamondIcon(7.dp)
@@ -318,7 +382,7 @@ private fun MeScreen(
 }
 
 @Composable
-private fun MeHeader() {
+private fun MeHeader(diamondBalance: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -341,13 +405,13 @@ private fun MeHeader() {
         ) {
             DiamondIcon(12.dp)
             Spacer(Modifier.width(6.dp))
-            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
-private fun ProfileCard() {
+private fun ProfileCard(profileName: String, profileId: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,14 +446,14 @@ private fun ProfileCard() {
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.profile_name),
+                text = profileName,
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(5.dp))
             Text(
-                text = stringResource(R.string.profile_id),
+                text = stringResource(R.string.profile_id_format, profileId),
                 color = AchatMuted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Medium,
@@ -881,6 +945,7 @@ private fun TopUpScreen(
     selectedNavigation: Int,
     selectedCreditPack: Int,
     onCreditPackSelect: (Int) -> Unit,
+    diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
 ) {
     Column(
@@ -890,7 +955,7 @@ private fun TopUpScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        TopUpHeader()
+        TopUpHeader(diamondBalance = diamondBalance)
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             DiamondIcon(8.dp)
@@ -940,7 +1005,7 @@ private fun TopUpScreen(
 }
 
 @Composable
-private fun TopUpHeader() {
+private fun TopUpHeader(diamondBalance: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -972,7 +1037,7 @@ private fun TopUpHeader() {
         ) {
             DiamondIcon(12.dp)
             Spacer(Modifier.width(6.dp))
-            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1098,6 +1163,7 @@ private fun UploadPhotoScreen(
     selectedNavigation: Int,
     onBack: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
+    diamondBalance: Int,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -1106,7 +1172,7 @@ private fun UploadPhotoScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        UploadPhotoHeader(onBack = onBack)
+        UploadPhotoHeader(onBack = onBack, diamondBalance = diamondBalance)
         Spacer(Modifier.height(22.dp))
         Text(
             text = stringResource(R.string.template_preview_heading),
@@ -1136,7 +1202,7 @@ private fun UploadPhotoScreen(
 }
 
 @Composable
-private fun UploadPhotoHeader(onBack: () -> Unit) {
+private fun UploadPhotoHeader(onBack: () -> Unit, diamondBalance: Int) {
     val backDescription = stringResource(R.string.back_to_templates_description)
     val balanceDescription = stringResource(R.string.balance_panel_description)
     Row(
@@ -1177,7 +1243,7 @@ private fun UploadPhotoHeader(onBack: () -> Unit) {
         ) {
             DiamondIcon(11.dp)
             Spacer(Modifier.width(6.dp))
-            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1207,7 +1273,7 @@ private fun BackgroundGlow() {
 }
 
 @Composable
-private fun Header(section: TemplateSection) {
+private fun Header(section: TemplateSection, diamondBalance: Int) {
     val title = stringResource(
         if (section == TemplateSection.Image) R.string.image_to_image_title else R.string.image_to_video_title,
     )
@@ -1233,7 +1299,7 @@ private fun Header(section: TemplateSection) {
         ) {
             DiamondIcon(12.dp)
             Spacer(Modifier.width(6.dp))
-            Text("0", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1250,6 +1316,30 @@ private fun CategoryTabs(section: TemplateSection, selectedTab: Int, onSelect: (
         CategoryTab(firstLabel, selectedTab == 0) { onSelect(0) }
         CategoryTab(secondLabel, selectedTab == 1) { onSelect(1) }
     }
+}
+
+@Composable
+private fun TemplateBackendStatus(
+    isLoading: Boolean,
+    errorMessage: String?,
+    selectedTemplate: VisualTemplate?,
+) {
+    val statusText = when {
+        isLoading -> stringResource(R.string.backend_loading_templates)
+        errorMessage != null -> stringResource(R.string.backend_templates_offline)
+        selectedTemplate != null -> selectedTemplate.name
+        else -> stringResource(R.string.backend_templates_placeholder)
+    }
+    if (statusText.isBlank()) {
+        return
+    }
+    Spacer(Modifier.height(5.dp))
+    Text(
+        text = statusText,
+        color = if (errorMessage != null) AchatPink else AchatMuted,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Medium,
+    )
 }
 
 @Composable

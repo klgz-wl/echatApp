@@ -39,6 +39,7 @@
     <string name="me_title">Me</string>
     <string name="profile_name">Quiet wanderer</string>
     <string name="profile_id">ID 3095609813</string>
+    <string name="profile_id_format">ID %1$s</string>
     <string name="profile_edit">Edit</string>
     <string name="system_modules">SYSTEM MODULES</string>
     <string name="conversation_log">Conversation Log</string>
@@ -65,4 +66,7 @@
     <string name="nav_image">IMAGE</string>
     <string name="nav_top_up">TOP UP</string>
     <string name="nav_me">ME</string>
+    <string name="backend_loading_templates">Loading live templates...</string>
+    <string name="backend_templates_offline">Live templates unavailable, using local preview</string>
+    <string name="backend_templates_placeholder">Local preview template</string>
 </resources>

@@ -56,6 +56,7 @@ import yumo.achat.app.ui.theme.AchatSurface
 internal fun HeroCard(
     currentPage: Int,
     totalPages: Int,
+    durationSeconds: Int,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
@@ -120,13 +121,16 @@ internal fun HeroCard(
             }
             RoundArrow(up = false, onClick = onNext)
         }
-        TemplateMetadata(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp))
+        TemplateMetadata(
+            durationSeconds = durationSeconds,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
+        )
     }
 }
 
 @Composable
-private fun TemplateMetadata(modifier: Modifier = Modifier) {
-    val duration = stringResource(R.string.template_duration, 5)
+private fun TemplateMetadata(durationSeconds: Int, modifier: Modifier = Modifier) {
+    val duration = stringResource(R.string.template_duration, durationSeconds)
     val quality = stringResource(R.string.template_quality, "720P")
     Row(
         modifier = modifier
@@ -231,7 +235,7 @@ private fun RoundArrow(up: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun TemplateButton(onClick: () -> Unit) {
+internal fun TemplateButton(price: Int, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,7 +259,7 @@ internal fun TemplateButton(onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         DiamondIcon(11.dp)
         Spacer(Modifier.width(5.dp))
-        Text("22", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(price.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
