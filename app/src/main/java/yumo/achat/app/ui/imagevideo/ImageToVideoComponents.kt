@@ -83,24 +83,6 @@ internal fun HeroCard(
     )
     Box(
         modifier = modifier
-            .pointerInput(onPrevious, onNext) {
-                var totalDrag = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onVerticalDrag = { change, dragAmount ->
-                        totalDrag += dragAmount
-                        change.consume()
-                    },
-                    onDragEnd = {
-                        when {
-                            totalDrag < -80f -> onNext()
-                            totalDrag > 80f -> onPrevious()
-                        }
-                        totalDrag = 0f
-                    },
-                    onDragCancel = { totalDrag = 0f },
-                )
-            }
             .clip(RoundedCornerShape(2.dp))
             .background(AchatSurface)
             .border(
@@ -113,6 +95,11 @@ internal fun HeroCard(
             media = previewMedia,
             isPlaying = isPlaying,
             contentDescription = portraitDescription,
+            modifier = Modifier.fillMaxSize(),
+        )
+        TemplateSwipeGestureLayer(
+            onPrevious = onPrevious,
+            onNext = onNext,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
@@ -173,6 +160,34 @@ internal fun HeroCard(
             )
         }
     }
+}
+
+@Composable
+private fun TemplateSwipeGestureLayer(
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.pointerInput(onPrevious, onNext) {
+            var totalDrag = 0f
+            detectVerticalDragGestures(
+                onDragStart = { totalDrag = 0f },
+                onVerticalDrag = { change, dragAmount ->
+                    totalDrag += dragAmount
+                    change.consume()
+                },
+                onDragEnd = {
+                    when {
+                        totalDrag < -80f -> onNext()
+                        totalDrag > 80f -> onPrevious()
+                    }
+                    totalDrag = 0f
+                },
+                onDragCancel = { totalDrag = 0f },
+            )
+        },
+    )
 }
 
 @Composable
