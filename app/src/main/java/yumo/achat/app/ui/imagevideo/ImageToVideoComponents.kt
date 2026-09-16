@@ -213,7 +213,6 @@ private fun TemplatePreviewImage(
                 model = media.url,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
-                placeholder = placeholder,
                 error = placeholder,
                 modifier = modifier,
             )
