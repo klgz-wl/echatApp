@@ -20,6 +20,8 @@ class AchatRepository(
         val currency = runCatching { client.userCurrency(session.token) }.getOrNull()
         val videoTemplates = runCatching { client.templates(session.token, "video") }.getOrDefault(emptyList())
         val imageTemplates = runCatching { client.templates(session.token, "image") }.getOrDefault(emptyList())
+        val videoCategories = runCatching { client.categories(session.token, "video") }.getOrDefault(emptyList())
+        val imageCategories = runCatching { client.categories(session.token, "image") }.getOrDefault(emptyList())
 
         AchatHomeData(
             session = session,
@@ -27,6 +29,8 @@ class AchatRepository(
             currency = currency,
             videoTemplates = videoTemplates,
             imageTemplates = imageTemplates,
+            videoCategories = videoCategories,
+            imageCategories = imageCategories,
         )
     }
 

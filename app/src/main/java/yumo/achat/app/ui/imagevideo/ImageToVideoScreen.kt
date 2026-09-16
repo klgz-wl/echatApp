@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +63,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import yumo.achat.app.R
 import yumo.achat.app.data.backend.AchatRepository
+import yumo.achat.app.data.backend.VisualCategory
 import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualTemplate
 import yumo.achat.app.data.backend.isVisualGenerationFinished
@@ -95,6 +97,8 @@ private data class AchatBackendUiState(
     val diamondBalance: Int = 0,
     val videoTemplates: List<VisualTemplate> = emptyList(),
     val imageTemplates: List<VisualTemplate> = emptyList(),
+    val videoCategories: List<VisualCategory> = emptyList(),
+    val imageCategories: List<VisualCategory> = emptyList(),
 )
 
 private data class SelectedGenerationTemplate(
@@ -150,6 +154,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
                 videoTemplates = homeData.videoTemplates,
                 imageTemplates = homeData.imageTemplates,
+                videoCategories = homeData.videoCategories,
+                imageCategories = homeData.imageCategories,
             )
         }.onFailure { error ->
             backendState = backendState.copy(
@@ -196,7 +202,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     currentTemplate = currentTemplate,
                     isPlaying = isPlaying,
                     selectedNavigation = selectedNavigation,
-                    onTabSelect = { selectedTab = it },
+                    onTabSelect = {
+                        selectedTab = it
+                        currentTemplate = 1
+                    },
                     onPlayToggle = { isPlaying = !isPlaying },
                     onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
                     onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
@@ -338,7 +347,12 @@ private fun TemplateBrowserScreen(
     }
 
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
-    val templates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
+    val sectionCategories = if (section == TemplateSection.Image) backendState.imageCategories else backendState.videoCategories
+    val allTemplates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
+    val selectedCategory = sectionCategories.getOrNull(selectedTab - 2)
+    val templates = selectedCategory?.let { category ->
+        allTemplates.filter { template -> template.categoryId == category.id }
+    } ?: allTemplates
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
@@ -362,7 +376,12 @@ private fun TemplateBrowserScreen(
     ) {
         Header(section = section, diamondBalance = backendState.diamondBalance)
         Spacer(Modifier.height(8.dp))
-        CategoryTabs(section = section, selectedTab = selectedTab, onSelect = onTabSelect)
+        CategoryTabs(
+            section = section,
+            categories = sectionCategories,
+            selectedTab = selectedTab,
+            onSelect = onTabSelect,
+        )
         TemplateBackendStatus(
             isLoading = backendState.isLoading,
             errorMessage = backendState.errorMessage,
@@ -1661,16 +1680,30 @@ private fun Header(section: TemplateSection, diamondBalance: Int) {
 }
 
 @Composable
-private fun CategoryTabs(section: TemplateSection, selectedTab: Int, onSelect: (Int) -> Unit) {
+private fun CategoryTabs(
+    section: TemplateSection,
+    categories: List<VisualCategory>,
+    selectedTab: Int,
+    onSelect: (Int) -> Unit,
+) {
     val firstLabel = stringResource(
         if (section == TemplateSection.Image) R.string.tab_single_image else R.string.tab_hot,
     )
     val secondLabel = stringResource(
         if (section == TemplateSection.Image) R.string.tab_multi_image else R.string.tab_new,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(28.dp),
+    ) {
         CategoryTab(firstLabel, selectedTab == 0) { onSelect(0) }
         CategoryTab(secondLabel, selectedTab == 1) { onSelect(1) }
+        categories.forEachIndexed { index, category ->
+            val tabIndex = index + 2
+            CategoryTab(category.name, selectedTab == tabIndex) { onSelect(tabIndex) }
+        }
     }
 }
 

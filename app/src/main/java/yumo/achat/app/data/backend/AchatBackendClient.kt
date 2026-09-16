@@ -45,6 +45,11 @@ class AchatBackendClient(
             get("/api/v1/visual-generation/$modality/templates?page=$page&page_size=$pageSize", token),
         )
 
+    fun categories(token: String, modality: String): List<VisualCategory> =
+        AchatBackendParsers.parseCategories(
+            get("/api/v1/visual-generation/$modality/categories", token),
+        )
+
     fun uploadVisualResource(token: String, imagePart: MultipartFormData.Part): VisualResource {
         val boundary = "achat-${UUID.randomUUID()}"
         val response = request(

@@ -77,6 +77,26 @@ class AchatBackendParsersTest {
     }
 
     @Test
+    fun `parse categories sorted by sort order`() {
+        val categories = AchatBackendParsers.parseCategories(
+            """
+            {
+              "code": 0,
+              "message": "ok",
+              "data": [
+                { "id": "fashion", "name": "Fashion", "sort_order": 20 },
+                { "id": "portrait", "name": "Portrait", "sort_order": 10 }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf("portrait", "fashion"), categories.map { it.id })
+        assertEquals("Portrait", categories.first().name)
+        assertEquals(10, categories.first().sortOrder)
+    }
+
+    @Test
     fun `parse user summary with display fallback`() {
         val profile = AchatBackendParsers.parseUserProfile(
             """

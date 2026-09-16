@@ -48,6 +48,12 @@ data class VisualTemplate(
         get() = fastPrice ?: qualityPrice
 }
 
+data class VisualCategory(
+    val id: String,
+    val name: String,
+    val sortOrder: Int,
+)
+
 data class VisualResource(
     val id: String,
     val taskId: String?,
@@ -84,4 +90,6 @@ data class AchatHomeData(
     val currency: UserCurrency?,
     val videoTemplates: List<VisualTemplate>,
     val imageTemplates: List<VisualTemplate>,
+    val videoCategories: List<VisualCategory>,
+    val imageCategories: List<VisualCategory>,
 )

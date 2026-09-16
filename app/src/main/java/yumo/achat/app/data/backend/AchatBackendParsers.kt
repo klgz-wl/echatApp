@@ -63,6 +63,22 @@ object AchatBackendParsers {
         }.sortedByDescending { it.hotScore }
     }
 
+    fun parseCategories(json: String): List<VisualCategory> {
+        val data = dataArray(json)
+        return buildList {
+            for (index in 0 until data.length()) {
+                val item = data.getJSONObject(index)
+                add(
+                    VisualCategory(
+                        id = item.getString("id"),
+                        name = item.optNullableString("name") ?: "Category",
+                        sortOrder = item.optInt("sort_order", 0),
+                    ),
+                )
+            }
+        }.sortedBy { it.sortOrder }
+    }
+
     fun parseVisualResource(json: String): VisualResource {
         val data = dataObject(json)
         return parseVisualResourceObject(data)
@@ -134,6 +150,15 @@ object AchatBackendParsers {
             error(root.optString("message", "Backend request failed"))
         }
         return root.optJSONObject("data") ?: error(root.optString("message", "Missing response data"))
+    }
+
+    private fun dataArray(json: String): org.json.JSONArray {
+        val root = JSONObject(json)
+        val code = root.optInt("code", 0)
+        if (code != 0 && code != 200) {
+            error(root.optString("message", "Backend request failed"))
+        }
+        return root.optJSONArray("data") ?: error(root.optString("message", "Missing response data"))
     }
 }
 
