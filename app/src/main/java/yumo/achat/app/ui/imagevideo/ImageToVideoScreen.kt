@@ -123,6 +123,7 @@ private val CreditPacks = listOf(
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
+    val repository = remember(context) { AchatRepository(context) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(false) }
@@ -133,11 +134,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
     var trackedTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
+    var isLoadingTaskHistory by remember { mutableStateOf(false) }
+    var taskHistoryError by remember { mutableStateOf<String?>(null) }
+    val defaultTaskTitle = stringResource(R.string.default_task_title)
 
     LaunchedEffect(context) {
         backendState = backendState.copy(isLoading = true, errorMessage = null)
         runCatching {
-            AchatRepository(context).loadHomeData()
+            repository.loadHomeData()
         }.onSuccess { homeData ->
             backendState = AchatBackendUiState(
                 isLoading = false,
@@ -153,6 +157,26 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 errorMessage = error.message ?: "Backend unavailable",
             )
         }
+    }
+
+    LaunchedEffect(destination) {
+        if (destination != ImageToVideoDestination.MyTasks) return@LaunchedEffect
+        if (selectedResultTask != null) return@LaunchedEffect
+        isLoadingTaskHistory = true
+        taskHistoryError = null
+        runCatching {
+            repository.generatedResources()
+        }.onSuccess { resources ->
+            val historyTasks = resources.map { resource ->
+                resource.toTrackedGenerationTask(defaultTaskTitle)
+            }
+            trackedTasks = historyTasks.fold(trackedTasks) { tasks, task ->
+                upsertTrackedGenerationTask(tasks, task)
+            }
+        }.onFailure { error ->
+            taskHistoryError = error.message ?: "Failed to load task history"
+        }
+        isLoadingTaskHistory = false
     }
 
     Box(
@@ -215,6 +239,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 } else {
                     MyTasksScreen(
                         tasks = trackedTasks,
+                        isLoading = isLoadingTaskHistory,
+                        errorMessage = taskHistoryError,
                         onBack = { destination = ImageToVideoDestination.Templates },
                         onOpenTask = { selectedResultTask = it },
                         modifier = Modifier.fillMaxSize(),
@@ -621,6 +647,8 @@ private fun ModuleGlyph(icon: ModuleIcon) {
 @Composable
 private fun MyTasksScreen(
     tasks: List<TrackedGenerationTask>,
+    isLoading: Boolean,
+    errorMessage: String?,
     onBack: () -> Unit,
     onOpenTask: (TrackedGenerationTask) -> Unit,
     modifier: Modifier = Modifier,
@@ -637,7 +665,24 @@ private fun MyTasksScreen(
             onBack = onBack,
         )
         Spacer(Modifier.height(14.dp))
-        if (tasks.isEmpty()) {
+        if (isLoading) {
+            Text(
+                text = stringResource(R.string.task_history_loading),
+                color = AchatCyan,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                color = AchatPink,
+                fontSize = 10.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (tasks.isEmpty() && !isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

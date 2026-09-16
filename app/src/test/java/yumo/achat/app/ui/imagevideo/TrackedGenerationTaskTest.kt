@@ -98,4 +98,32 @@ class TrackedGenerationTaskTest {
         assertEquals("succeeded", tasks.first().status)
         assertEquals("https://example.test/result.webp", tasks.first().resultUrl)
     }
+
+    @Test
+    fun `generated resource maps to successful tracked task`() {
+        val resource = VisualResource(
+            id = "generated-1",
+            taskId = null,
+            resourceType = "generated",
+            modality = "image",
+            templateId = "template-1",
+            templateName = "Rose portrait",
+            url = "https://example.test/generated.webp",
+            thumbnailUrl = null,
+            mimeType = "image/webp",
+            width = 720,
+            height = 1280,
+            durationSeconds = 0,
+            createdAt = "2026-09-16T08:00:00Z",
+            expiresAt = null,
+        )
+
+        val trackedTask = resource.toTrackedGenerationTask(defaultTitle = "Visual generation")
+
+        assertEquals("generated-1", trackedTask.taskId)
+        assertEquals("Rose portrait", trackedTask.title)
+        assertEquals("succeeded", trackedTask.status)
+        assertEquals("https://example.test/generated.webp", trackedTask.resultUrl)
+        assertTrue(trackedTask.canOpenResult)
+    }
 }

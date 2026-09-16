@@ -53,12 +53,16 @@ data class VisualResource(
     val taskId: String?,
     val resourceType: String,
     val modality: String,
+    val templateId: String? = null,
+    val templateName: String? = null,
     val url: String,
     val thumbnailUrl: String?,
     val mimeType: String,
     val width: Int,
     val height: Int,
     val durationSeconds: Int,
+    val createdAt: String? = null,
+    val expiresAt: String? = null,
 )
 
 data class VisualGenerationTask(

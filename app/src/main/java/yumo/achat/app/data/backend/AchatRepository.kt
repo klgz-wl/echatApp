@@ -70,6 +70,16 @@ class AchatRepository(
         client.visualGenerationTask(session.token, taskId)
     }
 
+    suspend fun generatedResources(page: Int = 1, pageSize: Int = 20): List<VisualResource> = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.visualResources(
+            token = session.token,
+            page = page,
+            pageSize = pageSize,
+            resourceType = "generated",
+        )
+    }
+
     private fun ensureSession(): AuthSession =
         sessionStore.readSession() ?: client
             .anonymousLogin(sessionStore.deviceId())

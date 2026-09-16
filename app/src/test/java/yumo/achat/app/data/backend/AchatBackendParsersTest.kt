@@ -143,6 +143,48 @@ class AchatBackendParsersTest {
     }
 
     @Test
+    fun `parse generated resource history`() {
+        val resources = AchatBackendParsers.parseVisualResources(
+            """
+            {
+              "code": 0,
+              "message": "ok",
+              "data": {
+                "items": [
+                  {
+                    "id": "generated-1",
+                    "task_id": "task-1",
+                    "resource_type": "generated",
+                    "modality": "image",
+                    "template_id": "template-1",
+                    "template_name": "Rose portrait",
+                    "url": "https://example.test/generated.webp",
+                    "thumbnail_url": "https://example.test/thumb.webp",
+                    "mime_type": "image/webp",
+                    "width": 720,
+                    "height": 1280,
+                    "duration": 0,
+                    "created_at": "2026-09-16T08:00:00Z",
+                    "expires_at": "2026-09-23T08:00:00Z"
+                  }
+                ],
+                "page": 1,
+                "page_size": 20,
+                "total": 1
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(1, resources.size)
+        assertEquals("generated-1", resources.first().id)
+        assertEquals("task-1", resources.first().taskId)
+        assertEquals("Rose portrait", resources.first().templateName)
+        assertEquals("https://example.test/generated.webp", resources.first().url)
+        assertEquals("2026-09-16T08:00:00Z", resources.first().createdAt)
+    }
+
+    @Test
     fun `parse visual generation task`() {
         val task = AchatBackendParsers.parseVisualGenerationTask(
             """

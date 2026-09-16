@@ -61,6 +61,24 @@ class AchatBackendClient(
         return AchatBackendParsers.parseVisualResource(response)
     }
 
+    fun visualResources(
+        token: String,
+        page: Int = 1,
+        pageSize: Int = 20,
+        modality: String? = null,
+        resourceType: String? = null,
+    ): List<VisualResource> {
+        val query = buildList {
+            add("page=$page")
+            add("page_size=$pageSize")
+            modality?.takeIf { it.isNotBlank() }?.let { add("modality=$it") }
+            resourceType?.takeIf { it.isNotBlank() }?.let { add("resource_type=$it") }
+        }.joinToString("&")
+        return AchatBackendParsers.parseVisualResources(
+            get("/api/v1/visual-generation/resources?$query", token),
+        )
+    }
+
     fun createVisualGenerationTask(
         token: String,
         modality: String,

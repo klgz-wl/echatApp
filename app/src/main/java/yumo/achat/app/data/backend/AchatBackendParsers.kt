@@ -68,6 +68,16 @@ object AchatBackendParsers {
         return parseVisualResourceObject(data)
     }
 
+    fun parseVisualResources(json: String): List<VisualResource> {
+        val data = dataObject(json)
+        val items = data.optJSONArray("items") ?: return emptyList()
+        return buildList {
+            for (index in 0 until items.length()) {
+                add(parseVisualResourceObject(items.getJSONObject(index)))
+            }
+        }
+    }
+
     fun parseVisualGenerationTask(json: String): VisualGenerationTask {
         val data = dataObject(json)
         return VisualGenerationTask(
@@ -90,12 +100,16 @@ object AchatBackendParsers {
             taskId = data.optNullableString("task_id"),
             resourceType = data.optNullableString("resource_type") ?: "",
             modality = data.optNullableString("modality") ?: "",
+            templateId = data.optNullableString("template_id"),
+            templateName = data.optNullableString("template_name"),
             url = data.optNullableString("url") ?: "",
             thumbnailUrl = data.optNullableString("thumbnail_url"),
             mimeType = data.optNullableString("mime_type") ?: "",
             width = data.optInt("width", 0),
             height = data.optInt("height", 0),
             durationSeconds = data.optDouble("duration", 0.0).toInt(),
+            createdAt = data.optNullableString("created_at"),
+            expiresAt = data.optNullableString("expires_at"),
         )
     }
 

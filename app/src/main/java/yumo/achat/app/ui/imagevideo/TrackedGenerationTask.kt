@@ -1,6 +1,7 @@
 package yumo.achat.app.ui.imagevideo
 
 import yumo.achat.app.data.backend.VisualGenerationTask
+import yumo.achat.app.data.backend.VisualResource
 import yumo.achat.app.data.backend.isVisualGenerationFinished
 
 internal data class TrackedGenerationTask(
@@ -31,6 +32,17 @@ internal fun VisualGenerationTask.toTrackedGenerationTask(title: String): Tracke
         resultUrl = resource?.url?.takeIf { it.isNotBlank() },
         mimeType = resource?.mimeType.orEmpty(),
         errorMessage = errorMessage,
+    )
+
+internal fun VisualResource.toTrackedGenerationTask(defaultTitle: String): TrackedGenerationTask =
+    TrackedGenerationTask(
+        taskId = taskId?.takeIf { it.isNotBlank() } ?: id,
+        title = templateName?.takeIf { it.isNotBlank() } ?: defaultTitle,
+        modality = modality,
+        status = "succeeded",
+        resultUrl = url.takeIf { it.isNotBlank() },
+        mimeType = mimeType,
+        errorMessage = null,
     )
 
 internal fun upsertTrackedGenerationTask(
