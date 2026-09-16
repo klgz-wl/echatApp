@@ -451,6 +451,8 @@ internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
 internal fun PhotoUploadPanel(
     selectedImage: Any? = null,
     uploadMessage: String? = null,
+    onChoosePhoto: () -> Unit = {},
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val photoPickerDescription = stringResource(R.string.photo_picker_description)
@@ -467,6 +469,7 @@ internal fun PhotoUploadPanel(
                 Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.65f), AchatPink.copy(alpha = 0.62f))),
                 RoundedCornerShape(8.dp),
             )
+            .clickable(enabled = enabled, onClick = onChoosePhoto)
             .padding(1.dp)
             .semantics { contentDescription = photoPickerDescription },
     ) {
@@ -543,6 +546,7 @@ internal fun PhotoUploadPanel(
 @Composable
 internal fun UploadActions(
     uploadInProgress: Boolean = false,
+    canContinue: Boolean = false,
     onChoosePhoto: () -> Unit = {},
     onContinue: () -> Unit = {},
 ) {
@@ -561,7 +565,7 @@ internal fun UploadActions(
             label = stringResource(if (uploadInProgress) R.string.uploading_action else R.string.continue_action),
             modifier = Modifier.weight(1.15f),
             primary = true,
-            enabled = !uploadInProgress,
+            enabled = !uploadInProgress && canContinue,
             onClick = onContinue,
         )
     }

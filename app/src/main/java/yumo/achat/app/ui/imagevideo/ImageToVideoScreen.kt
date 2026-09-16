@@ -1515,13 +1515,36 @@ private fun UploadPhotoScreen(
     val taskSucceededPattern = stringResource(R.string.task_succeeded)
     val taskFailedPattern = stringResource(R.string.task_failed)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
+    val uploadSuccessPattern = stringResource(R.string.upload_success)
     val defaultTaskTitle = stringResource(R.string.default_task_title)
     val trackedTaskTitle = selectedTemplate?.title ?: defaultTaskTitle
+    fun uploadSelectedPhoto(uri: Uri) {
+        uploadInProgress = true
+        uploadMessage = null
+        scope.launch {
+            runCatching {
+                repository.uploadSourceImage(uri)
+            }.onSuccess { resource ->
+                uploadedResourceId = resource.id
+                uploadMessage = uploadSuccessPattern.format(resource.id.take(8))
+            }.onFailure { error ->
+                uploadedResourceId = null
+                uploadMessage = error.message ?: uploadFailedMessage
+            }
+            uploadInProgress = false
+        }
+    }
     val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
         selectedImageUri = uri
         uploadedResourceId = null
         currentTask = null
-        uploadMessage = null
+        uploadSelectedPhoto(uri)
+    }
+    fun launchPhotoPicker() {
+        if (!uploadInProgress) {
+            pickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
     }
 
     LaunchedEffect(currentTask?.taskId, currentTask?.status) {
@@ -1574,17 +1597,18 @@ private fun UploadPhotoScreen(
         PhotoUploadPanel(
             selectedImage = selectedImageUri,
             uploadMessage = uploadMessage,
+            onChoosePhoto = ::launchPhotoPicker,
+            enabled = !uploadInProgress,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(10.dp))
         UploadActions(
             uploadInProgress = uploadInProgress,
-            onChoosePhoto = {
-                pickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
+            canContinue = uploadedResourceId != null,
+            onChoosePhoto = ::launchPhotoPicker,
             onContinue = {
-                val uri = selectedImageUri
-                if (uri == null) {
+                val resourceId = uploadedResourceId
+                if (resourceId == null) {
                     uploadMessage = chooseFirstMessage
                     return@UploadActions
                 }
@@ -1597,9 +1621,6 @@ private fun UploadPhotoScreen(
                 uploadMessage = null
                 scope.launch {
                     runCatching {
-                        val resourceId = uploadedResourceId ?: repository.uploadSourceImage(uri).id.also { uploadedId ->
-                            uploadedResourceId = uploadedId
-                        }
                         repository.createVisualGenerationTask(
                             modality = template.modality,
                             templateId = template.templateId,
