@@ -89,6 +89,13 @@ private data class AchatBackendUiState(
     val imageTemplates: List<VisualTemplate> = emptyList(),
 )
 
+private data class SelectedGenerationTemplate(
+    val templateId: String,
+    val modality: String,
+    val quality: String,
+    val title: String,
+)
+
 private data class CreditPack(
     val credits: Int,
     val validityDays: Int,
@@ -115,6 +122,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedCreditPack by rememberSaveable { mutableIntStateOf(0) }
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
+    var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
 
     LaunchedEffect(context) {
         backendState = backendState.copy(isLoading = true, errorMessage = null)
@@ -158,7 +166,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onPlayToggle = { isPlaying = !isPlaying },
                     onPrevious = { currentTemplate = (currentTemplate - 1).coerceAtLeast(1) },
                     onNext = { currentTemplate = (currentTemplate + 1).coerceAtMost(TotalTemplateCount) },
-                    onUseTemplate = { destination = ImageToVideoDestination.UploadPhoto },
+                    onUseTemplate = { template ->
+                        selectedGenerationTemplate = template
+                        destination = ImageToVideoDestination.UploadPhoto
+                    },
                     onConversationLog = { destination = ImageToVideoDestination.MyTasks },
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
                     onEditName = { destination = ImageToVideoDestination.EditName },
@@ -175,6 +186,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onBack = { destination = ImageToVideoDestination.Templates },
                     onNavigationSelect = { selectedNavigation = it },
                     diamondBalance = backendState.diamondBalance,
+                    selectedTemplate = selectedGenerationTemplate,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -236,7 +248,7 @@ private fun TemplateBrowserScreen(
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onUseTemplate: () -> Unit,
+    onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
@@ -283,6 +295,14 @@ private fun TemplateBrowserScreen(
     val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
     val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
     val visiblePrice = selectedTemplate?.displayPrice ?: 22
+    val selectedGenerationTemplate = selectedTemplate?.let { template ->
+        SelectedGenerationTemplate(
+            templateId = template.id,
+            modality = if (section == TemplateSection.Image) "image" else "video",
+            quality = if (template.fastPrice != null) "fast" else "quality",
+            title = template.name,
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -313,7 +333,7 @@ private fun TemplateBrowserScreen(
                 .weight(1f),
         )
         Spacer(Modifier.height(12.dp))
-        TemplateButton(price = visiblePrice, onClick = onUseTemplate)
+        TemplateButton(price = visiblePrice, onClick = { onUseTemplate(selectedGenerationTemplate) })
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
@@ -1171,6 +1191,7 @@ private fun UploadPhotoScreen(
     onBack: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
     diamondBalance: Int,
+    selectedTemplate: SelectedGenerationTemplate?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -1178,13 +1199,16 @@ private fun UploadPhotoScreen(
     val repository = remember(appContext) { AchatRepository(appContext) }
     val scope = rememberCoroutineScope()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var uploadedResourceId by remember { mutableStateOf<String?>(null) }
     var uploadInProgress by remember { mutableStateOf(false) }
     var uploadMessage by remember { mutableStateOf<String?>(null) }
     val chooseFirstMessage = stringResource(R.string.upload_choose_first)
-    val uploadSuccessPattern = stringResource(R.string.upload_success)
+    val liveTemplateRequired = stringResource(R.string.live_template_required)
+    val taskCreatedPattern = stringResource(R.string.task_created)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
     val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         selectedImageUri = uri
+        uploadedResourceId = null
         uploadMessage = null
     }
 
@@ -1229,13 +1253,26 @@ private fun UploadPhotoScreen(
                     uploadMessage = chooseFirstMessage
                     return@UploadActions
                 }
+                val template = selectedTemplate
+                if (template == null || template.templateId.isBlank()) {
+                    uploadMessage = liveTemplateRequired
+                    return@UploadActions
+                }
                 uploadInProgress = true
                 uploadMessage = null
                 scope.launch {
                     runCatching {
-                        repository.uploadSourceImage(uri)
-                    }.onSuccess { resource ->
-                        uploadMessage = uploadSuccessPattern.format(resource.id.take(8))
+                        val resourceId = uploadedResourceId ?: repository.uploadSourceImage(uri).id.also { uploadedId ->
+                            uploadedResourceId = uploadedId
+                        }
+                        repository.createVisualGenerationTask(
+                            modality = template.modality,
+                            templateId = template.templateId,
+                            quality = template.quality,
+                            resourceId = resourceId,
+                        )
+                    }.onSuccess { task ->
+                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
                     }.onFailure { error ->
                         uploadMessage = error.message ?: uploadFailedMessage
                     }

@@ -141,4 +141,34 @@ class AchatBackendParsersTest {
         assertEquals("https://example.test/upload.webp", resource.url)
         assertEquals("https://example.test/thumb.webp", resource.thumbnailUrl)
     }
+
+    @Test
+    fun `parse visual generation task`() {
+        val task = AchatBackendParsers.parseVisualGenerationTask(
+            """
+            {
+              "code": 0,
+              "message": "ok",
+              "data": {
+                "task_id": "task-1",
+                "status": "processing",
+                "modality": "video",
+                "quality": "fast",
+                "template_id": "template-1",
+                "diamond_cost": 22,
+                "estimated_poll_interval_seconds": 3,
+                "refunded": false
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("task-1", task.taskId)
+        assertEquals("processing", task.status)
+        assertEquals("video", task.modality)
+        assertEquals("fast", task.quality)
+        assertEquals("template-1", task.templateId)
+        assertEquals(22, task.diamondCost)
+        assertEquals(3, task.estimatedPollIntervalSeconds)
+    }
 }

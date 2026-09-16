@@ -3,13 +3,19 @@ package yumo.achat.app.data.backend
 import java.io.OutputStream
 
 object MultipartFormData {
-    data class Part(
-        val fieldName: String,
+    sealed interface Part {
+        val fieldName: String
+        val headers: String
+        val bytes: ByteArray
+    }
+
+    data class FilePart(
+        override val fieldName: String,
         val fileName: String,
         val contentType: String,
-        val bytes: ByteArray,
-    ) {
-        val headers: String
+        override val bytes: ByteArray,
+    ) : Part {
+        override val headers: String
             get() = buildString {
                 append("Content-Disposition: form-data; name=\"")
                 append(fieldName)
@@ -23,7 +29,7 @@ object MultipartFormData {
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (other !is Part) return false
+            if (other !is FilePart) return false
             return fieldName == other.fieldName &&
                 fileName == other.fileName &&
                 contentType == other.contentType &&
@@ -39,24 +45,48 @@ object MultipartFormData {
         }
     }
 
+    data class TextPart(
+        override val fieldName: String,
+        val value: String,
+    ) : Part {
+        override val headers: String
+            get() = "Content-Disposition: form-data; name=\"$fieldName\"\r\n"
+        override val bytes: ByteArray
+            get() = value.toByteArray(Charsets.UTF_8)
+    }
+
     fun imagePart(
         fieldName: String,
         fileName: String,
         contentType: String,
         bytes: ByteArray,
-    ): Part = Part(
+    ): FilePart = FilePart(
         fieldName = fieldName,
         fileName = fileName.escapeMultipartFileName(),
         contentType = contentType.ifBlank { "image/jpeg" },
         bytes = bytes,
     )
 
+    fun textPart(fieldName: String, value: String): TextPart =
+        TextPart(fieldName = fieldName, value = value)
+
     fun write(outputStream: OutputStream, boundary: String, part: Part) {
-        outputStream.writeUtf8("--$boundary\r\n")
-        outputStream.writeUtf8(part.headers)
-        outputStream.writeUtf8("\r\n")
-        outputStream.write(part.bytes)
-        outputStream.writeUtf8("\r\n--$boundary--\r\n")
+        write(outputStream, boundary, listOf(part))
+    }
+
+    fun write(outputStream: OutputStream, boundary: String, parts: List<Part>) {
+        parts.forEach { part ->
+            outputStream.writePart(boundary, part)
+        }
+        outputStream.writeUtf8("--$boundary--\r\n")
+    }
+
+    private fun OutputStream.writePart(boundary: String, part: Part) {
+        writeUtf8("--$boundary\r\n")
+        writeUtf8(part.headers)
+        writeUtf8("\r\n")
+        write(part.bytes)
+        writeUtf8("\r\n")
     }
 
     private fun String.escapeMultipartFileName(): String =

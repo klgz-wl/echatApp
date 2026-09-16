@@ -61,6 +61,39 @@ class AchatBackendClient(
         return AchatBackendParsers.parseVisualResource(response)
     }
 
+    fun createVisualGenerationTask(
+        token: String,
+        modality: String,
+        templateId: String,
+        quality: String,
+        resourceId: String,
+    ): VisualGenerationTask {
+        val boundary = "achat-${UUID.randomUUID()}"
+        val idempotencyKey = UUID.randomUUID().toString()
+        val response = request(
+            path = "/api/v1/visual-generation/$modality/tasks",
+            method = "POST",
+            headers = mapOf(
+                "Authorization" to "Bearer $token",
+                "Idempotency-Key" to idempotencyKey,
+                "Content-Type" to "multipart/form-data; boundary=$boundary",
+            ),
+            writeBody = { outputStream ->
+                MultipartFormData.write(
+                    outputStream = outputStream,
+                    boundary = boundary,
+                    parts = listOf(
+                        MultipartFormData.textPart("template_id", templateId),
+                        MultipartFormData.textPart("quality", quality),
+                        MultipartFormData.textPart("idempotency_key", idempotencyKey),
+                        MultipartFormData.textPart("resource_id", resourceId),
+                    ),
+                )
+            },
+        )
+        return AchatBackendParsers.parseVisualGenerationTask(response)
+    }
+
     private fun get(path: String, token: String): String =
         request(
             path = path,

@@ -61,6 +61,19 @@ data class VisualResource(
     val durationSeconds: Int,
 )
 
+data class VisualGenerationTask(
+    val taskId: String,
+    val status: String,
+    val modality: String,
+    val quality: String,
+    val templateId: String,
+    val diamondCost: Int,
+    val estimatedPollIntervalSeconds: Int?,
+    val refunded: Boolean,
+    val errorMessage: String?,
+    val resource: VisualResource?,
+)
+
 data class AchatHomeData(
     val session: AuthSession,
     val profile: UserProfile?,

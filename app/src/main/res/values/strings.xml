@@ -29,6 +29,8 @@
     <string name="upload_choose_first">Choose a photo first</string>
     <string name="upload_success">Uploaded resource %1$s</string>
     <string name="upload_failed">Upload failed</string>
+    <string name="live_template_required">Live template is required</string>
+    <string name="task_created">Task %1$s · %2$s</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
     <string name="system_credits">SYSTEM CREDITS</string>

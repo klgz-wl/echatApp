@@ -46,6 +46,24 @@ class AchatRepository(
         client.uploadVisualResource(session.token, part)
     }
 
+    suspend fun createVisualGenerationTask(
+        modality: String,
+        templateId: String,
+        quality: String,
+        resourceId: String,
+    ): VisualGenerationTask = withContext(Dispatchers.IO) {
+        require(templateId.isNotBlank()) { "Live template is required" }
+        require(resourceId.isNotBlank()) { "Uploaded photo is required" }
+        val session = ensureSession()
+        client.createVisualGenerationTask(
+            token = session.token,
+            modality = modality,
+            templateId = templateId,
+            quality = quality,
+            resourceId = resourceId,
+        )
+    }
+
     private fun ensureSession(): AuthSession =
         sessionStore.readSession() ?: client
             .anonymousLogin(sessionStore.deviceId())

@@ -65,6 +65,26 @@ object AchatBackendParsers {
 
     fun parseVisualResource(json: String): VisualResource {
         val data = dataObject(json)
+        return parseVisualResourceObject(data)
+    }
+
+    fun parseVisualGenerationTask(json: String): VisualGenerationTask {
+        val data = dataObject(json)
+        return VisualGenerationTask(
+            taskId = data.getString("task_id"),
+            status = data.optNullableString("status") ?: "",
+            modality = data.optNullableString("modality") ?: "",
+            quality = data.optNullableString("quality") ?: "",
+            templateId = data.optNullableString("template_id") ?: "",
+            diamondCost = data.optInt("diamond_cost", 0),
+            estimatedPollIntervalSeconds = data.optNullableInt("estimated_poll_interval_seconds"),
+            refunded = data.optBoolean("refunded", false),
+            errorMessage = data.optNullableString("error_message"),
+            resource = data.optJSONObject("resource")?.let(::parseTaskResourceObject),
+        )
+    }
+
+    private fun parseVisualResourceObject(data: JSONObject): VisualResource {
         return VisualResource(
             id = data.getString("id"),
             taskId = data.optNullableString("task_id"),
@@ -78,6 +98,20 @@ object AchatBackendParsers {
             durationSeconds = data.optDouble("duration", 0.0).toInt(),
         )
     }
+
+    private fun parseTaskResourceObject(data: JSONObject): VisualResource =
+        VisualResource(
+            id = data.optNullableString("id") ?: "",
+            taskId = null,
+            resourceType = "generated",
+            modality = "",
+            url = data.optNullableString("url") ?: "",
+            thumbnailUrl = null,
+            mimeType = data.optNullableString("mime_type") ?: "",
+            width = data.optInt("width", 0),
+            height = data.optInt("height", 0),
+            durationSeconds = data.optDouble("duration", 0.0).toInt(),
+        )
 
     private fun dataObject(json: String): JSONObject {
         val root = JSONObject(json)
