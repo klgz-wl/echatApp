@@ -34,6 +34,12 @@
     <string name="task_status">Task %1$s · %2$s</string>
     <string name="task_succeeded">Task %1$s succeeded</string>
     <string name="task_failed">Task failed: %1$s</string>
+    <string name="default_task_title">Visual generation</string>
+    <string name="task_card_status">Task %1$s · %2$s</string>
+    <string name="task_open_result">OPEN</string>
+    <string name="task_result_title">Result</string>
+    <string name="task_result_image_description">Generated result</string>
+    <string name="task_result_preview_unavailable">Preview is ready, video playback will be added next.</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
     <string name="system_credits">SYSTEM CREDITS</string>

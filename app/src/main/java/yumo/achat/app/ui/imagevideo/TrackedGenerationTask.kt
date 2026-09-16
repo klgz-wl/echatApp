@@ -1,0 +1,39 @@
+package yumo.achat.app.ui.imagevideo
+
+import yumo.achat.app.data.backend.VisualGenerationTask
+import yumo.achat.app.data.backend.isVisualGenerationFinished
+
+internal data class TrackedGenerationTask(
+    val taskId: String,
+    val title: String,
+    val modality: String,
+    val status: String,
+    val resultUrl: String?,
+    val mimeType: String,
+    val errorMessage: String?,
+) {
+    val isFinished: Boolean
+        get() = isVisualGenerationFinished(status)
+
+    val canOpenResult: Boolean
+        get() = status == "succeeded" && !resultUrl.isNullOrBlank()
+
+    val canPreviewAsImage: Boolean
+        get() = canOpenResult && (mimeType.startsWith("image/") || modality == "image")
+}
+
+internal fun VisualGenerationTask.toTrackedGenerationTask(title: String): TrackedGenerationTask =
+    TrackedGenerationTask(
+        taskId = taskId,
+        title = title,
+        modality = modality,
+        status = status,
+        resultUrl = resource?.url?.takeIf { it.isNotBlank() },
+        mimeType = resource?.mimeType.orEmpty(),
+        errorMessage = errorMessage,
+    )
+
+internal fun upsertTrackedGenerationTask(
+    tasks: List<TrackedGenerationTask>,
+    updatedTask: TrackedGenerationTask,
+): List<TrackedGenerationTask> = listOf(updatedTask) + tasks.filterNot { it.taskId == updatedTask.taskId }

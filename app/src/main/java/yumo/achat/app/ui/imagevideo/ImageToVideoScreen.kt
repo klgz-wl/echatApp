@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -54,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import yumo.achat.app.R
@@ -127,6 +131,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
+    var trackedTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
+    var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
 
     LaunchedEffect(context) {
         backendState = backendState.copy(isLoading = true, errorMessage = null)
@@ -191,15 +197,29 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNavigationSelect = { selectedNavigation = it },
                     diamondBalance = backendState.diamondBalance,
                     selectedTemplate = selectedGenerationTemplate,
+                    onTaskUpdated = { trackedTask ->
+                        trackedTasks = upsertTrackedGenerationTask(trackedTasks, trackedTask)
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
 
             ImageToVideoDestination.MyTasks -> {
-                MyTasksScreen(
-                    onBack = { destination = ImageToVideoDestination.Templates },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                val resultTask = selectedResultTask
+                if (resultTask != null) {
+                    GenerationResultScreen(
+                        task = resultTask,
+                        onBack = { selectedResultTask = null },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    MyTasksScreen(
+                        tasks = trackedTasks,
+                        onBack = { destination = ImageToVideoDestination.Templates },
+                        onOpenTask = { selectedResultTask = it },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             ImageToVideoDestination.Feedback -> {
@@ -600,7 +620,9 @@ private fun ModuleGlyph(icon: ModuleIcon) {
 
 @Composable
 private fun MyTasksScreen(
+    tasks: List<TrackedGenerationTask>,
     onBack: () -> Unit,
+    onOpenTask: (TrackedGenerationTask) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -614,13 +636,178 @@ private fun MyTasksScreen(
             backDescription = stringResource(R.string.back_to_me_description),
             onBack = onBack,
         )
+        Spacer(Modifier.height(14.dp))
+        if (tasks.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                EmptyTasksCard()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                tasks.forEach { task ->
+                    TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskStatusCard(task: TrackedGenerationTask, onOpen: () -> Unit) {
+    val borderBrush = Brush.linearGradient(
+        listOf(
+            AchatCyan.copy(alpha = if (task.canOpenResult) 0.78f else 0.28f),
+            AchatPink.copy(alpha = if (task.status == "failed") 0.84f else 0.34f),
+        ),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xBB090D1B))
+            .border(1.dp, borderBrush, RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF101626))
+                .border(1.dp, AchatCyan.copy(alpha = 0.42f), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            EmptyTasksCard()
+            DiamondIcon(15.dp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = task.title,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.task_card_status, task.taskId.take(8), task.status),
+                color = AchatMuted,
+                fontSize = 9.sp,
+                letterSpacing = 0.3.sp,
+            )
+            if (!task.errorMessage.isNullOrBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = task.errorMessage,
+                    color = AchatPink.copy(alpha = 0.9f),
+                    fontSize = 9.sp,
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (task.canOpenResult) AchatCyan.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f))
+                .border(
+                    1.dp,
+                    if (task.canOpenResult) AchatCyan.copy(alpha = 0.78f) else Color.White.copy(alpha = 0.12f),
+                    RoundedCornerShape(14.dp),
+                )
+                .clickable(enabled = task.canOpenResult, onClick = onOpen)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = if (task.canOpenResult) {
+                    stringResource(R.string.task_open_result)
+                } else {
+                    task.status.uppercase()
+                },
+                color = if (task.canOpenResult) Color.White else AchatMuted,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GenerationResultScreen(
+    task: TrackedGenerationTask,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        SecondaryHeader(
+            title = stringResource(R.string.task_result_title),
+            backDescription = stringResource(R.string.back_to_me_description),
+            onBack = onBack,
+        )
+        Spacer(Modifier.height(14.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xBB080A14))
+                .border(
+                    1.dp,
+                    Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.7f), AchatPink.copy(alpha = 0.7f))),
+                    RoundedCornerShape(10.dp),
+                )
+                .padding(12.dp),
+        ) {
+            Text(
+                text = task.title,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.task_card_status, task.taskId.take(8), task.status),
+                color = AchatMuted,
+                fontSize = 10.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (task.canPreviewAsImage) {
+                    AsyncImage(
+                        model = task.resultUrl,
+                        contentDescription = stringResource(R.string.task_result_image_description),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.task_result_preview_unavailable),
+                        color = AchatMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
         }
     }
 }
@@ -1196,6 +1383,7 @@ private fun UploadPhotoScreen(
     onNavigationSelect: (Int) -> Unit,
     diamondBalance: Int,
     selectedTemplate: SelectedGenerationTemplate?,
+    onTaskUpdated: (TrackedGenerationTask) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -1214,6 +1402,8 @@ private fun UploadPhotoScreen(
     val taskSucceededPattern = stringResource(R.string.task_succeeded)
     val taskFailedPattern = stringResource(R.string.task_failed)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
+    val defaultTaskTitle = stringResource(R.string.default_task_title)
+    val trackedTaskTitle = selectedTemplate?.title ?: defaultTaskTitle
     val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         selectedImageUri = uri
         uploadedResourceId = null
@@ -1238,6 +1428,7 @@ private fun UploadPhotoScreen(
             repository.getVisualGenerationTask(task.taskId)
         }.onSuccess { updatedTask ->
             currentTask = updatedTask
+            onTaskUpdated(updatedTask.toTrackedGenerationTask(trackedTaskTitle))
         }.onFailure { error ->
             uploadMessage = error.message ?: uploadFailedMessage
         }
@@ -1302,10 +1493,11 @@ private fun UploadPhotoScreen(
                             quality = template.quality,
                             resourceId = resourceId,
                         )
-	                    }.onSuccess { task ->
-	                        currentTask = task
-	                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
-	                    }.onFailure { error ->
+                    }.onSuccess { task ->
+                        currentTask = task
+                        onTaskUpdated(task.toTrackedGenerationTask(template.title))
+                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
+                    }.onFailure { error ->
                         uploadMessage = error.message ?: uploadFailedMessage
                     }
                     uploadInProgress = false
