@@ -380,12 +380,7 @@ private fun TemplateBrowserScreen(
     }
 
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
-    val sectionCategories = if (section == TemplateSection.Image) backendState.imageCategories else backendState.videoCategories
-    val allTemplates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
-    val selectedCategory = sectionCategories.getOrNull(selectedTab - 2)
-    val templates = selectedCategory?.let { category ->
-        allTemplates.filter { template -> template.categoryId == category.id }
-    } ?: allTemplates
+    val templates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
@@ -412,7 +407,6 @@ private fun TemplateBrowserScreen(
         Spacer(Modifier.height(8.dp))
         CategoryTabs(
             section = section,
-            categories = sectionCategories,
             selectedTab = selectedTab,
             onSelect = onTabSelect,
         )
@@ -1717,7 +1711,6 @@ private fun Header(section: TemplateSection, diamondBalance: Int) {
 @Composable
 private fun CategoryTabs(
     section: TemplateSection,
-    categories: List<VisualCategory>,
     selectedTab: Int,
     onSelect: (Int) -> Unit,
 ) {
@@ -1735,10 +1728,6 @@ private fun CategoryTabs(
     ) {
         CategoryTab(firstLabel, selectedTab == 0) { onSelect(0) }
         CategoryTab(secondLabel, selectedTab == 1) { onSelect(1) }
-        categories.forEachIndexed { index, category ->
-            val tabIndex = index + 2
-            CategoryTab(category.name, selectedTab == tabIndex) { onSelect(tabIndex) }
-        }
     }
 }
 
