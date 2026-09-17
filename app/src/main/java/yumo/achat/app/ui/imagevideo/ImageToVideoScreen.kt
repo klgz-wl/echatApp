@@ -137,7 +137,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val repository = remember(context) { AchatRepository(context) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
-    var isPlaying by rememberSaveable { mutableStateOf(false) }
+    var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var selectedCreditPack by rememberSaveable { mutableIntStateOf(0) }
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }

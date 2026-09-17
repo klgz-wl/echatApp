@@ -1,8 +1,12 @@
 package yumo.achat.app.ui.imagevideo
 
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +30,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +73,7 @@ import yumo.achat.app.R
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatPink
 import yumo.achat.app.ui.theme.AchatSurface
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun HeroCard(
@@ -85,6 +93,25 @@ internal fun HeroCard(
     val playDescription = stringResource(
         if (isPlaying) R.string.pause_template_description else R.string.play_template_description,
     )
+    val controlInteractionSource = remember { MutableInteractionSource() }
+    var controlsRevealed by remember(previewMedia) { mutableStateOf(false) }
+    val showPlaybackControls = shouldShowPlaybackControls(
+        isPlaying = isPlaying,
+        controlsRevealed = controlsRevealed,
+    )
+
+    LaunchedEffect(isPlaying, controlsRevealed, previewMedia) {
+        if (isPlaying && controlsRevealed) {
+            delay(1_100)
+            controlsRevealed = false
+        }
+    }
+
+    fun handlePlayToggle() {
+        controlsRevealed = !isPlaying
+        onPlayToggle()
+    }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(2.dp))
@@ -109,6 +136,15 @@ internal fun HeroCard(
             )
         }
         Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = controlInteractionSource,
+                    indication = null,
+                    onClick = { handlePlayToggle() },
+                ),
+        )
+        Box(
             Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.35f)
@@ -116,14 +152,20 @@ internal fun HeroCard(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9060710)))),
         )
         FrameCorners()
-        HexPlayButton(
-            isPlaying = isPlaying,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(90.dp)
-                .semantics { contentDescription = playDescription }
-                .clickable(onClick = onPlayToggle),
-        )
+        AnimatedVisibility(
+            visible = showPlaybackControls,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            HexPlayButton(
+                isPlaying = isPlaying,
+                modifier = Modifier
+                    .size(90.dp)
+                    .semantics { contentDescription = playDescription }
+                    .clickable(onClick = { handlePlayToggle() }),
+            )
+        }
         Column(
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
