@@ -1,6 +1,9 @@
 package yumo.achat.app.ui.imagevideo
 
+import android.app.Activity
+import android.content.Intent
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -1533,8 +1536,11 @@ private fun UploadPhotoScreen(
             uploadInProgress = false
         }
     }
-    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
+    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            return@rememberLauncherForActivityResult
+        }
+        val uri = result.data?.data ?: return@rememberLauncherForActivityResult
         selectedImageUri = uri
         uploadedResourceId = null
         currentTask = null
@@ -1542,7 +1548,11 @@ private fun UploadPhotoScreen(
     }
     fun launchPhotoPicker() {
         if (!uploadInProgress) {
-            pickerLauncher.launch(arrayOf("image/*"))
+            pickerLauncher.launch(
+                Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                    type = "image/*"
+                },
+            )
         }
     }
 
