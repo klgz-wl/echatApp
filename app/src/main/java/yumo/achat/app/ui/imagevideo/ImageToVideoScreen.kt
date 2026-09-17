@@ -393,10 +393,7 @@ private fun TemplateBrowserScreen(
     val templates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
-    val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
-    val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: 1
     val navigationTotal = templates.size
-    val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
     val visiblePrice = selectedTemplate?.displayPrice ?: 22
     val nearbyVideoUrls = if (section == TemplateSection.Video) {
         templates.nearbyVideoPreviewUrls(selectedTemplateIndex)
@@ -435,9 +432,7 @@ private fun TemplateBrowserScreen(
         TemplateFeedPager(
             templates = templates,
             currentTemplate = currentTemplate,
-            fallbackPage = visibleTemplatePage,
-            fallbackTotal = visibleTemplateTotal,
-            fallbackDurationSeconds = visibleDuration,
+            isLoading = backendState.isLoading,
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
             onMoveTemplate = { direction -> onMoveTemplate(direction, navigationTotal) },
@@ -446,7 +441,11 @@ private fun TemplateBrowserScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(12.dp))
-        TemplateButton(price = visiblePrice, onClick = { onUseTemplate(selectedGenerationTemplate) })
+        TemplateButton(
+            price = visiblePrice,
+            enabled = selectedGenerationTemplate != null,
+            onClick = { onUseTemplate(selectedGenerationTemplate) },
+        )
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
@@ -462,9 +461,7 @@ private fun TemplateBrowserScreen(
 private fun TemplateFeedPager(
     templates: List<VisualTemplate>,
     currentTemplate: Int,
-    fallbackPage: Int,
-    fallbackTotal: Int,
-    fallbackDurationSeconds: Int,
+    isLoading: Boolean,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection) -> Unit,
@@ -473,16 +470,8 @@ private fun TemplateFeedPager(
     modifier: Modifier = Modifier,
 ) {
     if (templates.isEmpty()) {
-        HeroCard(
-            currentPage = fallbackPage,
-            totalPages = fallbackTotal,
-            durationSeconds = fallbackDurationSeconds,
-            previewMedia = TemplatePreviewMedia.LocalPlaceholder,
-            isPlaying = isPlaying,
-            onPlayToggle = onPlayToggle,
-            onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
-            onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
-            edgeHint = edgeHint,
+        LiveTemplatePlaceholderCard(
+            isLoading = isLoading,
             modifier = modifier,
         )
         return
@@ -539,6 +528,56 @@ private fun TemplateFeedPager(
             edgeHint = edgeHint,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+@Composable
+private fun LiveTemplatePlaceholderCard(isLoading: Boolean, modifier: Modifier = Modifier) {
+    val title = stringResource(
+        if (isLoading) R.string.template_feed_loading_title else R.string.template_feed_empty_title,
+    )
+    val body = stringResource(
+        if (isLoading) R.string.template_feed_loading_body else R.string.template_feed_empty_body,
+    )
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0xE6080A13))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.45f), AchatPink.copy(alpha = 0.45f))),
+                RoundedCornerShape(2.dp),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(AchatCyan.copy(alpha = 0.12f))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.42f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                DiamondIcon(16.dp)
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = body,
+                color = AchatMuted,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
+        }
     }
 }
 

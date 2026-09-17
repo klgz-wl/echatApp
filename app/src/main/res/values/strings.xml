@@ -87,4 +87,8 @@
     <string name="backend_loading_templates">Loading live templates...</string>
     <string name="backend_templates_offline">Live templates unavailable, using local preview</string>
     <string name="backend_templates_placeholder">Local preview template</string>
+    <string name="template_feed_loading_title">Loading live templates</string>
+    <string name="template_feed_loading_body">Fetching real templates from the server...</string>
+    <string name="template_feed_empty_title">No live templates</string>
+    <string name="template_feed_empty_body">Please retry after templates are available.</string>
 </resources>

@@ -386,31 +386,39 @@ private fun RoundArrow(up: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun TemplateButton(price: Int, onClick: () -> Unit) {
+internal fun TemplateButton(price: Int, enabled: Boolean = true, onClick: () -> Unit) {
+    val gradientColors = if (enabled) {
+        listOf(Color(0xFF21D9F2), Color(0xFF7952E8), AchatPink)
+    } else {
+        listOf(Color(0xFF303545), Color(0xFF343747))
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
             .clip(RoundedCornerShape(2.dp))
             .background(
-                Brush.horizontalGradient(
-                    listOf(Color(0xFF21D9F2), Color(0xFF7952E8), AchatPink),
-                ),
+                Brush.horizontalGradient(gradientColors),
             )
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
             stringResource(R.string.use_this_template),
-            color = Color.White,
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.width(12.dp))
         DiamondIcon(11.dp)
         Spacer(Modifier.width(5.dp))
-        Text(price.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            price.toString(),
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
