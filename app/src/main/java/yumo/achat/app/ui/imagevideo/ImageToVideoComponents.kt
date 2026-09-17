@@ -596,10 +596,15 @@ private fun UploadActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val background = if (primary) {
-        Brush.horizontalGradient(listOf(Color(0xFF784CE8), AchatPink, Color(0xFF42DDF4)))
-    } else {
-        Brush.horizontalGradient(listOf(Color(0xFF11192A), Color(0xFF101420)))
+    val background = when {
+        !enabled -> Brush.horizontalGradient(listOf(Color(0xFF2E3340), Color(0xFF373B46)))
+        primary -> Brush.horizontalGradient(listOf(Color(0xFF784CE8), AchatPink, Color(0xFF42DDF4)))
+        else -> Brush.horizontalGradient(listOf(Color(0xFF11192A), Color(0xFF101420)))
+    }
+    val borderColor = when {
+        !enabled -> Color.White.copy(alpha = 0.08f)
+        primary -> Color.White.copy(alpha = 0.12f)
+        else -> AchatCyan.copy(alpha = 0.45f)
     }
     Row(
         modifier = modifier
@@ -608,7 +613,7 @@ private fun UploadActionButton(
             .background(background)
             .border(
                 1.dp,
-                if (primary) Color.White.copy(alpha = 0.12f) else AchatCyan.copy(alpha = 0.45f),
+                borderColor,
                 RoundedCornerShape(6.dp),
             )
             .clickable(enabled = enabled, onClick = onClick),
