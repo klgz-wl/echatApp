@@ -7,5 +7,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 
 internal fun uploadPreviewContentScale(): ContentScale = ContentScale.Fit
 
+internal fun uploadScreenContentShouldScroll(): Boolean = true
+
 @OptIn(UnstableApi::class)
 internal fun uploadPreviewVideoResizeMode(): Int = AspectRatioFrameLayout.RESIZE_MODE_FIT

@@ -11,4 +11,9 @@ class UploadPreviewDisplayTest {
         assertEquals(ContentScale.Fit, uploadPreviewContentScale())
         assertEquals(AspectRatioFrameLayout.RESIZE_MODE_FIT, uploadPreviewVideoResizeMode())
     }
+
+    @Test
+    fun `upload screen content is scrollable because square previews exceed viewport`() {
+        assertEquals(true, uploadScreenContentShouldScroll())
+    }
 }
