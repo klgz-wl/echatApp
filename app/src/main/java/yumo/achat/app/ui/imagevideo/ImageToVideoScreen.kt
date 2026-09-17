@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,8 +80,6 @@ import yumo.achat.app.ui.theme.AchatDeepNavy
 import yumo.achat.app.ui.theme.AchatMuted
 import yumo.achat.app.ui.theme.AchatPink
 import yumo.achat.app.ui.theme.AchatTheme
-
-private const val TotalTemplateCount = 109
 
 private enum class ImageToVideoDestination {
     Templates,
@@ -245,6 +246,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     },
                     onPlayToggle = { isPlaying = !isPlaying },
                     onMoveTemplate = ::moveTemplate,
+                    onTemplatePageSelected = { page ->
+                        currentTemplate = page
+                        templateEdgeHintRes = null
+                    },
                     onUseTemplate = { template ->
                         selectedGenerationTemplate = template
                         destination = ImageToVideoDestination.UploadPhoto
@@ -343,6 +348,7 @@ private fun TemplateBrowserScreen(
     onTabSelect: (Int) -> Unit,
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection, Int) -> Unit,
+    onTemplatePageSelected: (Int) -> Unit,
     onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
@@ -388,8 +394,8 @@ private fun TemplateBrowserScreen(
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val visibleTemplatePage = if (templates.isEmpty()) currentTemplate else selectedTemplateIndex + 1
-    val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
-    val navigationTotal = templates.size.takeIf { it > 0 } ?: TotalTemplateCount
+    val visibleTemplateTotal = templates.size.takeIf { it > 0 } ?: 1
+    val navigationTotal = templates.size
     val visibleDuration = selectedTemplate?.durationSeconds?.takeIf { it > 0 } ?: 5
     val visiblePrice = selectedTemplate?.displayPrice ?: 22
     val nearbyVideoUrls = if (section == TemplateSection.Video) {
@@ -426,19 +432,18 @@ private fun TemplateBrowserScreen(
             selectedTemplate = selectedTemplate,
         )
         Spacer(Modifier.height(7.dp))
-        HeroCard(
-            currentPage = visibleTemplatePage,
-            totalPages = visibleTemplateTotal,
-            durationSeconds = visibleDuration,
-            previewMedia = selectedTemplate.toPreviewMedia(),
+        TemplateFeedPager(
+            templates = templates,
+            currentTemplate = currentTemplate,
+            fallbackPage = visibleTemplatePage,
+            fallbackTotal = visibleTemplateTotal,
+            fallbackDurationSeconds = visibleDuration,
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
-            onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous, navigationTotal) },
-            onNext = { onMoveTemplate(TemplateFeedDirection.Next, navigationTotal) },
+            onMoveTemplate = { direction -> onMoveTemplate(direction, navigationTotal) },
+            onTemplatePageSelected = onTemplatePageSelected,
             edgeHint = edgeHint,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(12.dp))
         TemplateButton(price = visiblePrice, onClick = { onUseTemplate(selectedGenerationTemplate) })
@@ -449,6 +454,90 @@ private fun TemplateBrowserScreen(
                 onNavigationSelect(it)
                 onTabSelect(0)
             },
+        )
+    }
+}
+
+@Composable
+private fun TemplateFeedPager(
+    templates: List<VisualTemplate>,
+    currentTemplate: Int,
+    fallbackPage: Int,
+    fallbackTotal: Int,
+    fallbackDurationSeconds: Int,
+    isPlaying: Boolean,
+    onPlayToggle: () -> Unit,
+    onMoveTemplate: (TemplateFeedDirection) -> Unit,
+    onTemplatePageSelected: (Int) -> Unit,
+    edgeHint: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (templates.isEmpty()) {
+        HeroCard(
+            currentPage = fallbackPage,
+            totalPages = fallbackTotal,
+            durationSeconds = fallbackDurationSeconds,
+            previewMedia = TemplatePreviewMedia.LocalPlaceholder,
+            isPlaying = isPlaying,
+            onPlayToggle = onPlayToggle,
+            onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
+            onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
+            edgeHint = edgeHint,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val scope = rememberCoroutineScope()
+    val initialPage = (currentTemplate - 1).coerceIn(0, templates.lastIndex)
+    val pagerState = rememberPagerState(initialPage = initialPage) { templates.size }
+
+    LaunchedEffect(currentTemplate, templates.size) {
+        val targetPage = (currentTemplate - 1).coerceIn(0, templates.lastIndex)
+        if (pagerState.currentPage != targetPage) {
+            pagerState.scrollToPage(targetPage)
+        }
+    }
+
+    LaunchedEffect(pagerState, templates.size) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            onTemplatePageSelected(page + 1)
+        }
+    }
+
+    VerticalPager(
+        state = pagerState,
+        modifier = modifier,
+    ) { page ->
+        val template = templates[page]
+        HeroCard(
+            currentPage = page + 1,
+            totalPages = templates.size,
+            durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
+            previewMedia = template.toPreviewMedia(),
+            isPlaying = isPlaying,
+            onPlayToggle = onPlayToggle,
+            onPrevious = {
+                if (page == 0) {
+                    onMoveTemplate(TemplateFeedDirection.Previous)
+                } else {
+                    scope.launch {
+                        pagerState.animateScrollToPage(page - 1)
+                    }
+                }
+            },
+            onNext = {
+                if (page == templates.lastIndex) {
+                    onMoveTemplate(TemplateFeedDirection.Next)
+                } else {
+                    scope.launch {
+                        pagerState.animateScrollToPage(page + 1)
+                    }
+                }
+            },
+            enableSwipeGestures = false,
+            edgeHint = edgeHint,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }

@@ -1,5 +1,6 @@
 package yumo.achat.app.ui.imagevideo
 
+import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,7 +45,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -74,6 +77,7 @@ internal fun HeroCard(
     onPlayToggle: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    enableSwipeGestures: Boolean = true,
     edgeHint: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -97,11 +101,13 @@ internal fun HeroCard(
             contentDescription = portraitDescription,
             modifier = Modifier.fillMaxSize(),
         )
-        TemplateSwipeGestureLayer(
-            onPrevious = onPrevious,
-            onNext = onNext,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (enableSwipeGestures) {
+            TemplateSwipeGestureLayer(
+                onPrevious = onPrevious,
+                onNext = onNext,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -229,6 +235,7 @@ private fun TemplatePreviewImage(
 }
 
 @Composable
+@OptIn(UnstableApi::class)
 private fun TemplatePreviewVideo(
     url: String,
     isPlaying: Boolean,
@@ -260,10 +267,12 @@ private fun TemplatePreviewVideo(
         factory = { viewContext ->
             PlayerView(viewContext).apply {
                 useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 this.player = player
             }
         },
         update = { playerView ->
+            playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             playerView.player = player
         },
         modifier = modifier.background(Color.Black),
