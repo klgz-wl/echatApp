@@ -1665,7 +1665,7 @@ private fun UploadPhotoScreen(
                 uploadMessage = uploadSuccessPattern.format(resource.id.take(8))
             }.onFailure { error ->
                 uploadedResourceId = null
-                uploadMessage = error.message ?: uploadFailedMessage
+                uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
             }
             uploadInProgress = false
         }
@@ -1709,7 +1709,7 @@ private fun UploadPhotoScreen(
             currentTask = updatedTask
             onTaskUpdated(updatedTask.toTrackedGenerationTask(trackedTaskTitle))
         }.onFailure { error ->
-            uploadMessage = error.message ?: uploadFailedMessage
+            uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
         }
     }
 
@@ -1781,7 +1781,7 @@ private fun UploadPhotoScreen(
                         onTaskUpdated(task.toTrackedGenerationTask(template.title))
                         uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
                     }.onFailure { error ->
-                        uploadMessage = error.message ?: uploadFailedMessage
+                        uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
                     }
                     uploadInProgress = false
                 }
