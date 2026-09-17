@@ -111,6 +111,8 @@ private data class SelectedGenerationTemplate(
     val modality: String,
     val quality: String,
     val title: String,
+    val previewMedia: TemplatePreviewMedia,
+    val durationSeconds: Int,
 )
 
 private data class CreditPack(
@@ -406,6 +408,8 @@ private fun TemplateBrowserScreen(
             modality = if (section == TemplateSection.Image) "image" else "video",
             quality = if (template.fastPrice != null) "fast" else "quality",
             title = template.name,
+            previewMedia = template.toPreviewMedia(),
+            durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
         )
     }
     TemplateVideoPreloader(urls = nearbyVideoUrls)
@@ -1722,7 +1726,12 @@ private fun UploadPhotoScreen(
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(7.dp))
-        TemplatePreviewPanel(Modifier.fillMaxWidth().height(132.dp))
+        TemplatePreviewPanel(
+            media = selectedTemplate?.previewMedia ?: TemplatePreviewMedia.LocalPlaceholder,
+            durationSeconds = selectedTemplate?.durationSeconds ?: 5,
+            isPlaying = selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
+            modifier = Modifier.fillMaxWidth().height(132.dp),
+        )
         Spacer(Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.template_upload_heading),

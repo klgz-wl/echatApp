@@ -423,7 +423,12 @@ internal fun TemplateButton(price: Int, enabled: Boolean = true, onClick: () -> 
 }
 
 @Composable
-internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
+internal fun TemplatePreviewPanel(
+    media: TemplatePreviewMedia = TemplatePreviewMedia.LocalPlaceholder,
+    durationSeconds: Int = 5,
+    isPlaying: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     val selectedTemplateDescription = stringResource(R.string.selected_template_description)
     Box(
         modifier = modifier
@@ -432,10 +437,10 @@ internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
             .border(1.dp, AchatPink.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
             .semantics { contentDescription = selectedTemplateDescription },
     ) {
-        Image(
-            painter = painterResource(R.drawable.hero_portrait),
+        TemplatePreviewImage(
+            media = media,
+            isPlaying = isPlaying,
             contentDescription = null,
-            contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
@@ -448,6 +453,10 @@ internal fun TemplatePreviewPanel(modifier: Modifier = Modifier) {
                 ),
         )
         FrameCorners()
+        TemplateMetadata(
+            durationSeconds = durationSeconds,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+        )
         Text(
             text = stringResource(R.string.template_ratio),
             color = AchatCyan,
