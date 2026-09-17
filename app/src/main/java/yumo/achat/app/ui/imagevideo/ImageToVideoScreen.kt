@@ -15,6 +15,7 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -998,6 +999,7 @@ private fun GenerationResultScreen(
         modifier = modifier
             .statusBarsPadding()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         SecondaryHeader(
@@ -1730,7 +1732,7 @@ private fun UploadPhotoScreen(
             media = selectedTemplate?.previewMedia ?: TemplatePreviewMedia.LocalPlaceholder,
             durationSeconds = selectedTemplate?.durationSeconds ?: 5,
             isPlaying = selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
-            modifier = Modifier.fillMaxWidth().height(132.dp),
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         )
         Spacer(Modifier.height(12.dp))
         Text(
@@ -1745,7 +1747,7 @@ private fun UploadPhotoScreen(
             uploadMessage = uploadMessage,
             onChoosePhoto = ::launchPhotoPicker,
             enabled = !uploadInProgress,
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         )
         Spacer(Modifier.height(10.dp))
         UploadActions(

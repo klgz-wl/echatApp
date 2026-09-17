@@ -239,10 +239,13 @@ private fun TemplateSwipeGestureLayer(
 }
 
 @Composable
+@OptIn(UnstableApi::class)
 private fun TemplatePreviewImage(
     media: TemplatePreviewMedia,
     isPlaying: Boolean,
     contentDescription: String?,
+    contentScale: ContentScale = ContentScale.Crop,
+    videoResizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
     modifier: Modifier = Modifier,
 ) {
     val placeholder = painterResource(R.drawable.hero_portrait)
@@ -251,7 +254,7 @@ private fun TemplatePreviewImage(
             Image(
                 painter = placeholder,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 modifier = modifier,
             )
         }
@@ -260,7 +263,7 @@ private fun TemplatePreviewImage(
             AsyncImage(
                 model = media.url,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 error = placeholder,
                 modifier = modifier,
             )
@@ -270,6 +273,7 @@ private fun TemplatePreviewImage(
             TemplatePreviewVideo(
                 url = media.url,
                 isPlaying = isPlaying,
+                resizeMode = videoResizeMode,
                 modifier = modifier,
             )
         }
@@ -281,6 +285,7 @@ private fun TemplatePreviewImage(
 private fun TemplatePreviewVideo(
     url: String,
     isPlaying: Boolean,
+    resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -309,12 +314,12 @@ private fun TemplatePreviewVideo(
         factory = { viewContext ->
             PlayerView(viewContext).apply {
                 useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                this.resizeMode = resizeMode
                 this.player = player
             }
         },
         update = { playerView ->
-            playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            playerView.resizeMode = resizeMode
             playerView.player = player
         },
         modifier = modifier.background(Color.Black),
@@ -482,6 +487,8 @@ internal fun TemplatePreviewPanel(
         TemplatePreviewImage(
             media = media,
             isPlaying = isPlaying,
+            contentScale = uploadPreviewContentScale(),
+            videoResizeMode = uploadPreviewVideoResizeMode(),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
         )
@@ -556,7 +563,7 @@ internal fun PhotoUploadPanel(
             AsyncImage(
                 model = selectedImage,
                 contentDescription = photoPickerDescription,
-                contentScale = ContentScale.Crop,
+                contentScale = uploadPreviewContentScale(),
                 modifier = Modifier.fillMaxSize(),
             )
             Box(
