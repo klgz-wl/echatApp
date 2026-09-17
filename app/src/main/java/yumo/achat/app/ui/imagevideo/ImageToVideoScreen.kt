@@ -1533,7 +1533,7 @@ private fun UploadPhotoScreen(
             uploadInProgress = false
         }
     }
-    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         selectedImageUri = uri
         uploadedResourceId = null
@@ -1542,7 +1542,7 @@ private fun UploadPhotoScreen(
     }
     fun launchPhotoPicker() {
         if (!uploadInProgress) {
-            pickerLauncher.launch("image/*")
+            pickerLauncher.launch(arrayOf("image/*"))
         }
     }
 
