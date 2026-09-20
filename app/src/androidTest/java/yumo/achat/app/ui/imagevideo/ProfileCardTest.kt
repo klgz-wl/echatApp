@@ -15,14 +15,16 @@ class ProfileCardTest {
 
     @Test
     fun profileCardMatchesPrototypeStructureAndActions() {
-        var editClicked = false
+        var editNameClicked = false
+        var editAvatarClicked = false
         var copyClicked = false
         composeRule.setContent {
             ProfileCard(
                 profileName = "Quiet wanderer",
                 profileId = "6248261746",
                 avatarUrl = null,
-                onEdit = { editClicked = true },
+                onEditName = { editNameClicked = true },
+                onEditAvatar = { editAvatarClicked = true },
                 onCopyId = { copyClicked = true },
             )
         }
@@ -32,10 +34,12 @@ class ProfileCardTest {
         composeRule.onNodeWithText("ID:6248261746").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Copy profile ID").performClick()
         composeRule.onNodeWithContentDescription("Edit profile").performClick()
+        composeRule.onNodeWithContentDescription("Edit profile photo").performClick()
 
         composeRule.runOnIdle {
             assertTrue(copyClicked)
-            assertTrue(editClicked)
+            assertTrue(editNameClicked)
+            assertTrue(editAvatarClicked)
         }
     }
 }

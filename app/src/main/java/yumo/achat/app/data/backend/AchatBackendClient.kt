@@ -37,6 +37,36 @@ class AchatBackendClient(
     fun userProfile(token: String): UserProfile =
         AchatBackendParsers.parseUserProfile(get("/api/v1/user/profile", token))
 
+    fun updateUserProfile(
+        token: String,
+        nickname: String? = null,
+        avatarUrl: String? = null,
+    ): UserProfile = AchatBackendParsers.parseUserProfile(
+        request(
+            path = "/api/v1/user/profile",
+            method = "PUT",
+            body = profileUpdateBody(nickname = nickname, avatarUrl = avatarUrl),
+            headers = mapOf(
+                "Authorization" to "Bearer $token",
+                "Content-Type" to "application/json",
+            ),
+        ),
+    )
+
+    fun uploadProfileAvatar(token: String, parts: List<MultipartFormData.Part>): UploadedFile {
+        val boundary = "achat-${UUID.randomUUID()}"
+        val response = request(
+            path = "/api/v1/files/upload",
+            method = "POST",
+            headers = mapOf(
+                "Authorization" to "Bearer $token",
+                "Content-Type" to "multipart/form-data; boundary=$boundary",
+            ),
+            writeBody = { outputStream -> MultipartFormData.write(outputStream, boundary, parts) },
+        )
+        return AchatBackendParsers.parseUploadedFile(response)
+    }
+
     fun userCurrency(token: String): UserCurrency =
         AchatBackendParsers.parseUserCurrency(get("/api/v1/user/currencies", token))
 

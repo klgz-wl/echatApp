@@ -120,9 +120,9 @@ class ImageToVideoScreenTest {
         composeRule.onNodeWithText("ME").performClick()
         composeRule.onNodeWithText("Edit Name").performClick()
 
-        composeRule.onNodeWithText("Selene Marlowe").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Name option Nova Quinn").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Name option Iris Vale").assertIsDisplayed()
+        composeRule.onNodeWithText("Edit display name").assertIsDisplayed()
+        composeRule.onNodeWithText("Display name").assertIsDisplayed()
+        composeRule.onNodeWithText("SAVE").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Close name picker").performClick()
         composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
     }

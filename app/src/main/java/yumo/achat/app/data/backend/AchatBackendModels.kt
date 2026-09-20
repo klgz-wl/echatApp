@@ -25,6 +25,13 @@ data class UserProfile(
             ?: "Quiet wanderer"
 }
 
+data class UploadedFile(
+    val id: String,
+    val fileUrl: String,
+    val storagePath: String,
+    val mimeType: String,
+)
+
 data class UserCurrency(
     val userId: String,
     val diamondBalance: Int,

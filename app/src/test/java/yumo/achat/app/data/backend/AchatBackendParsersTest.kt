@@ -7,6 +7,29 @@ import org.junit.Test
 
 class AchatBackendParsersTest {
     @Test
+    fun `parse uploaded profile file`() {
+        val upload = AchatBackendParsers.parseUploadedFile(
+            """
+            {
+              "code": 0,
+              "message": "success",
+              "data": {
+                "id": "file-1",
+                "file_url": "https://cdn.example/avatar.webp",
+                "storage_path": "profile/avatar.webp",
+                "mime_type": "image/webp"
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("file-1", upload.id)
+        assertEquals("https://cdn.example/avatar.webp", upload.fileUrl)
+        assertEquals("profile/avatar.webp", upload.storagePath)
+        assertEquals("image/webp", upload.mimeType)
+    }
+
+    @Test
     fun `parse store order snapshot`() {
         val order = AchatBackendParsers.parseStoreOrder(
             """

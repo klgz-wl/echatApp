@@ -153,6 +153,16 @@ object AchatBackendParsers {
         )
     }
 
+    fun parseUploadedFile(json: String): UploadedFile {
+        val data = dataObject(json)
+        return UploadedFile(
+            id = data.getString("id"),
+            fileUrl = data.optNullableString("file_url") ?: error("Missing uploaded file URL"),
+            storagePath = data.optNullableString("storage_path") ?: "",
+            mimeType = data.optNullableString("mime_type") ?: "",
+        )
+    }
+
     fun parseUserCurrency(json: String): UserCurrency {
         val data = dataObject(json)
         return UserCurrency(

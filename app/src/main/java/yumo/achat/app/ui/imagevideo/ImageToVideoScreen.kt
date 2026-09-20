@@ -46,7 +46,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -76,8 +79,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,6 +118,7 @@ import yumo.achat.app.data.backend.VisualTemplate
 import yumo.achat.app.data.backend.isVisualGenerationFinished
 import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
 import yumo.achat.app.ui.components.TransientMessage
+import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatDeepNavy
@@ -149,7 +155,7 @@ private enum class TemplateSection {
     Image,
 }
 
-private data class AchatBackendUiState(
+internal data class AchatBackendUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val profileName: String = "Quiet wanderer",
@@ -161,6 +167,20 @@ private data class AchatBackendUiState(
     val videoCategories: List<VisualCategory> = emptyList(),
     val imageCategories: List<VisualCategory> = emptyList(),
 )
+
+internal fun AchatBackendUiState.withLoadedProfile(
+    profile: yumo.achat.app.data.backend.UserProfile?,
+    fallbackId: String,
+    preserveCurrent: Boolean,
+): AchatBackendUiState = if (preserveCurrent) {
+    this
+} else {
+    copy(
+        profileName = profile?.displayName ?: profileName,
+        profileId = profile?.id ?: fallbackId,
+        profileAvatarUrl = profile?.largeAvatarUrl ?: profile?.avatarUrl,
+    )
+}
 
 internal data class TopUpUiState(
     val isLoading: Boolean = false,
@@ -324,6 +344,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
     val topUpPaymentViewModel: TopUpPaymentViewModel = viewModel()
     val topUpPaymentController = topUpPaymentViewModel.controller
+    val profileEditingViewModel: ProfileEditingViewModel = viewModel()
+    val profileEditingController = profileEditingViewModel.controller
     var topUpState by remember {
         mutableStateOf(
             TopUpUiState(
@@ -342,6 +364,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
     var templateEdgeHintRes by remember { mutableStateOf<Int?>(null) }
     var templateEdgeHintSerial by remember { mutableIntStateOf(0) }
+    var profileMessage by remember { mutableStateOf<TransientMessage?>(null) }
+    var profileMessageSerial by remember { mutableStateOf(0L) }
+    var profileRevision by remember { mutableStateOf(0L) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
     val trackedTasks = mergeTrackedGenerationTasks(sessionTasks, serverHistoryTasks)
     val templateEdgeHint = templateEdgeHintRes?.let { messageRes ->
@@ -349,6 +374,57 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             id = templateEdgeHintSerial.toLong(),
             text = stringResource(messageRes),
         )
+    }
+
+    fun applyProfile(profile: yumo.achat.app.data.backend.UserProfile) {
+        profileRevision += 1
+        backendState = backendState.copy(
+            profileName = profile.displayName,
+            profileId = profile.id,
+            profileAvatarUrl = profile.largeAvatarUrl ?: profile.avatarUrl,
+        )
+    }
+
+    fun showProfileMessage(text: String, tone: TransientMessageTone) {
+        profileMessageSerial += 1
+        profileMessage = TransientMessage(profileMessageSerial, text, tone)
+    }
+
+    val avatarUpdatedMessage = stringResource(R.string.profile_avatar_updated)
+    val avatarUpdateFailedMessage = stringResource(R.string.profile_avatar_update_failed)
+    val nameUpdatedMessage = stringResource(R.string.profile_name_updated)
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data ?: return@rememberLauncherForActivityResult
+        profileEditingController.saveAvatar(uri)
+    }
+
+    fun openAvatarPicker() {
+        if (!profileEditingController.canStartAvatarSave()) return
+        avatarPicker.launch(
+            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                type = "image/*"
+            },
+        )
+    }
+
+    LaunchedEffect(profileEditingController.completionSerial) {
+        if (profileEditingController.completionSerial == 0) return@LaunchedEffect
+        val operation = profileEditingController.completedOperation ?: return@LaunchedEffect
+        val error = profileEditingController.completionError
+        if (error == null) {
+            profileEditingController.updatedProfile?.let(::applyProfile)
+        }
+        when (operation) {
+            ProfileEditOperation.Name -> if (error == null) {
+                destination = ImageToVideoDestination.Templates
+                showProfileMessage(nameUpdatedMessage, TransientMessageTone.Success)
+            }
+            ProfileEditOperation.Avatar -> showProfileMessage(
+                if (error == null) avatarUpdatedMessage else apiEnvelopeUserMessage(error, avatarUpdateFailedMessage),
+                if (error == null) TransientMessageTone.Success else TransientMessageTone.Error,
+            )
+        }
+        profileEditingController.acknowledgeCompletion()
     }
 
     fun showTemplateEdgeHint(direction: TemplateFeedDirection) {
@@ -399,15 +475,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
 
     LaunchedEffect(context) {
+        val profileRevisionAtStart = profileRevision
         backendState = backendState.copy(isLoading = true, errorMessage = null)
         runCatching {
             repository.loadHomeData()
         }.onSuccess { homeData ->
-            backendState = AchatBackendUiState(
+            backendState = backendState.withLoadedProfile(
+                profile = homeData.profile,
+                fallbackId = homeData.session.userId,
+                preserveCurrent = profileRevision != profileRevisionAtStart,
+            ).copy(
                 isLoading = false,
-                profileName = homeData.profile?.displayName ?: backendState.profileName,
-                profileId = homeData.profile?.id ?: homeData.session.userId,
-                profileAvatarUrl = homeData.profile?.largeAvatarUrl ?: homeData.profile?.avatarUrl,
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
                 videoTemplates = homeData.videoTemplates,
                 imageTemplates = homeData.imageTemplates,
@@ -546,6 +624,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onConversationLog = ::openMyTasks,
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
                     onEditName = { destination = ImageToVideoDestination.EditName },
+                    onEditAvatar = ::openAvatarPicker,
+                    isAvatarSaving = profileEditingController.avatarSaving,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
                     topUpState = topUpState,
@@ -607,31 +687,67 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             }
 
             ImageToVideoDestination.EditName -> {
+                BackHandler {
+                    if (!profileEditingController.nameSaving) {
+                        profileEditingController.clearNameError()
+                        destination = ImageToVideoDestination.Templates
+                    }
+                }
                 Box(Modifier.fillMaxSize()) {
-                    MeScreen(
-                        selectedNavigation = 3,
-                        onConversationLog = ::openMyTasks,
-                        onFeedback = { destination = ImageToVideoDestination.Feedback },
-                        onEditName = {},
-                        profileName = backendState.profileName,
-                        profileId = backendState.profileId,
-                        profileAvatarUrl = backendState.profileAvatarUrl,
-                        diamondBalance = backendState.diamondBalance,
-                        onNavigationSelect = ::navigateFromBottomNavigation,
-                    )
+                    Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                        MeScreen(
+                            selectedNavigation = 3,
+                            onConversationLog = ::openMyTasks,
+                            onFeedback = { destination = ImageToVideoDestination.Feedback },
+                            onEditName = {},
+                            onEditAvatar = ::openAvatarPicker,
+                            isAvatarSaving = profileEditingController.avatarSaving,
+                            profileName = backendState.profileName,
+                            profileId = backendState.profileId,
+                            profileAvatarUrl = backendState.profileAvatarUrl,
+                            diamondBalance = backendState.diamondBalance,
+                            onNavigationSelect = ::navigateFromBottomNavigation,
+                        )
+                    }
                     Box(
                         Modifier
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.68f))
-                            .clickable { destination = ImageToVideoDestination.Templates },
+                            .semantics {
+                                contentDescription = context.getString(R.string.dismiss_name_editor_description)
+                            }
+                            .clickable(enabled = !profileEditingController.nameSaving) {
+                                profileEditingController.clearNameError()
+                                destination = ImageToVideoDestination.Templates
+                            },
                     )
-                    NamePickerSheet(
-                        onClose = { destination = ImageToVideoDestination.Templates },
+                    NameEditorSheet(
+                        currentName = backendState.profileName,
+                        isSaving = profileEditingController.nameSaving,
+                        errorMessage = profileEditingController.nameError,
+                        onInputChanged = profileEditingController::clearNameError,
+                        onClose = {
+                            if (!profileEditingController.nameSaving) {
+                                profileEditingController.clearNameError()
+                                destination = ImageToVideoDestination.Templates
+                            }
+                        },
+                        onSave = profileEditingController::saveName,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             }
         }
+        TransientMessageHost(
+            message = profileMessage,
+            onDismiss = { messageId ->
+                if (profileMessage?.id == messageId) profileMessage = null
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 82.dp),
+        )
         val thirdPartyRoute = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
         if (thirdPartyRoute != null && thirdPartyRoute.openMode == "webview" &&
             topUpPaymentController.checkoutState is TopUpCheckoutState.AwaitingPayment
@@ -665,6 +781,8 @@ private fun TemplateBrowserScreen(
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
+    onEditAvatar: () -> Unit,
+    isAvatarSaving: Boolean,
     onNavigationSelect: (Int) -> Unit,
     onProductSelect: (String) -> Unit,
     onPreparePayment: () -> Unit,
@@ -698,6 +816,8 @@ private fun TemplateBrowserScreen(
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
             onEditName = onEditName,
+            onEditAvatar = onEditAvatar,
+            isAvatarSaving = isAvatarSaving,
             profileName = backendState.profileName,
             profileId = backendState.profileId,
             profileAvatarUrl = backendState.profileAvatarUrl,
@@ -925,6 +1045,8 @@ private fun MeScreen(
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
+    onEditAvatar: () -> Unit,
+    isAvatarSaving: Boolean,
     profileName: String,
     profileId: String,
     profileAvatarUrl: String?,
@@ -949,13 +1071,23 @@ private fun MeScreen(
             profileName = profileName,
             profileId = profileId,
             avatarUrl = profileAvatarUrl,
-            onEdit = onEditName,
+            onEditName = onEditName,
+            onEditAvatar = onEditAvatar,
             onCopyId = {
                 clipboardManager.setPrimaryClip(
                     ClipData.newPlainText(copyIdLabel, profileId),
                 )
             },
+            nameEditEnabled = !isAvatarSaving,
+            avatarEditEnabled = !isAvatarSaving,
         )
+        if (isAvatarSaving) {
+            Text(
+                text = stringResource(R.string.profile_avatar_updating),
+                color = AchatCyan,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             DiamondIcon(7.dp)
@@ -986,7 +1118,7 @@ private fun MeScreen(
                 icon = ModuleIcon.Edit,
                 title = stringResource(R.string.edit_name),
                 subtitle = stringResource(R.string.edit_name_subtitle),
-                onClick = onEditName,
+                onClick = { if (!isAvatarSaving) onEditName() },
             )
         }
         Spacer(Modifier.weight(1f))
@@ -1034,8 +1166,11 @@ internal fun ProfileCard(
     profileName: String,
     profileId: String,
     avatarUrl: String?,
-    onEdit: () -> Unit,
+    onEditName: () -> Unit,
+    onEditAvatar: () -> Unit,
     onCopyId: () -> Unit,
+    nameEditEnabled: Boolean = true,
+    avatarEditEnabled: Boolean = true,
 ) {
     val avatarDescription = stringResource(R.string.profile_avatar_description)
     val avatarEditDescription = stringResource(R.string.profile_avatar_edit_description)
@@ -1090,29 +1225,35 @@ internal fun ProfileCard(
                         CopyGlyph(tint = AchatMuted, modifier = Modifier.size(11.dp))
                     }
                     Spacer(Modifier.width(8.dp))
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .height(28.dp)
-                            .clip(CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp))
-                            .background(Color(0x6612D8EB))
-                            .border(
-                                1.dp,
-                                AchatCyan.copy(alpha = 0.72f),
-                                CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp),
-                            )
-                            .clickable(onClick = onEdit)
-                            .semantics { contentDescription = editDescription }
-                            .padding(horizontal = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .height(48.dp)
+                            .clickable(enabled = nameEditEnabled, onClick = onEditName)
+                            .semantics { contentDescription = editDescription },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        PencilGlyph(tint = AchatCyan, modifier = Modifier.size(12.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text(
-                            text = stringResource(R.string.profile_edit),
-                            color = AchatCyan,
-                            style = MaterialTheme.typography.labelMedium,
-                            letterSpacing = 1.5.sp,
-                        )
+                        Row(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .clip(CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp))
+                                .background(Color(0x6612D8EB))
+                                .border(
+                                    1.dp,
+                                    AchatCyan.copy(alpha = 0.72f),
+                                    CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp),
+                                )
+                                .padding(horizontal = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PencilGlyph(tint = AchatCyan, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                text = stringResource(R.string.profile_edit),
+                                color = AchatCyan,
+                                style = MaterialTheme.typography.labelMedium,
+                                letterSpacing = 1.5.sp,
+                            )
+                        }
                     }
                 }
             }
@@ -1142,15 +1283,21 @@ internal fun ProfileCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(29.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF07101A))
-                    .border(1.dp, AchatCyan, CircleShape)
-                    .clickable(onClick = onEdit)
+                    .size(48.dp)
+                    .clickable(enabled = avatarEditEnabled, onClick = onEditAvatar)
                     .semantics { contentDescription = avatarEditDescription },
                 contentAlignment = Alignment.Center,
             ) {
-                PencilGlyph(tint = AchatCyan, modifier = Modifier.size(13.dp))
+                Box(
+                    modifier = Modifier
+                        .size(29.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF07101A))
+                        .border(1.dp, AchatCyan, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PencilGlyph(tint = AchatCyan, modifier = Modifier.size(13.dp))
+                }
             }
         }
     }
@@ -1890,21 +2037,24 @@ private fun FeedbackSubmitButton() {
 }
 
 @Composable
-private fun NamePickerSheet(
+internal fun NameEditorSheet(
+    currentName: String,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onInputChanged: () -> Unit = {},
     onClose: () -> Unit,
+    onSave: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val closeDescription = stringResource(R.string.close_name_picker_description)
-    val options = listOf(
-        "Nova Quinn",
-        "Iris Vale",
-        "Luna Cross",
-        "Mira Stone",
-        "Vera Lane",
-        "Ari Bloom",
-        "Nora West",
-        "Eden Ray",
-    )
+    var name by rememberSaveable { mutableStateOf(currentName) }
+    val normalizedName = name.trim()
+    val validationMessage = if (normalizedName.length in 2..50) {
+        null
+    } else {
+        stringResource(R.string.profile_name_validation)
+    }
+    val canSave = !isSaving && validationMessage == null && normalizedName != currentName.trim()
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1920,14 +2070,20 @@ private fun NamePickerSheet(
     ) {
         Box(
             modifier = Modifier
-                .width(38.dp)
-                .height(3.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color.White.copy(alpha = 0.7f))
+                .size(width = 48.dp, height = 48.dp)
                 .semantics { contentDescription = closeDescription }
-                .clickable(onClick = onClose),
-        )
-        Spacer(Modifier.height(18.dp))
+                .clickable(enabled = !isSaving, onClick = onClose),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier
+                    .width(38.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.White.copy(alpha = 0.7f)),
+            )
+        }
+        Spacer(Modifier.height(2.dp))
         Text(
             text = stringResource(R.string.name_picker_selected),
             color = Color.White,
@@ -1935,39 +2091,42 @@ private fun NamePickerSheet(
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(14.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            options.chunked(4).forEach { rowOptions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    rowOptions.forEach { option ->
-                        NameOptionButton(
-                            name = option,
-                            selected = option == options.first(),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                if (it.length <= 50) {
+                    name = it
+                    onInputChanged()
                 }
-            }
+            },
+            label = { Text(stringResource(R.string.profile_name_label)) },
+            singleLine = true,
+            enabled = !isSaving,
+            isError = validationMessage != null || !errorMessage.isNullOrBlank(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { if (canSave) onSave(normalizedName) },
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val visibleError = errorMessage ?: validationMessage
+        if (!visibleError.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = visibleError,
+                color = AchatPink,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        Spacer(Modifier.height(10.dp))
-    }
-}
-
-@Composable
-private fun NameOptionButton(
-    name: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val description = stringResource(R.string.name_option_description, name)
-    Box(
-        modifier = modifier
-            .height(46.dp)
+        Spacer(Modifier.height(14.dp))
+        Box(
+            modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(
-                if (selected) {
+                if (canSave) {
                     Brush.verticalGradient(listOf(Color(0xFF872CF0), Color(0xFF45156D)))
                 } else {
                     Brush.verticalGradient(listOf(Color(0xD5131A2A), Color(0xD80B0F1D)))
@@ -1975,19 +2134,22 @@ private fun NameOptionButton(
             )
             .border(
                 1.dp,
-                if (selected) AchatPink.copy(alpha = 0.48f) else AchatCyan.copy(alpha = 0.24f),
+                if (canSave) AchatPink.copy(alpha = 0.48f) else AchatCyan.copy(alpha = 0.24f),
                 RoundedCornerShape(6.dp),
             )
-            .semantics { contentDescription = description }
-            .clickable { },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = name.first().uppercase(),
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-        )
+            .clickable(enabled = canSave) { onSave(normalizedName) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(
+                    if (isSaving) R.string.profile_name_saving else R.string.profile_name_save,
+                ),
+                color = if (canSave || isSaving) Color.White else AchatMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
     }
 }
 

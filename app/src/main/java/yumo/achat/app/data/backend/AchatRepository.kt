@@ -21,10 +21,15 @@ interface StorePaymentGateway {
     )
 }
 
+interface ProfileEditingGateway {
+    suspend fun updateProfileName(name: String): UserProfile
+    suspend fun updateProfileAvatar(uri: Uri): UserProfile
+}
+
 class AchatRepository(
     context: Context,
     private val client: AchatBackendClient = AchatBackendClient(),
-) : StorePaymentGateway {
+) : StorePaymentGateway, ProfileEditingGateway {
     private val appContext = context.applicationContext
     private val sessionStore = AchatSessionStore(appContext)
 
@@ -63,6 +68,28 @@ class AchatRepository(
             bytes = bytes,
         )
         client.uploadVisualResource(session.token, part)
+    }
+
+    override suspend fun updateProfileName(name: String): UserProfile = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.updateUserProfile(
+            token = session.token,
+            nickname = validatedProfileNickname(name),
+        )
+    }
+
+    override suspend fun updateProfileAvatar(uri: Uri): UserProfile = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        val resolver = appContext.contentResolver
+        val contentType = validatedProfileAvatarContentType(resolver.getType(uri))
+        val fileName = resolver.displayName(uri) ?: defaultFileName(contentType)
+        val bytes = resolver.openInputStream(uri)?.use(::readProfileAvatarBytes)
+            ?: error("Unable to read selected image")
+        val upload = client.uploadProfileAvatar(
+            token = session.token,
+            parts = profileAvatarUploadParts(fileName, contentType, bytes),
+        )
+        client.updateUserProfile(token = session.token, avatarUrl = upload.fileUrl)
     }
 
     suspend fun createVisualGenerationTask(
