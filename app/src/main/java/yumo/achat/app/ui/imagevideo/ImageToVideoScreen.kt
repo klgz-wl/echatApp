@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -44,6 +45,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
@@ -2054,6 +2057,7 @@ internal fun NameEditorSheet(
     onInputChanged: () -> Unit = {},
     onClose: () -> Unit,
     onSave: (String) -> Unit,
+    imeInsets: WindowInsets = WindowInsets.ime,
     modifier: Modifier = Modifier,
 ) {
     val closeDescription = stringResource(R.string.close_name_picker_description)
@@ -2103,6 +2107,7 @@ internal fun NameEditorSheet(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .windowInsetsPadding(imeInsets)
             .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .background(Brush.verticalGradient(listOf(Color(0xF31A1130), Color(0xFF070812))))
             .border(
@@ -2110,6 +2115,7 @@ internal fun NameEditorSheet(
                 Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.28f), AchatPink.copy(alpha = 0.34f))),
                 RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
             )
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
