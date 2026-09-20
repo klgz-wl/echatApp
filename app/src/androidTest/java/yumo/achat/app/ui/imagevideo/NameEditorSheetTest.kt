@@ -1,6 +1,7 @@
 package yumo.achat.app.ui.imagevideo
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -26,6 +27,7 @@ class NameEditorSheetTest {
             )
         }
 
+        composeRule.onNodeWithText("Quiet wanderer").assertIsFocused()
         composeRule.onNodeWithText("Quiet wanderer").performTextReplacement("Nova Quinn")
         composeRule.onNodeWithText("SAVE").assertIsEnabled().performClick()
 

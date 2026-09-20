@@ -8,12 +8,15 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.view.inputmethod.InputMethodManager
+import android.view.WindowManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -65,6 +68,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -77,6 +82,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -94,6 +101,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -2036,6 +2045,7 @@ private fun FeedbackSubmitButton() {
     }
 }
 
+@Suppress("DEPRECATION")
 @Composable
 internal fun NameEditorSheet(
     currentName: String,
@@ -2047,6 +2057,13 @@ internal fun NameEditorSheet(
     modifier: Modifier = Modifier,
 ) {
     val closeDescription = stringResource(R.string.close_name_picker_description)
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val localView = LocalView.current
+    val activity = LocalActivity.current
+    val inputMethodManager = remember(localView) {
+        localView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    }
     var name by rememberSaveable { mutableStateOf(currentName) }
     val normalizedName = name.trim()
     val validationMessage = if (normalizedName.length in 2..50) {
@@ -2055,6 +2072,34 @@ internal fun NameEditorSheet(
         stringResource(R.string.profile_name_validation)
     }
     val canSave = !isSaving && validationMessage == null && normalizedName != currentName.trim()
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        repeat(5) {
+            delay(60)
+            if (localView.hasWindowFocus()) {
+                keyboardController?.show()
+                showSoftwareKeyboard(inputMethodManager, localView)
+                activity?.window?.let { window ->
+                    WindowCompat.getInsetsController(window, localView).show(WindowInsetsCompat.Type.ime())
+                }
+                return@LaunchedEffect
+            }
+        }
+        keyboardController?.show()
+        showSoftwareKeyboard(inputMethodManager, localView)
+        activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, localView).show(WindowInsetsCompat.Type.ime())
+        }
+    }
+    DisposableEffect(activity) {
+        activity?.window?.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE,
+        )
+        onDispose {
+            activity?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -2072,7 +2117,10 @@ internal fun NameEditorSheet(
             modifier = Modifier
                 .size(width = 48.dp, height = 48.dp)
                 .semantics { contentDescription = closeDescription }
-                .clickable(enabled = !isSaving, onClick = onClose),
+                .clickable(enabled = !isSaving) {
+                    keyboardController?.hide()
+                    onClose()
+                },
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -2105,9 +2153,16 @@ internal fun NameEditorSheet(
             isError = validationMessage != null || !errorMessage.isNullOrBlank(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
-                onDone = { if (canSave) onSave(normalizedName) },
+                onDone = {
+                    if (canSave) {
+                        keyboardController?.hide()
+                        onSave(normalizedName)
+                    }
+                },
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
         )
         val visibleError = errorMessage ?: validationMessage
         if (!visibleError.isNullOrBlank()) {
@@ -2137,7 +2192,10 @@ internal fun NameEditorSheet(
                 if (canSave) AchatPink.copy(alpha = 0.48f) else AchatCyan.copy(alpha = 0.24f),
                 RoundedCornerShape(6.dp),
             )
-            .clickable(enabled = canSave) { onSave(normalizedName) },
+            .clickable(enabled = canSave) {
+                keyboardController?.hide()
+                onSave(normalizedName)
+            },
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -2151,6 +2209,11 @@ internal fun NameEditorSheet(
         }
         Spacer(Modifier.height(10.dp))
     }
+}
+
+@Suppress("DEPRECATION")
+private fun showSoftwareKeyboard(inputMethodManager: InputMethodManager, view: android.view.View) {
+    inputMethodManager.showSoftInput(view, InputMethodManager.SHOW_FORCED)
 }
 
 @Composable
