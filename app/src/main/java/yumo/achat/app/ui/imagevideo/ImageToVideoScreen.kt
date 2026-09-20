@@ -1,10 +1,19 @@
 package yumo.achat.app.ui.imagevideo
 
 import android.app.Activity
+import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,9 +30,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -31,10 +43,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -52,7 +67,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -61,34 +79,70 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Currency
+import java.util.Locale
+import java.net.URI
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yumo.achat.app.R
 import yumo.achat.app.data.backend.AchatRepository
+import yumo.achat.app.data.backend.StoreProduct
+import yumo.achat.app.data.backend.StoreCatalog
+import yumo.achat.app.data.backend.PreparedStorePayment
+import yumo.achat.app.data.backend.PaymentOrderStatus
+import yumo.achat.app.data.backend.StoreUserInfo
 import yumo.achat.app.data.backend.VisualCategory
 import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualTemplate
 import yumo.achat.app.data.backend.isVisualGenerationFinished
 import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
+import yumo.achat.app.ui.components.TransientMessage
+import yumo.achat.app.ui.components.TransientMessageTone
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatDeepNavy
 import yumo.achat.app.ui.theme.AchatMuted
 import yumo.achat.app.ui.theme.AchatPink
 import yumo.achat.app.ui.theme.AchatTheme
 
-private enum class ImageToVideoDestination {
+internal enum class ImageToVideoDestination {
     Templates,
     UploadPhoto,
     MyTasks,
     Feedback,
     EditName,
 }
+
+internal data class BottomNavigationRoute(
+    val selectedNavigation: Int,
+    val destination: ImageToVideoDestination,
+)
+
+internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRoute {
+    require(navigationIndex in 0..3) { "Unsupported bottom navigation index: $navigationIndex" }
+    return BottomNavigationRoute(
+        selectedNavigation = navigationIndex,
+        destination = ImageToVideoDestination.Templates,
+    )
+}
+
+internal fun shouldRefreshTopUp(currentNavigation: Int, selectedNavigation: Int): Boolean =
+    currentNavigation == 2 && selectedNavigation == 2
 
 private enum class TemplateSection {
     Video,
@@ -100,12 +154,98 @@ private data class AchatBackendUiState(
     val errorMessage: String? = null,
     val profileName: String = "Quiet wanderer",
     val profileId: String = "3095609813",
+    val profileAvatarUrl: String? = null,
     val diamondBalance: Int = 0,
     val videoTemplates: List<VisualTemplate> = emptyList(),
     val imageTemplates: List<VisualTemplate> = emptyList(),
     val videoCategories: List<VisualCategory> = emptyList(),
     val imageCategories: List<VisualCategory> = emptyList(),
 )
+
+internal data class TopUpUiState(
+    val isLoading: Boolean = false,
+    val catalog: StoreCatalog? = null,
+    val errorMessage: String? = null,
+    val diamondBalance: Int = 0,
+)
+
+internal sealed interface TopUpPurchaseState {
+    data object Idle : TopUpPurchaseState
+    data class Preparing(val productId: String) : TopUpPurchaseState
+    data class OfficialReady(
+        val productId: String,
+        val order: yumo.achat.app.data.backend.StoreOrder,
+        val channelCode: String,
+        val sdkProductId: String,
+    ) : TopUpPurchaseState {
+        val orderId: String get() = order.id
+        val obfuscatedAccountId: String get() = order.obfuscatedAccountId
+        val obfuscatedProfileId: String get() = order.obfuscatedProfileId
+    }
+    data class ThirdPartyReady(
+        val productId: String,
+        val order: yumo.achat.app.data.backend.StoreOrder,
+        val channelCode: String,
+        val openMode: String,
+        val paymentUrl: String,
+        val expiresAt: String?,
+        val queryIntervalSeconds: Int,
+        val maxQuerySeconds: Int,
+    ) : TopUpPurchaseState {
+        val orderId: String get() = order.id
+    }
+    data class Error(
+        val productId: String,
+        val message: String,
+        val order: yumo.achat.app.data.backend.StoreOrder? = null,
+    ) : TopUpPurchaseState
+}
+
+internal enum class TopUpPaymentOutcome { Pending, Success, Failed }
+
+internal fun classifyTopUpPayment(status: PaymentOrderStatus): TopUpPaymentOutcome = when {
+    status.status == "paid" && status.fulfillmentStatus == "fulfilled" -> TopUpPaymentOutcome.Success
+    status.status in setOf("failed", "cancelled", "expired") -> TopUpPaymentOutcome.Failed
+    else -> TopUpPaymentOutcome.Pending
+}
+
+internal fun PreparedStorePayment.toTopUpPurchaseState(productId: String): TopUpPurchaseState {
+    check(order.id == initialization.orderId) { "Payment initialization order mismatch" }
+    check(order.productId == productId) { "Payment order product mismatch" }
+    return when (initialization.channelType) {
+        "official" -> {
+            check(initialization.openMode == "sdk") { "Official payment must use sdk mode" }
+            check(initialization.sdkProductId.isNotBlank()) { "Official payment product id is missing" }
+            TopUpPurchaseState.OfficialReady(
+                productId = productId,
+                order = order,
+                channelCode = initialization.channelCode,
+                sdkProductId = initialization.sdkProductId,
+            )
+        }
+        "third_party" -> {
+            check(initialization.openMode == "webview" || initialization.openMode == "external_browser") {
+                "Unsupported third-party open mode"
+            }
+            check(initialization.paymentUrl.isNotBlank()) { "Third-party payment url is missing" }
+            val checkoutUri = runCatching { URI(initialization.paymentUrl) }.getOrNull()
+            check(checkoutUri?.scheme == "https" && !checkoutUri.host.isNullOrBlank()) {
+                "Third-party payment url must use https"
+            }
+            TopUpPurchaseState.ThirdPartyReady(
+                productId = productId,
+                order = order,
+                channelCode = initialization.channelCode,
+                openMode = initialization.openMode,
+                paymentUrl = initialization.paymentUrl,
+                expiresAt = initialization.expiresAt,
+                queryIntervalSeconds = initialization.queryIntervalSeconds,
+                maxQuerySeconds = initialization.maxQuerySeconds,
+            )
+        }
+        else -> error("Unsupported payment channel type: ${initialization.channelType}")
+    }
+}
 
 private data class SelectedGenerationTemplate(
     val templateId: String,
@@ -116,42 +256,100 @@ private data class SelectedGenerationTemplate(
     val durationSeconds: Int,
 )
 
-private data class CreditPack(
+internal data class CreditPack(
+    val id: String,
     val credits: Int,
-    val validityDays: Int,
+    val description: String,
     val price: String,
+    val originalPrice: String?,
+    val tier: Int,
+    val accentColor: Color,
     val bonus: Int? = null,
+    val badgeText: String? = null,
+    val iconUrl: String? = null,
     val badgeTextRes: Int? = null,
-)
+) {
+    val tierLabel: String
+        get() = "TIER // ${tier.toString().padStart(2, '0')}"
+}
 
-private val CreditPacks = listOf(
-    CreditPack(credits = 200, validityDays = 90, price = "$39.99", bonus = 150),
-    CreditPack(credits = 100, validityDays = 60, price = "$19.99", bonus = 50),
-    CreditPack(credits = 50, validityDays = 30, price = "$9.99", bonus = 20),
-    CreditPack(credits = 25, validityDays = 15, price = "$4.99", bonus = 5),
-    CreditPack(credits = 10, validityDays = 15, price = "$1.99", badgeTextRes = R.string.credit_pack_starter),
-)
+internal fun creditPackHeightDp(selected: Boolean): Int = if (selected) 148 else 86
+
+internal fun StoreProduct.toCreditPackPresentation(
+    userInfo: StoreUserInfo?,
+    displayIndex: Int,
+    locale: Locale = Locale.getDefault(),
+): CreditPack {
+    val firstBuyEligible = userInfo?.hasMadeFirstPurchase == false && isFirstBuyPromotion
+    val effectivePrice = firstBuyPrice.takeIf { firstBuyEligible && it > BigDecimal.ZERO } ?: price
+    val comparisonPrice = (if (firstBuyEligible) listOf(price, originalPrice).maxOrNull() else originalPrice)
+        ?.takeIf { it > BigDecimal.ZERO && it > effectivePrice }
+    val totalBonus = bonusValue + if (firstBuyEligible) firstBuyBonusValue else 0
+    val accents = listOf(AchatCyan, AchatPink, Color(0xFF7D55E9), AchatCyan, Color.White)
+    return CreditPack(
+        id = id,
+        credits = value,
+        description = description,
+        price = formatStoreMoney(effectivePrice, currency, locale),
+        originalPrice = comparisonPrice?.let { formatStoreMoney(it, currency, locale) },
+        tier = displayIndex + 1,
+        accentColor = accents[displayIndex % accents.size],
+        bonus = totalBonus.takeIf { it > 0 },
+        badgeText = tags.takeIf { it.isNotBlank() },
+        iconUrl = icon.takeIf { it.isNotBlank() },
+    )
+}
+
+internal fun formatStoreMoney(amount: BigDecimal, currencyCode: String, locale: Locale): String {
+    val formatter = NumberFormat.getCurrencyInstance(locale)
+    val currency = runCatching { Currency.getInstance(currencyCode) }.getOrNull()
+        ?: return "${currencyCode.ifBlank { "?" }} ${amount.setScale(2, java.math.RoundingMode.HALF_UP)}"
+    formatter.currency = currency
+    val fractionDigits = currency.defaultFractionDigits.coerceAtLeast(0)
+    formatter.minimumFractionDigits = fractionDigits
+    formatter.maximumFractionDigits = fractionDigits
+    formatter.roundingMode = java.math.RoundingMode.HALF_UP
+    return formatter.format(amount)
+}
 
 @Composable
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
-    val context = LocalContext.current.applicationContext
+    val localContext = LocalContext.current
+    val context = localContext.applicationContext
     val repository = remember(context) { AchatRepository(context) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
-    var selectedCreditPack by rememberSaveable { mutableIntStateOf(0) }
-    var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
+    val topUpPaymentViewModel: TopUpPaymentViewModel = viewModel()
+    val topUpPaymentController = topUpPaymentViewModel.controller
+    var topUpState by remember {
+        mutableStateOf(
+            TopUpUiState(
+                isLoading = true,
+                diamondBalance = backendState.diamondBalance,
+            ),
+        )
+    }
+    var topUpRefreshSerial by remember { mutableIntStateOf(0) }
+    var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
-    var trackedTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
+    var sessionTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
+    var serverHistoryTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
     var isLoadingTaskHistory by remember { mutableStateOf(false) }
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
     var templateEdgeHintRes by remember { mutableStateOf<Int?>(null) }
     var templateEdgeHintSerial by remember { mutableIntStateOf(0) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
-    val templateEdgeHint = templateEdgeHintRes?.let { stringResource(it) }
+    val trackedTasks = mergeTrackedGenerationTasks(sessionTasks, serverHistoryTasks)
+    val templateEdgeHint = templateEdgeHintRes?.let { messageRes ->
+        TransientMessage(
+            id = templateEdgeHintSerial.toLong(),
+            text = stringResource(messageRes),
+        )
+    }
 
     fun showTemplateEdgeHint(direction: TemplateFeedDirection) {
         templateEdgeHintRes = when (direction) {
@@ -175,6 +373,31 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    fun openMyTasks() {
+        selectedResultTask = null
+        isLoadingTaskHistory = true
+        taskHistoryError = null
+        destination = ImageToVideoDestination.MyTasks
+    }
+
+    fun navigateFromBottomNavigation(navigationIndex: Int) {
+        val route = routeFromBottomNavigation(navigationIndex)
+        if (shouldRefreshTopUp(selectedNavigation, navigationIndex)) {
+            topUpRefreshSerial += 1
+        } else if (navigationIndex == 2) {
+            topUpState = TopUpUiState(
+                isLoading = true,
+                diamondBalance = backendState.diamondBalance,
+            )
+        }
+        selectedNavigation = route.selectedNavigation
+        selectedTab = 0
+        currentTemplate = 1
+        templateEdgeHintRes = null
+        selectedResultTask = null
+        destination = route.destination
+    }
+
     LaunchedEffect(context) {
         backendState = backendState.copy(isLoading = true, errorMessage = null)
         runCatching {
@@ -184,6 +407,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 isLoading = false,
                 profileName = homeData.profile?.displayName ?: backendState.profileName,
                 profileId = homeData.profile?.id ?: homeData.session.userId,
+                profileAvatarUrl = homeData.profile?.largeAvatarUrl ?: homeData.profile?.avatarUrl,
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
                 videoTemplates = homeData.videoTemplates,
                 imageTemplates = homeData.imageTemplates,
@@ -201,28 +425,90 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(destination) {
         if (destination != ImageToVideoDestination.MyTasks) return@LaunchedEffect
         if (selectedResultTask != null) return@LaunchedEffect
-        isLoadingTaskHistory = true
-        taskHistoryError = null
-        runCatching {
-            repository.generatedResources()
-        }.onSuccess { resources ->
-            val historyTasks = resources.map { resource ->
+        try {
+            val resources = repository.generatedResources()
+            serverHistoryTasks = resources.map { resource ->
                 resource.toTrackedGenerationTask(defaultTaskTitle)
             }
-            trackedTasks = historyTasks.fold(trackedTasks) { tasks, task ->
-                upsertTrackedGenerationTask(tasks, task)
-            }
-        }.onFailure { error ->
+            taskHistoryError = null
+            isLoadingTaskHistory = false
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
             taskHistoryError = error.message ?: "Failed to load task history"
+            isLoadingTaskHistory = false
         }
-        isLoadingTaskHistory = false
     }
 
-    LaunchedEffect(templateEdgeHintSerial) {
-        if (templateEdgeHintRes != null) {
-            delay(1_600)
-            templateEdgeHintRes = null
+    LaunchedEffect(destination, selectedNavigation, topUpRefreshSerial) {
+        if (destination != ImageToVideoDestination.Templates || selectedNavigation != 2) return@LaunchedEffect
+        topUpState = TopUpUiState(
+            isLoading = true,
+            diamondBalance = backendState.diamondBalance,
+        )
+        try {
+            val catalog = repository.storeCatalog()
+            topUpState = TopUpUiState(
+                catalog = catalog,
+                diamondBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance,
+            )
+            topUpPaymentController.retainAvailableProducts(catalog.products.map { it.id })
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            topUpState = TopUpUiState(
+                errorMessage = apiEnvelopeUserMessage(
+                    error.message,
+                    context.getString(R.string.top_up_error),
+                ),
+                diamondBalance = backendState.diamondBalance,
+            )
         }
+    }
+
+    LaunchedEffect(topUpPaymentController.state, topUpPaymentController.checkoutState) {
+        if (topUpPaymentController.checkoutState != TopUpCheckoutState.Idle) return@LaunchedEffect
+        when (val route = topUpPaymentController.state) {
+            is TopUpPurchaseState.OfficialReady -> {
+                val activity = localContext as? Activity
+                if (activity == null) topUpPaymentController.onCheckoutLaunchError("Activity unavailable")
+                else topUpPaymentViewModel.launchOfficial(activity, route)
+            }
+            is TopUpPurchaseState.ThirdPartyReady -> {
+                if (route.openMode == "external_browser") {
+                    val opened = runCatching {
+                        localContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(route.paymentUrl)))
+                    }.isSuccess
+                    if (!opened) {
+                        topUpPaymentController.onCheckoutLaunchError("Unable to open checkout")
+                        return@LaunchedEffect
+                    }
+                }
+                topUpPaymentController.openThirdParty(route)
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(topUpPaymentController.successSerial) {
+        if (topUpPaymentController.successSerial > 0) {
+            topUpRefreshSerial += 1
+            runCatching { repository.userCurrencySnapshot() }.onSuccess { currency ->
+                backendState = backendState.copy(diamondBalance = currency.diamondBalance)
+            }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, topUpPaymentController.state, topUpPaymentController.checkoutState) {
+        val observer = LifecycleEventObserver { _, event ->
+            val route = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
+            if (event == Lifecycle.Event.ON_RESUME && route?.openMode == "external_browser") {
+                topUpPaymentController.refreshPayment(route)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Box(
@@ -257,13 +543,24 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         selectedGenerationTemplate = template
                         destination = ImageToVideoDestination.UploadPhoto
                     },
-                    onConversationLog = { destination = ImageToVideoDestination.MyTasks },
+                    onConversationLog = ::openMyTasks,
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
                     onEditName = { destination = ImageToVideoDestination.EditName },
-                    onNavigationSelect = { selectedNavigation = it },
-                    selectedCreditPack = selectedCreditPack,
-                    onCreditPackSelect = { selectedCreditPack = it },
+                    onNavigationSelect = ::navigateFromBottomNavigation,
+                    selectedProductId = topUpPaymentController.selectedProductId,
+                    topUpState = topUpState,
+                    purchaseState = topUpPaymentController.state,
+                    checkoutState = topUpPaymentController.checkoutState,
+                    isReconciling = topUpPaymentController.reconciliationCount > 0,
+                    onProductSelect = topUpPaymentController::selectProduct,
+                    onPreparePayment = topUpPaymentController::prepare,
+                    onTopUpRetry = { topUpRefreshSerial += 1 },
                     edgeHint = templateEdgeHint,
+                    onEdgeHintDismiss = { messageId ->
+                        if (templateEdgeHintSerial.toLong() == messageId) {
+                            templateEdgeHintRes = null
+                        }
+                    },
                     backendState = backendState,
                 )
             }
@@ -272,11 +569,11 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 UploadPhotoScreen(
                     selectedNavigation = selectedNavigation,
                     onBack = { destination = ImageToVideoDestination.Templates },
-                    onNavigationSelect = { selectedNavigation = it },
+                    onNavigationSelect = ::navigateFromBottomNavigation,
                     diamondBalance = backendState.diamondBalance,
                     selectedTemplate = selectedGenerationTemplate,
                     onTaskUpdated = { trackedTask ->
-                        trackedTasks = upsertTrackedGenerationTask(trackedTasks, trackedTask)
+                        sessionTasks = upsertTrackedGenerationTask(sessionTasks, trackedTask)
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -313,17 +610,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 Box(Modifier.fillMaxSize()) {
                     MeScreen(
                         selectedNavigation = 3,
-                        onConversationLog = { destination = ImageToVideoDestination.MyTasks },
+                        onConversationLog = ::openMyTasks,
                         onFeedback = { destination = ImageToVideoDestination.Feedback },
                         onEditName = {},
                         profileName = backendState.profileName,
                         profileId = backendState.profileId,
+                        profileAvatarUrl = backendState.profileAvatarUrl,
                         diamondBalance = backendState.diamondBalance,
-                        onNavigationSelect = {
-                            destination = ImageToVideoDestination.Templates
-                            selectedNavigation = it
-                            selectedTab = 0
-                        },
+                        onNavigationSelect = ::navigateFromBottomNavigation,
                     )
                     Box(
                         Modifier
@@ -338,6 +632,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+        val thirdPartyRoute = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
+        if (thirdPartyRoute != null && thirdPartyRoute.openMode == "webview" &&
+            topUpPaymentController.checkoutState is TopUpCheckoutState.AwaitingPayment
+        ) {
+            ThirdPartyCheckoutOverlay(
+                route = thirdPartyRoute,
+                onLoaded = { topUpPaymentController.onThirdPartyPageLoaded(thirdPartyRoute) },
+                onError = { topUpPaymentController.onThirdPartyPageError(thirdPartyRoute, it) },
+                onClose = { topUpPaymentController.closeThirdParty(thirdPartyRoute) },
+            )
+        }
     }
 }
 
@@ -347,7 +652,11 @@ private fun TemplateBrowserScreen(
     currentTemplate: Int,
     isPlaying: Boolean,
     selectedNavigation: Int,
-    selectedCreditPack: Int,
+    selectedProductId: String?,
+    topUpState: TopUpUiState,
+    purchaseState: TopUpPurchaseState,
+    checkoutState: TopUpCheckoutState,
+    isReconciling: Boolean,
     onTabSelect: (Int) -> Unit,
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection, Int) -> Unit,
@@ -357,16 +666,24 @@ private fun TemplateBrowserScreen(
     onFeedback: () -> Unit,
     onEditName: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
-    onCreditPackSelect: (Int) -> Unit,
-    edgeHint: String?,
+    onProductSelect: (String) -> Unit,
+    onPreparePayment: () -> Unit,
+    onTopUpRetry: () -> Unit,
+    edgeHint: TransientMessage?,
+    onEdgeHintDismiss: (Long) -> Unit,
     backendState: AchatBackendUiState,
 ) {
     if (selectedNavigation == 2) {
         TopUpScreen(
             selectedNavigation = selectedNavigation,
-            selectedCreditPack = selectedCreditPack,
-            onCreditPackSelect = onCreditPackSelect,
-            diamondBalance = backendState.diamondBalance,
+            selectedProductId = selectedProductId,
+            state = topUpState,
+            purchaseState = purchaseState,
+            checkoutState = checkoutState,
+            isReconciling = isReconciling,
+            onProductSelect = onProductSelect,
+            onPreparePayment = onPreparePayment,
+            onRetry = onTopUpRetry,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -383,6 +700,7 @@ private fun TemplateBrowserScreen(
             onEditName = onEditName,
             profileName = backendState.profileName,
             profileId = backendState.profileId,
+            profileAvatarUrl = backendState.profileAvatarUrl,
             diamondBalance = backendState.diamondBalance,
             onNavigationSelect = {
                 onNavigationSelect(it)
@@ -443,6 +761,7 @@ private fun TemplateBrowserScreen(
             onMoveTemplate = { direction -> onMoveTemplate(direction, navigationTotal) },
             onTemplatePageSelected = onTemplatePageSelected,
             edgeHint = edgeHint,
+            onEdgeHintDismiss = onEdgeHintDismiss,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(12.dp))
@@ -471,7 +790,8 @@ private fun TemplateFeedPager(
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection) -> Unit,
     onTemplatePageSelected: (Int) -> Unit,
-    edgeHint: String?,
+    edgeHint: TransientMessage?,
+    onEdgeHintDismiss: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (templates.isEmpty()) {
@@ -531,6 +851,7 @@ private fun TemplateFeedPager(
             },
             enableSwipeGestures = false,
             edgeHint = edgeHint,
+            onEdgeHintDismiss = onEdgeHintDismiss,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -606,19 +927,35 @@ private fun MeScreen(
     onEditName: () -> Unit,
     profileName: String,
     profileId: String,
+    profileAvatarUrl: String?,
     diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
 ) {
+    val context = LocalContext.current
+    val copyIdLabel = stringResource(R.string.profile_copy_id_description)
+    val clipboardManager = remember(context) {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
         MeHeader(diamondBalance = diamondBalance)
         Spacer(Modifier.height(28.dp))
-        ProfileCard(profileName = profileName, profileId = profileId)
+        ProfileCard(
+            profileName = profileName,
+            profileId = profileId,
+            avatarUrl = profileAvatarUrl,
+            onEdit = onEditName,
+            onCopyId = {
+                clipboardManager.setPrimaryClip(
+                    ClipData.newPlainText(copyIdLabel, profileId),
+                )
+            },
+        )
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             DiamondIcon(7.dp)
@@ -626,14 +963,13 @@ private fun MeScreen(
             Text(
                 text = stringResource(R.string.system_modules),
                 color = AchatCyan,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge,
             )
         }
         Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ModuleRow(
-                icon = ModuleIcon.Chat,
+                icon = ModuleIcon.ConversationLog,
                 title = stringResource(R.string.conversation_log),
                 subtitle = stringResource(R.string.conversation_log_subtitle),
                 trailing = stringResource(R.string.module_count, 108),
@@ -671,8 +1007,7 @@ private fun MeHeader(diamondBalance: Int) {
         Text(
             text = stringResource(R.string.me_title),
             color = AchatCyan,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
         )
         Row(
             modifier = Modifier
@@ -685,75 +1020,202 @@ private fun MeHeader(diamondBalance: Int) {
         ) {
             DiamondIcon(12.dp)
             Spacer(Modifier.width(6.dp))
-            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = diamondBalance.toString(),
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
 }
 
 @Composable
-private fun ProfileCard(profileName: String, profileId: String) {
-    Row(
+internal fun ProfileCard(
+    profileName: String,
+    profileId: String,
+    avatarUrl: String?,
+    onEdit: () -> Unit,
+    onCopyId: () -> Unit,
+) {
+    val avatarDescription = stringResource(R.string.profile_avatar_description)
+    val avatarEditDescription = stringResource(R.string.profile_avatar_edit_description)
+    val editDescription = stringResource(R.string.profile_edit_description)
+    val copyIdDescription = stringResource(R.string.profile_copy_id_description)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(82.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xE0161F35), Color(0xD90A0B14))))
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.45f), AchatPink.copy(alpha = 0.35f))),
-                RoundedCornerShape(6.dp),
-            )
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .height(116.dp),
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .offset(y = 20.dp)
+                .background(Brush.horizontalGradient(listOf(Color(0xF0181B28), Color(0xF20B0C14))))
+                .border(1.dp, Color.White.copy(alpha = 0.05f))
+                .padding(start = 102.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = profileName,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .widthIn(max = 132.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xC50B0E18))
+                            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                            .clickable(onClick = onCopyId)
+                            .semantics { contentDescription = copyIdDescription }
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profile_id_format, profileId),
+                            color = AchatMuted,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        CopyGlyph(tint = AchatMuted, modifier = Modifier.size(11.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .height(28.dp)
+                            .clip(CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp))
+                            .background(Color(0x6612D8EB))
+                            .border(
+                                1.dp,
+                                AchatCyan.copy(alpha = 0.72f),
+                                CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp),
+                            )
+                            .clickable(onClick = onEdit)
+                            .semantics { contentDescription = editDescription }
+                            .padding(horizontal = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PencilGlyph(tint = AchatCyan, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            text = stringResource(R.string.profile_edit),
+                            color = AchatCyan,
+                            style = MaterialTheme.typography.labelMedium,
+                            letterSpacing = 1.5.sp,
+                        )
+                    }
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
-                .size(58.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFF3EDBF2), AchatPink)))
-                .padding(2.dp),
+                .size(90.dp)
+                .offset(y = 16.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .size(82.dp)
                     .clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(Color(0xFF7449E7), Color(0xFF15111E)))),
+                    .background(Brush.linearGradient(listOf(AchatCyan, AchatPink)))
+                    .padding(3.dp),
+            ) {
+                AsyncImage(
+                    model = avatarUrl ?: R.drawable.hero_portrait,
+                    contentDescription = avatarDescription,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(29.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF07101A))
+                    .border(1.dp, AchatCyan, CircleShape)
+                    .clickable(onClick = onEdit)
+                    .semantics { contentDescription = avatarEditDescription },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Q", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                PencilGlyph(tint = AchatCyan, modifier = Modifier.size(13.dp))
             }
         }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = profileName,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(5.dp))
-            Text(
-                text = stringResource(R.string.profile_id_format, profileId),
-                color = AchatMuted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        Text(
-            text = stringResource(R.string.profile_edit),
-            color = AchatCyan,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x5913D7EF))
-                .border(1.dp, AchatCyan.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+    }
+}
+
+@Composable
+private fun PencilGlyph(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        drawFigmaPencil(tint)
+    }
+}
+
+private fun DrawScope.drawFigmaPencil(tint: Color) {
+    val strokeWidth = 1.45.dp.toPx()
+    val outline = Path().apply {
+        moveTo(size.width * 0.16f, size.height * 0.86f)
+        lineTo(size.width * 0.23f, size.height * 0.65f)
+        lineTo(size.width * 0.65f, size.height * 0.23f)
+        lineTo(size.width * 0.8f, size.height * 0.38f)
+        lineTo(size.width * 0.38f, size.height * 0.8f)
+        close()
+    }
+    drawPath(
+        path = outline,
+        color = tint,
+        style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
+    )
+    drawLine(
+        color = tint,
+        start = Offset(size.width * 0.58f, size.height * 0.3f),
+        end = Offset(size.width * 0.73f, size.height * 0.45f),
+        strokeWidth = strokeWidth,
+        cap = StrokeCap.Round,
+    )
+    drawLine(
+        color = tint,
+        start = Offset(size.width * 0.23f, size.height * 0.65f),
+        end = Offset(size.width * 0.38f, size.height * 0.8f),
+        strokeWidth = strokeWidth,
+        cap = StrokeCap.Round,
+    )
+}
+
+@Composable
+private fun CopyGlyph(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = Stroke(width = 1.2.dp.toPx())
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(size.width * 0.26f, size.height * 0.08f),
+            size = Size(size.width * 0.62f, size.height * 0.68f),
+            cornerRadius = CornerRadius(1.5.dp.toPx()),
+            style = stroke,
+        )
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(size.width * 0.08f, size.height * 0.26f),
+            size = Size(size.width * 0.62f, size.height * 0.66f),
+            cornerRadius = CornerRadius(1.5.dp.toPx()),
+            style = stroke,
         )
     }
 }
 
-private enum class ModuleIcon { Chat, Feedback, Edit }
+internal enum class ModuleIcon { ConversationLog, Feedback, Edit }
 
 @Composable
 private fun ModuleRow(
@@ -766,12 +1228,12 @@ private fun ModuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .heightIn(min = 64.dp)
             .clip(RoundedCornerShape(5.dp))
             .background(Color(0xBA090D19))
             .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(5.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ModuleGlyph(icon = icon)
@@ -781,16 +1243,14 @@ private fun ModuleRow(
                 Text(
                     text = title,
                     color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 if (trailing != null) {
                     Spacer(Modifier.width(7.dp))
                     Text(
                         text = trailing,
                         color = AchatPink,
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
@@ -798,8 +1258,7 @@ private fun ModuleRow(
             Text(
                 text = subtitle,
                 color = AchatMuted,
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
         Text("›", color = AchatMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -807,48 +1266,87 @@ private fun ModuleRow(
 }
 
 @Composable
-private fun ModuleGlyph(icon: ModuleIcon) {
+internal fun ModuleGlyph(icon: ModuleIcon) {
     val tint = when (icon) {
-        ModuleIcon.Chat -> AchatCyan
+        ModuleIcon.ConversationLog -> AchatCyan
         ModuleIcon.Feedback -> AchatPink
         ModuleIcon.Edit -> Color(0xFF7D55E9)
     }
+    val description = stringResource(
+        when (icon) {
+            ModuleIcon.ConversationLog -> R.string.conversation_log_icon_description
+            ModuleIcon.Feedback -> R.string.feedback_icon_description
+            ModuleIcon.Edit -> R.string.edit_name_icon_description
+        },
+    )
     Canvas(
         Modifier
             .size(28.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(tint.copy(alpha = 0.1f))
             .border(1.dp, tint.copy(alpha = 0.38f), RoundedCornerShape(4.dp))
+            .semantics { contentDescription = description }
             .padding(7.dp),
     ) {
         val stroke = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round)
         when (icon) {
-            ModuleIcon.Chat -> {
+            ModuleIcon.ConversationLog -> {
                 drawRoundRect(
                     color = tint,
-                    topLeft = Offset(size.width * 0.08f, size.height * 0.14f),
-                    size = Size(size.width * 0.74f, size.height * 0.56f),
-                    cornerRadius = CornerRadius(2.dp.toPx()),
+                    topLeft = Offset(size.width * 0.16f, size.height * 0.08f),
+                    size = Size(size.width * 0.68f, size.height * 0.82f),
+                    cornerRadius = CornerRadius(1.2.dp.toPx()),
                     style = stroke,
                 )
-                drawLine(tint, Offset(size.width * 0.34f, size.height * 0.7f), Offset(size.width * 0.24f, size.height * 0.9f), 1.6.dp.toPx())
+                listOf(0.32f, 0.49f, 0.66f).forEach { y ->
+                    drawLine(
+                        color = tint,
+                        start = Offset(size.width * 0.3f, size.height * y),
+                        end = Offset(size.width * 0.7f, size.height * y),
+                        strokeWidth = 1.35.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
             }
             ModuleIcon.Feedback -> {
-                drawCircle(tint, size.minDimension * 0.36f, center, style = stroke)
-                drawLine(tint, Offset(size.width * 0.5f, size.height * 0.28f), Offset(size.width * 0.5f, size.height * 0.52f), 1.6.dp.toPx())
-                drawCircle(tint, size.minDimension * 0.035f, Offset(size.width * 0.5f, size.height * 0.68f))
+                drawRoundRect(
+                    color = tint,
+                    topLeft = Offset(size.width * 0.12f, size.height * 0.16f),
+                    size = Size(size.width * 0.76f, size.height * 0.68f),
+                    cornerRadius = CornerRadius(1.5.dp.toPx()),
+                    style = stroke,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.13f, size.height * 0.58f),
+                    end = Offset(size.width * 0.34f, size.height * 0.7f),
+                    strokeWidth = 1.4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.34f, size.height * 0.7f),
+                    end = Offset(size.width * 0.66f, size.height * 0.7f),
+                    strokeWidth = 1.4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.66f, size.height * 0.7f),
+                    end = Offset(size.width * 0.87f, size.height * 0.58f),
+                    strokeWidth = 1.4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
             }
             ModuleIcon.Edit -> {
-                drawLine(tint, Offset(size.width * 0.18f, size.height * 0.78f), Offset(size.width * 0.74f, size.height * 0.22f), 1.8.dp.toPx())
-                drawLine(tint, Offset(size.width * 0.58f, size.height * 0.18f), Offset(size.width * 0.78f, size.height * 0.38f), 1.8.dp.toPx())
-                drawLine(tint, Offset(size.width * 0.18f, size.height * 0.82f), Offset(size.width * 0.4f, size.height * 0.78f), 1.4.dp.toPx())
+                drawFigmaPencil(tint)
             }
         }
     }
 }
 
 @Composable
-private fun MyTasksScreen(
+internal fun MyTasksScreen(
     tasks: List<TrackedGenerationTask>,
     isLoading: Boolean,
     errorMessage: String?,
@@ -885,16 +1383,16 @@ private fun MyTasksScreen(
             )
             Spacer(Modifier.height(10.dp))
         }
-        if (tasks.isEmpty() && !isLoading) {
+        if (tasks.isEmpty() && !isLoading && errorMessage.isNullOrBlank()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentAlignment = Alignment.Center,
+                contentAlignment = Alignment.TopCenter,
             ) {
-                EmptyTasksCard()
+                EmptyTasksCard(modifier = Modifier.padding(top = 142.dp))
             }
-        } else {
+        } else if (tasks.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -906,6 +1404,8 @@ private fun MyTasksScreen(
                     TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
                 }
             }
+        } else {
+            Spacer(Modifier.weight(1f))
         }
     }
 }
@@ -1070,7 +1570,7 @@ private fun SecondaryHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(42.dp)
+            .height(52.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(Color(0x78101524))
             .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(10.dp))
@@ -1094,13 +1594,19 @@ private fun SecondaryHeader(
 }
 
 @Composable
-private fun EmptyTasksCard() {
+internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(190.dp)
+            .widthIn(max = 330.dp)
+            .height(260.dp)
             .clip(RoundedCornerShape(4.dp))
-            .background(Brush.radialGradient(listOf(Color(0xA61A1433), Color(0xEA080A13))))
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0xC0161730), Color(0xF0080913)),
+                    radius = 510f,
+                ),
+            )
             .border(
                 1.dp,
                 Brush.linearGradient(listOf(AchatPink.copy(alpha = 0.72f), AchatCyan.copy(alpha = 0.64f))),
@@ -1108,38 +1614,116 @@ private fun EmptyTasksCard() {
             ),
     ) {
         Canvas(Modifier.fillMaxSize().padding(2.dp)) {
-            val stroke = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
-            val corner = 25.dp.toPx()
-            drawLine(AchatPink, Offset.Zero, Offset(corner, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            drawLine(AchatPink, Offset.Zero, Offset(0f, corner), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            drawLine(AchatCyan, Offset(size.width - corner, 0f), Offset(size.width, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            drawLine(AchatCyan, Offset(size.width, 0f), Offset(size.width, corner), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.05f),
-                topLeft = Offset(size.width * 0.16f, size.height * 0.14f),
-                size = Size(size.width * 0.68f, size.height * 0.62f),
-                cornerRadius = CornerRadius(4.dp.toPx()),
-                style = stroke,
-            )
+            val corner = 21.dp.toPx()
+            val accentStroke = 2.dp.toPx()
+            drawLine(AchatPink, Offset.Zero, Offset(corner, 0f), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset.Zero, Offset(0f, corner), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width - corner, 0f), Offset(size.width, 0f), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatCyan, Offset(size.width, 0f), Offset(size.width, corner), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset(0f, size.height - corner), Offset(0f, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset(0f, size.height), Offset(corner, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset(size.width, size.height - corner), Offset(size.width, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(AchatPink, Offset(size.width - corner, size.height), Offset(size.width, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
         }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 18.dp, top = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(AchatPink))
+            Box(Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF8E33D7)))
+            Box(Modifier.size(6.dp).clip(CircleShape).background(AchatCyan.copy(alpha = 0.52f)))
+        }
+
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .size(52.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x99111224))
-                .border(1.dp, AchatPink.copy(alpha = 0.48f), RoundedCornerShape(12.dp)),
+                .align(Alignment.TopEnd)
+                .padding(end = 19.dp, top = 31.dp)
+                .width(30.dp)
+                .height(1.dp)
+                .background(AchatCyan.copy(alpha = 0.28f)),
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 70.dp)
+                .size(58.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xD0101024))
+                .border(
+                    1.dp,
+                    Brush.linearGradient(listOf(AchatPink.copy(alpha = 0.72f), AchatCyan.copy(alpha = 0.5f))),
+                    RoundedCornerShape(8.dp),
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            DiamondIcon(21.dp)
+            Canvas(Modifier.size(31.dp)) {
+                val outer = Path().apply {
+                    moveTo(size.width / 2f, 0f)
+                    lineTo(size.width, size.height / 2f)
+                    lineTo(size.width / 2f, size.height)
+                    lineTo(0f, size.height / 2f)
+                    close()
+                }
+                val inset = size.width * 0.22f
+                val inner = Path().apply {
+                    moveTo(size.width / 2f, inset)
+                    lineTo(size.width - inset, size.height / 2f)
+                    lineTo(size.width / 2f, size.height - inset)
+                    lineTo(inset, size.height / 2f)
+                    close()
+                }
+                drawPath(outer, color = AchatPink.copy(alpha = 0.82f), style = Stroke(1.2.dp.toPx()))
+                drawPath(inner, color = AchatCyan.copy(alpha = 0.78f), style = Stroke(1.dp.toPx()))
+            }
         }
+
         Text(
             text = stringResource(R.string.no_tasks_empty),
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.Center).padding(top = 86.dp),
+            letterSpacing = 3.sp,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 149.dp),
         )
+
+        Text(
+            text = stringResource(R.string.empty_tasks_diagnostics),
+            color = Color.White.copy(alpha = 0.14f),
+            fontSize = 7.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 44.dp, bottom = 28.dp),
+        )
+
+        Canvas(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 26.dp)
+                .size(width = 20.dp, height = 14.dp),
+        ) {
+            drawLine(
+                color = AchatPink.copy(alpha = 0.72f),
+                start = Offset(size.width * 0.2f, size.height),
+                end = Offset(size.width * 0.38f, 0f),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = AchatCyan.copy(alpha = 0.58f),
+                start = Offset(size.width * 0.62f, 0f),
+                end = Offset(size.width * 0.8f, size.height),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
     }
 }
 
@@ -1408,13 +1992,24 @@ private fun NameOptionButton(
 }
 
 @Composable
-private fun TopUpScreen(
+internal fun TopUpScreen(
     selectedNavigation: Int,
-    selectedCreditPack: Int,
-    onCreditPackSelect: (Int) -> Unit,
-    diamondBalance: Int,
+    selectedProductId: String?,
+    state: TopUpUiState,
+    purchaseState: TopUpPurchaseState,
+    checkoutState: TopUpCheckoutState = TopUpCheckoutState.Idle,
+    isReconciling: Boolean = false,
+    onProductSelect: (String) -> Unit,
+    onPreparePayment: () -> Unit,
+    onRetry: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
 ) {
+    val catalog = state.catalog
+    val packs = catalog?.products.orEmpty().mapIndexed { index, product ->
+        product.toCreditPackPresentation(catalog?.userInfo, index)
+    }
+    val selectedPack = packs.firstOrNull { it.id == selectedProductId }
+    val diamondBalance = state.diamondBalance
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1433,40 +2028,251 @@ private fun TopUpScreen(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
             )
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(AchatPink.copy(alpha = 0.7f), Color.Transparent),
+                        ),
+                    ),
+            )
         }
         Spacer(Modifier.height(8.dp))
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            CreditPacks.forEachIndexed { index, pack ->
-                CreditPackCard(
-                    pack = pack,
-                    selected = selectedCreditPack == index,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    onSelect = { onCreditPackSelect(index) },
-                )
+            when {
+                state.isLoading -> TopUpStatusMessage(stringResource(R.string.top_up_loading))
+                !state.errorMessage.isNullOrBlank() -> TopUpErrorState(state.errorMessage, onRetry)
+                packs.isEmpty() -> TopUpStatusMessage(stringResource(R.string.top_up_empty))
+                else -> {
+                    packs.forEach { pack ->
+                        val selected = pack.id == selectedProductId
+                        CreditPackCard(
+                            pack = pack,
+                            selected = selected,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(creditPackHeightDp(selected).dp),
+                            onSelect = { onProductSelect(pack.id) },
+                        )
+                    }
+                    selectedPack?.let { pack ->
+                        Spacer(Modifier.height(1.dp))
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            DiamondIcon(7.dp)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.credit_pack_summary,
+                                    pack.credits + (pack.bonus ?: 0),
+                                ),
+                                color = AchatMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        TopUpPurchaseStatus(purchaseState, checkoutState)
+                        if (isReconciling) {
+                            TopUpInlineStatus(stringResource(R.string.top_up_payment_waiting), AchatCyan)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        val isPreparing = purchaseState is TopUpPurchaseState.Preparing
+                        val terminalCheckout = checkoutState is TopUpCheckoutState.Failed ||
+                            checkoutState == TopUpCheckoutState.Cancelled ||
+                            checkoutState == TopUpCheckoutState.TimedOut ||
+                            checkoutState is TopUpCheckoutState.Succeeded
+                        val isReady = (purchaseState is TopUpPurchaseState.OfficialReady ||
+                            purchaseState is TopUpPurchaseState.ThirdPartyReady) && !terminalCheckout
+                        StartChatButton(
+                            label = when {
+                                isPreparing || isReconciling -> stringResource(R.string.top_up_preparing)
+                                isReady -> stringResource(R.string.top_up_ready)
+                                purchaseState is TopUpPurchaseState.Error || terminalCheckout ->
+                                    stringResource(R.string.top_up_try_again)
+                                else -> stringResource(R.string.top_up_continue)
+                            },
+                            enabled = !isPreparing && !isReady && !isReconciling,
+                            onClick = onPreparePayment,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(9.dp))
-        Text(
-            text = stringResource(
-                R.string.credit_pack_summary,
-                CreditPacks[selectedCreditPack].credits + (CreditPacks[selectedCreditPack].bonus ?: 0),
-            ),
-            color = AchatCyan,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        Spacer(Modifier.height(8.dp))
-        StartChatButton()
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
             onSelect = onNavigationSelect,
+        )
+    }
+}
+
+@Composable
+private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpCheckoutState) {
+    when (checkoutState) {
+        TopUpCheckoutState.Idle -> Unit
+        TopUpCheckoutState.Launching -> TopUpInlineStatus(stringResource(R.string.top_up_preparing), AchatCyan)
+        TopUpCheckoutState.Closing -> TopUpInlineStatus(stringResource(R.string.top_up_payment_waiting), AchatCyan)
+        is TopUpCheckoutState.AwaitingPayment -> TopUpInlineStatus(
+            if (checkoutState.pendingStorePurchase) stringResource(R.string.top_up_payment_pending)
+            else stringResource(R.string.top_up_payment_waiting),
+            AchatCyan,
+        )
+        is TopUpCheckoutState.Succeeded -> TopUpInlineStatus(stringResource(R.string.top_up_payment_success), AchatCyan)
+        is TopUpCheckoutState.Failed -> TopUpInlineStatus(checkoutState.message, AchatPink)
+        TopUpCheckoutState.Cancelled -> TopUpInlineStatus(stringResource(R.string.top_up_payment_cancelled), AchatMuted)
+        TopUpCheckoutState.TimedOut -> TopUpInlineStatus(stringResource(R.string.top_up_payment_timeout), AchatPink)
+    }
+    if (checkoutState != TopUpCheckoutState.Idle) return
+    when (state) {
+        TopUpPurchaseState.Idle,
+        is TopUpPurchaseState.Preparing,
+        -> Unit
+        is TopUpPurchaseState.Error -> Text(
+            text = state.message,
+            color = AchatPink,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        is TopUpPurchaseState.OfficialReady -> PaymentRouteReadyCard(
+            title = stringResource(R.string.top_up_official_ready),
+            channelCode = state.channelCode,
+        )
+        is TopUpPurchaseState.ThirdPartyReady -> PaymentRouteReadyCard(
+            title = stringResource(R.string.top_up_third_party_ready),
+            channelCode = state.channelCode,
+        )
+    }
+}
+
+@Composable
+private fun TopUpInlineStatus(text: String, color: Color) {
+    Text(text, color = color, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun ThirdPartyCheckoutOverlay(
+    route: TopUpPurchaseState.ThirdPartyReady,
+    onLoaded: () -> Unit,
+    onError: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    BackHandler(onBack = onClose)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF070812))
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(route.channelCode, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(R.string.top_up_close_checkout),
+                color = AchatCyan,
+                modifier = Modifier.clickable(onClick = onClose).padding(8.dp),
+            )
+        }
+        AndroidView(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            factory = { context ->
+                WebView(context).apply {
+                    settings.javaScriptEnabled = true
+                    settings.allowFileAccess = false
+                    settings.allowContentAccess = false
+                    settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                            val target = request?.url ?: return true
+                            if (target.scheme != "https") {
+                                onError("Blocked insecure checkout navigation")
+                                return true
+                            }
+                            return false
+                        }
+                        override fun onPageFinished(view: WebView?, url: String?) = onLoaded()
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?,
+                        ) = onError(error?.description?.toString().orEmpty())
+                    }
+                    loadUrl(route.paymentUrl)
+                }
+            },
+            onRelease = { view ->
+                view.stopLoading()
+                view.destroy()
+            },
+        )
+    }
+}
+
+@Composable
+private fun PaymentRouteReadyCard(title: String, channelCode: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xB20A111C))
+            .border(1.dp, AchatCyan.copy(alpha = 0.38f), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+    ) {
+        Text(title, color = AchatCyan, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(3.dp))
+        Text(channelCode, color = Color.White, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(3.dp))
+        Text(
+            stringResource(R.string.top_up_phase_three_note),
+            color = AchatMuted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun TopUpStatusMessage(message: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(message, color = AchatMuted, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun TopUpErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(message, color = AchatPink, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.top_up_retry),
+            color = AchatCyan,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, AchatCyan.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                .clickable(onClick = onRetry)
+                .padding(horizontal = 18.dp, vertical = 8.dp),
         )
     }
 }
@@ -1521,7 +2327,7 @@ private fun CreditPackCard(
     } else {
         Brush.linearGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.03f)))
     }
-    Row(
+    Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(
@@ -1534,88 +2340,170 @@ private fun CreditPackCard(
                 ),
             )
             .border(1.dp, borderBrush, RoundedCornerShape(6.dp))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
     ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xB20B1322))
-                .border(1.dp, AchatCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            DiamondIcon(13.dp)
+        if (!selected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(2.dp)
+                    .background(pack.accentColor.copy(alpha = 0.84f)),
+            )
         }
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = pack.credits.toString(),
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                if (pack.bonus != null || pack.badgeTextRes != null) {
-                    Spacer(Modifier.width(8.dp))
-                    BonusBadge(pack = pack)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = if (selected) 16.dp else 12.dp,
+                    vertical = if (selected) 13.dp else 9.dp,
+                ),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(if (selected) 44.dp else 30.dp)
+                        .clip(RoundedCornerShape(if (selected) 8.dp else 5.dp))
+                        .background(pack.accentColor.copy(alpha = 0.08f))
+                        .border(
+                            1.dp,
+                            pack.accentColor.copy(alpha = 0.55f),
+                            RoundedCornerShape(if (selected) 8.dp else 5.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val iconSize = if (selected) 20.dp else 13.dp
+                    DiamondOutlineIcon(tint = pack.accentColor, modifier = Modifier.size(iconSize))
+                    pack.iconUrl?.let { iconUrl ->
+                        AsyncImage(
+                            model = iconUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(iconSize),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(if (selected) 12.dp else 9.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = pack.credits.toString(),
+                            color = Color.White,
+                            fontSize = if (selected) 22.sp else 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = stringResource(R.string.credit_pack_unit),
+                            color = pack.accentColor,
+                            fontSize = if (selected) 9.sp else 7.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = pack.description,
+                        color = Color(0xFF85899E),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (pack.badgeText != null || pack.bonus != null || pack.badgeTextRes != null) {
+                    BonusBadge(pack = pack, selected = selected)
                 }
             }
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = stringResource(R.string.credit_pack_validity, pack.validityDays),
-                color = Color(0xFF767A92),
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium,
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.07f)),
             )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = stringResource(R.string.credit_pack_protocol),
-                color = AchatMuted,
-                fontSize = 7.sp,
-                fontWeight = FontWeight.Medium,
-            )
+            Spacer(Modifier.height(if (selected) 9.dp else 6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (selected) stringResource(R.string.credit_pack_protocol) else pack.tierLabel,
+                    color = AchatMuted,
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 0.8.sp,
+                )
+                Spacer(Modifier.weight(1f))
+                pack.originalPrice?.let { originalPrice ->
+                    Text(
+                        text = originalPrice,
+                        color = AchatMuted,
+                        fontSize = 9.sp,
+                        textDecoration = TextDecoration.LineThrough,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    text = pack.price,
+                    color = if (selected) AchatCyan else Color.White,
+                    fontSize = if (selected) 18.sp else 13.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
-        Text(
-            text = pack.price,
-            color = if (selected) AchatCyan else Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-        )
     }
 }
 
 @Composable
-private fun BonusBadge(pack: CreditPack) {
-    val label = pack.bonus?.let { stringResource(R.string.credit_pack_bonus, it) }
+private fun BonusBadge(pack: CreditPack, selected: Boolean) {
+    val label = pack.badgeText
+        ?: pack.bonus?.let { stringResource(R.string.credit_pack_bonus, it) }
         ?: pack.badgeTextRes?.let { stringResource(it) }
         ?: return
     Text(
         text = label,
         color = Color.White,
-        fontSize = 7.sp,
+        fontSize = if (selected) 9.sp else 7.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier
-            .clip(RoundedCornerShape(9.dp))
+            .clip(CutCornerShape(topStart = 7.dp, bottomEnd = 7.dp))
             .background(Brush.horizontalGradient(listOf(AchatPink, Color(0xFF7A52E8))))
-            .padding(horizontal = 7.dp, vertical = 3.dp),
+            .padding(horizontal = if (selected) 12.dp else 7.dp, vertical = 4.dp),
     )
 }
 
 @Composable
-private fun StartChatButton() {
+private fun DiamondOutlineIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val path = Path().apply {
+            moveTo(size.width * 0.5f, size.height * 0.05f)
+            lineTo(size.width * 0.94f, size.height * 0.42f)
+            lineTo(size.width * 0.5f, size.height * 0.95f)
+            lineTo(size.width * 0.06f, size.height * 0.42f)
+            close()
+        }
+        drawPath(
+            path = path,
+            color = tint,
+            style = Stroke(width = 1.6.dp.toPx(), join = StrokeJoin.Round),
+        )
+    }
+}
+
+@Composable
+private fun StartChatButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(46.dp)
             .clip(RoundedCornerShape(2.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF30DDF3), Color(0xFF7D55E9), AchatPink))),
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF30DDF3), Color(0xFF7D55E9), AchatPink)
+                        .map { if (enabled) it else it.copy(alpha = 0.42f) },
+                ),
+            )
+            .clickable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.start_chat),
+            text = label,
             color = Color.White,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -1643,7 +2531,8 @@ private fun UploadPhotoScreen(
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }
     var currentTask by remember { mutableStateOf<VisualGenerationTask?>(null) }
     var uploadInProgress by remember { mutableStateOf(false) }
-    var uploadMessage by remember { mutableStateOf<String?>(null) }
+    var uploadMessage by remember { mutableStateOf<TransientMessage?>(null) }
+    var uploadMessageSerial by remember { mutableIntStateOf(0) }
     val chooseFirstMessage = stringResource(R.string.upload_choose_first)
     val liveTemplateRequired = stringResource(R.string.live_template_required)
     val taskCreatedPattern = stringResource(R.string.task_created)
@@ -1654,6 +2543,17 @@ private fun UploadPhotoScreen(
     val uploadSuccessPattern = stringResource(R.string.upload_success)
     val defaultTaskTitle = stringResource(R.string.default_task_title)
     val trackedTaskTitle = selectedTemplate?.title ?: defaultTaskTitle
+    fun showUploadMessage(
+        text: String,
+        tone: TransientMessageTone = TransientMessageTone.Neutral,
+    ) {
+        uploadMessageSerial += 1
+        uploadMessage = TransientMessage(
+            id = uploadMessageSerial.toLong(),
+            text = text,
+            tone = tone,
+        )
+    }
     fun uploadSelectedPhoto(uri: Uri) {
         uploadInProgress = true
         uploadMessage = null
@@ -1662,10 +2562,16 @@ private fun UploadPhotoScreen(
                 repository.uploadSourceImage(uri)
             }.onSuccess { resource ->
                 uploadedResourceId = resource.id
-                uploadMessage = uploadSuccessPattern.format(resource.id.take(8))
+                showUploadMessage(
+                    text = uploadSuccessPattern.format(resource.id.take(8)),
+                    tone = TransientMessageTone.Success,
+                )
             }.onFailure { error ->
                 uploadedResourceId = null
-                uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
+                showUploadMessage(
+                    text = visualGenerationUserMessage(error.message, uploadFailedMessage),
+                    tone = TransientMessageTone.Error,
+                )
             }
             uploadInProgress = false
         }
@@ -1693,15 +2599,21 @@ private fun UploadPhotoScreen(
     LaunchedEffect(currentTask?.taskId, currentTask?.status) {
         val task = currentTask ?: return@LaunchedEffect
         if (isVisualGenerationFinished(task.status)) {
-            uploadMessage = if (task.status == "succeeded") {
-                taskSucceededPattern.format(task.taskId.take(8))
+            if (task.status == "succeeded") {
+                showUploadMessage(
+                    text = taskSucceededPattern.format(task.taskId.take(8)),
+                    tone = TransientMessageTone.Success,
+                )
             } else {
-                taskFailedPattern.format(task.errorMessage ?: task.status)
+                showUploadMessage(
+                    text = taskFailedPattern.format(task.errorMessage ?: task.status),
+                    tone = TransientMessageTone.Error,
+                )
             }
             return@LaunchedEffect
         }
 
-        uploadMessage = taskStatusPattern.format(task.taskId.take(8), task.status)
+        showUploadMessage(taskStatusPattern.format(task.taskId.take(8), task.status))
         delay(visualGenerationPollIntervalSeconds(task.estimatedPollIntervalSeconds) * 1_000L)
         runCatching {
             repository.getVisualGenerationTask(task.taskId)
@@ -1709,7 +2621,10 @@ private fun UploadPhotoScreen(
             currentTask = updatedTask
             onTaskUpdated(updatedTask.toTrackedGenerationTask(trackedTaskTitle))
         }.onFailure { error ->
-            uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
+            showUploadMessage(
+                text = visualGenerationUserMessage(error.message, uploadFailedMessage),
+                tone = TransientMessageTone.Error,
+            )
         }
     }
 
@@ -1746,6 +2661,11 @@ private fun UploadPhotoScreen(
         PhotoUploadPanel(
             selectedImage = selectedImageUri,
             uploadMessage = uploadMessage,
+            onMessageDismiss = { messageId ->
+                if (uploadMessage?.id == messageId) {
+                    uploadMessage = null
+                }
+            },
             onChoosePhoto = ::launchPhotoPicker,
             enabled = !uploadInProgress,
             modifier = Modifier.fillMaxWidth().aspectRatio(1f),
@@ -1758,12 +2678,12 @@ private fun UploadPhotoScreen(
             onContinue = {
                 val resourceId = uploadedResourceId
                 if (resourceId == null) {
-                    uploadMessage = chooseFirstMessage
+                    showUploadMessage(chooseFirstMessage, TransientMessageTone.Error)
                     return@UploadActions
                 }
                 val template = selectedTemplate
                 if (template == null || template.templateId.isBlank()) {
-                    uploadMessage = liveTemplateRequired
+                    showUploadMessage(liveTemplateRequired, TransientMessageTone.Error)
                     return@UploadActions
                 }
                 uploadInProgress = true
@@ -1779,9 +2699,12 @@ private fun UploadPhotoScreen(
                     }.onSuccess { task ->
                         currentTask = task
                         onTaskUpdated(task.toTrackedGenerationTask(template.title))
-                        uploadMessage = taskCreatedPattern.format(task.taskId.take(8), task.status)
+                        showUploadMessage(taskCreatedPattern.format(task.taskId.take(8), task.status))
                     }.onFailure { error ->
-                        uploadMessage = visualGenerationUserMessage(error.message, uploadFailedMessage)
+                        showUploadMessage(
+                            text = visualGenerationUserMessage(error.message, uploadFailedMessage),
+                            tone = TransientMessageTone.Error,
+                        )
                     }
                     uploadInProgress = false
                 }

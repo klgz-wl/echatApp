@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -70,6 +72,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import yumo.achat.app.R
+import yumo.achat.app.ui.components.TransientMessage
+import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatPink
 import yumo.achat.app.ui.theme.AchatSurface
@@ -86,7 +90,8 @@ internal fun HeroCard(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     enableSwipeGestures: Boolean = true,
-    edgeHint: String? = null,
+    edgeHint: TransientMessage? = null,
+    onEdgeHintDismiss: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val portraitDescription = stringResource(R.string.template_portrait_description)
@@ -192,21 +197,14 @@ internal fun HeroCard(
             durationSeconds = durationSeconds,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
         )
-        if (!edgeHint.isNullOrBlank()) {
-            Text(
-                text = edgeHint,
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 14.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xB8080A13))
-                    .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-            )
-        }
+        TransientMessageHost(
+            message = edgeHint,
+            onDismiss = onEdgeHintDismiss,
+            durationMillis = 1_600L,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 14.dp),
+        )
     }
 }
 
@@ -525,7 +523,8 @@ internal fun TemplatePreviewPanel(
 @Composable
 internal fun PhotoUploadPanel(
     selectedImage: Any? = null,
-    uploadMessage: String? = null,
+    uploadMessage: TransientMessage? = null,
+    onMessageDismiss: (Long) -> Unit = {},
     onChoosePhoto: () -> Unit = {},
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -571,21 +570,13 @@ internal fun PhotoUploadPanel(
                     .fillMaxSize()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD6080A13)))),
             )
-            uploadMessage?.let { message ->
-                Text(
-                    text = message,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 18.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xB2080B12))
-                        .border(1.dp, AchatCyan.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-            }
+            TransientMessageHost(
+                message = uploadMessage,
+                onDismiss = onMessageDismiss,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 18.dp),
+            )
         } else {
             Column(
                 modifier = Modifier.align(Alignment.Center).padding(horizontal = 28.dp),
@@ -720,11 +711,11 @@ internal fun BottomNavigation(selectedIndex: Int, onSelect: (Int) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(62.dp)
+            .heightIn(min = 66.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xD9080A13))
             .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround,
     ) {
@@ -751,8 +742,7 @@ private fun NavItem(label: String, icon: NavIcon, selected: Boolean, onClick: ()
         Text(
             label,
             color = if (selected) AchatCyan else Color(0xFF565667),
-            fontSize = 8.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelMedium,
             letterSpacing = 0.sp,
         )
     }

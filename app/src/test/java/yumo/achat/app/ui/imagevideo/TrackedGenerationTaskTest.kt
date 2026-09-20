@@ -100,6 +100,28 @@ class TrackedGenerationTaskTest {
     }
 
     @Test
+    fun `server history merge preserves response order and keeps live task first`() {
+        val liveTask = TrackedGenerationTask(
+            taskId = "task-live",
+            title = "Live",
+            modality = "image",
+            status = "processing",
+            resultUrl = null,
+            mimeType = "",
+            errorMessage = null,
+        )
+        val newestHistory = liveTask.copy(taskId = "task-newest", title = "Newest", status = "succeeded")
+        val oldestHistory = newestHistory.copy(taskId = "task-oldest", title = "Oldest")
+
+        val merged = mergeTrackedGenerationTasks(
+            sessionTasks = listOf(liveTask),
+            serverHistory = listOf(newestHistory, oldestHistory),
+        )
+
+        assertEquals(listOf("task-live", "task-newest", "task-oldest"), merged.map { it.taskId })
+    }
+
+    @Test
     fun `generated resource maps to successful tracked task`() {
         val resource = VisualResource(
             id = "generated-1",

@@ -72,11 +72,7 @@ class ImageToVideoScreenTest {
 
         composeRule.onNodeWithText("SYSTEM CREDITS").assertIsDisplayed()
         composeRule.onNodeWithText("CHOOSE A PACK").assertIsDisplayed()
-        composeRule.onNodeWithText("200").assertIsDisplayed()
-        composeRule.onNodeWithText("\$39.99").assertIsDisplayed()
-        composeRule.onNodeWithText("10").assertIsDisplayed()
-        composeRule.onNodeWithText("\$1.99").assertIsDisplayed()
-        composeRule.onNodeWithText("START CHAT").assertIsDisplayed()
+        composeRule.onNodeWithText("TOP UP").assertIsSelected()
     }
 
     @Test
@@ -93,12 +89,11 @@ class ImageToVideoScreenTest {
     }
 
     @Test
-    fun conversationLogOpensMyTasksEmptyState() {
+    fun conversationLogOpensMyTasksScreen() {
         composeRule.onNodeWithText("ME").performClick()
         composeRule.onNodeWithText("Conversation Log").performClick()
 
         composeRule.onNodeWithText("My Tasks").assertIsDisplayed()
-        composeRule.onNodeWithText("NO TASKA YES").assertIsDisplayed()
 
         composeRule.onNodeWithContentDescription("Back to me").performClick()
         composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
@@ -163,4 +158,5 @@ class ImageToVideoScreenTest {
         composeRule.onNodeWithText("Image To Video").assertIsDisplayed()
         composeRule.onNodeWithText("Hot").assertIsDisplayed()
     }
+
 }

@@ -49,3 +49,11 @@ internal fun upsertTrackedGenerationTask(
     tasks: List<TrackedGenerationTask>,
     updatedTask: TrackedGenerationTask,
 ): List<TrackedGenerationTask> = listOf(updatedTask) + tasks.filterNot { it.taskId == updatedTask.taskId }
+
+internal fun mergeTrackedGenerationTasks(
+    sessionTasks: List<TrackedGenerationTask>,
+    serverHistory: List<TrackedGenerationTask>,
+): List<TrackedGenerationTask> {
+    val sessionTaskIds = sessionTasks.mapTo(mutableSetOf()) { it.taskId }
+    return sessionTasks + serverHistory.filterNot { it.taskId in sessionTaskIds }
+}

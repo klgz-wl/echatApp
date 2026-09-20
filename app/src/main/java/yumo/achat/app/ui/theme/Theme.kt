@@ -17,6 +17,7 @@ fun AchatTheme(
 ) {
     MaterialTheme(
         colorScheme = AchatColorScheme,
+        typography = AchatTypography,
         content = content,
     )
 }

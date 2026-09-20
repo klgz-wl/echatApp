@@ -1,9 +1,200 @@
 package yumo.achat.app.data.backend
 
+import java.math.BigDecimal
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class AchatBackendParsersTest {
+    @Test
+    fun `parse store order snapshot`() {
+        val order = AchatBackendParsers.parseStoreOrder(
+            """
+            {
+              "code": 0,
+              "data": {
+                "order_id": "order-1",
+                "order_number": "ORD-1",
+                "product_id": "pack-100",
+                "product_name": "100 Diamonds",
+                "amount": 4.99,
+                "currency": "USD",
+                "status": "pending",
+                "created_at": "2026-09-20T08:00:00Z",
+                "obfuscated_account_id": "account-hash",
+                "obfuscated_profile_id": "order-1"
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("order-1", order.id)
+        assertEquals("pack-100", order.productId)
+        assertEquals(BigDecimal("4.99"), order.amount)
+        assertEquals("account-hash", order.obfuscatedAccountId)
+        assertEquals("order-1", order.obfuscatedProfileId)
+    }
+
+    @Test
+    fun `parse official and third party payment initialization`() {
+        val official = AchatBackendParsers.parsePaymentInitialization(
+            """
+            {
+              "data": {
+                "order_id": "order-1",
+                "channel_type": "official",
+                "channel_code": "google_play",
+                "open_mode": "sdk",
+                "sdk_params": {"product_id":"diamonds_100_first"}
+              }
+            }
+            """.trimIndent(),
+        )
+        val thirdParty = AchatBackendParsers.parsePaymentInitialization(
+            """
+            {
+              "data": {
+                "order_id": "order-2",
+                "channel_type": "third_party",
+                "channel_code": "payu_web_us",
+                "open_mode": "webview",
+                "payment_url": "https://checkout.example/pay/2",
+                "expires_at": "2026-09-20T08:10:00Z",
+                "query_interval_seconds": 10,
+                "max_query_seconds": 600
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("diamonds_100_first", official.sdkProductId)
+        assertEquals("payu_web_us", thirdParty.channelCode)
+        assertEquals("https://checkout.example/pay/2", thirdParty.paymentUrl)
+        assertEquals(600, thirdParty.maxQuerySeconds)
+    }
+
+    @Test
+    fun `parse paid fulfilled payment status`() {
+        val status = AchatBackendParsers.parsePaymentOrderStatus(
+            """
+            {
+              "data": {
+                "order_id": "order-1",
+                "status": "paid",
+                "payment_method": "payu_web_us",
+                "fulfillment_status": "fulfilled",
+                "paid_at": "2026-09-20T08:01:00Z",
+                "verified_at": "2026-09-20T08:01:01Z",
+                "fulfilled_at": "2026-09-20T08:01:02Z",
+                "third_party_payment": {
+                  "channel_code": "payu_web_us",
+                  "status": "paid",
+                  "open_mode": "webview",
+                  "expires_at": "2026-09-20T08:10:00Z"
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("order-1", status.orderId)
+        assertEquals("fulfilled", status.fulfillmentStatus)
+        assertEquals("payu_web_us", status.thirdPartyPayment?.channelCode)
+    }
+
+    @Test
+    fun `store catalog rejects a missing required price`() {
+        assertThrows(IllegalStateException::class.java) {
+            AchatBackendParsers.parseStoreCatalog(
+                """
+                {
+                  "code": 0,
+                  "data": {
+                    "products": [{"id":"broken","type":"diamond","value":100,"currency":"USD"}],
+                    "payment_providers": []
+                  }
+                }
+                """.trimIndent(),
+            )
+        }
+    }
+
+    @Test
+    fun `parse store catalog with decimal prices and backend ordering`() {
+        val catalog = AchatBackendParsers.parseStoreCatalog(
+            """
+            {
+              "code": 0,
+              "data": {
+                "payment_providers": [
+                  {
+                    "priority": 10,
+                    "provider_code": "google_play",
+                    "provider_name": "Google Play",
+                    "supported_platforms": ["android"]
+                  },
+                  {
+                    "priority": 20,
+                    "provider_code": "payu_web_us",
+                    "provider_name": "PayU",
+                    "supported_platforms": ["android", "web"]
+                  }
+                ],
+                "products": [
+                  {
+                    "id": "pack-100",
+                    "name": "100 Diamonds",
+                    "description": "Popular pack",
+                    "type": "diamond",
+                    "value": 100,
+                    "bonus_value": 10,
+                    "first_buy_bonus_value": 25,
+                    "original_price": 9.99,
+                    "price": 4.99,
+                    "first_buy_price": 2.99,
+                    "discount_rate": 0.5,
+                    "first_buy_discount": 0.7,
+                    "currency": "USD",
+                    "is_promotion": true,
+                    "is_first_buy_promotion": true,
+                    "is_subscription": false,
+                    "promotion_type": "first_buy",
+                    "tags": "HOT",
+                    "icon": "https://example.test/100.webp",
+                    "third_party_product_id": "diamonds_100",
+                    "sort_order": 20,
+                    "vip_level": 0
+                  },
+                  {
+                    "id": "pack-25",
+                    "name": "25 Diamonds",
+                    "description": "Starter pack",
+                    "type": "diamond",
+                    "value": 25,
+                    "bonus_value": 0,
+                    "original_price": 4.99,
+                    "price": 1.99,
+                    "currency": "USD",
+                    "sort_order": 10
+                  }
+                ],
+                "user_info": {
+                  "current_diamond": 42,
+                  "has_made_first_purchase": false,
+                  "is_vip": false
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf("pack-25", "pack-100"), catalog.products.map { it.id })
+        assertEquals(BigDecimal("4.99"), catalog.products.last().price)
+        assertEquals(BigDecimal("2.99"), catalog.products.last().firstBuyPrice)
+        assertEquals(listOf("payu_web_us", "google_play"), catalog.paymentProviders.map { it.code })
+        assertEquals(42, catalog.userInfo?.currentDiamond)
+    }
+
     @Test
     fun `parse auth session from api envelope`() {
         val session = AchatBackendParsers.parseAuthSession(

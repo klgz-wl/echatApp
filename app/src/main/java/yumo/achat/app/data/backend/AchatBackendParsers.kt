@@ -1,8 +1,135 @@
 package yumo.achat.app.data.backend
 
+import java.math.BigDecimal
 import org.json.JSONObject
 
 object AchatBackendParsers {
+    fun parseStoreOrder(json: String): StoreOrder {
+        val data = dataObject(json)
+        return StoreOrder(
+            id = data.getString("order_id"),
+            number = data.optNullableString("order_number") ?: "",
+            productId = data.getString("product_id"),
+            productName = data.optNullableString("product_name") ?: "",
+            amount = data.requiredBigDecimal("amount"),
+            currency = data.optNullableString("currency") ?: "",
+            status = data.optNullableString("status") ?: "",
+            createdAt = data.optNullableString("created_at") ?: "",
+            paymentUrl = data.optNullableString("payment_url") ?: "",
+            obfuscatedAccountId = data.optNullableString("obfuscated_account_id") ?: "",
+            obfuscatedProfileId = data.optNullableString("obfuscated_profile_id") ?: "",
+        )
+    }
+
+    fun parsePaymentInitialization(json: String): PaymentInitialization {
+        val data = dataObject(json)
+        return PaymentInitialization(
+            orderId = data.getString("order_id"),
+            channelType = data.optNullableString("channel_type") ?: "",
+            channelCode = data.optNullableString("channel_code") ?: "",
+            openMode = data.optNullableString("open_mode") ?: "",
+            paymentUrl = data.optNullableString("payment_url") ?: "",
+            expiresAt = data.optNullableString("expires_at"),
+            queryIntervalSeconds = data.optInt("query_interval_seconds", 0),
+            maxQuerySeconds = data.optInt("max_query_seconds", 0),
+            sdkProductId = data.optJSONObject("sdk_params")?.optNullableString("product_id") ?: "",
+        )
+    }
+
+    fun parsePaymentOrderStatus(json: String): PaymentOrderStatus {
+        val data = dataObject(json)
+        return PaymentOrderStatus(
+            orderId = data.getString("order_id"),
+            status = data.optNullableString("status") ?: "",
+            paymentMethod = data.optNullableString("payment_method") ?: "",
+            fulfillmentStatus = data.optNullableString("fulfillment_status") ?: "",
+            paidAt = data.optNullableString("paid_at"),
+            verifiedAt = data.optNullableString("verified_at"),
+            fulfilledAt = data.optNullableString("fulfilled_at"),
+            thirdPartyPayment = data.optJSONObject("third_party_payment")?.let { payment ->
+                ThirdPartyPaymentStatus(
+                    channelCode = payment.optNullableString("channel_code") ?: "",
+                    status = payment.optNullableString("status") ?: "",
+                    openMode = payment.optNullableString("open_mode") ?: "",
+                    expiresAt = payment.optNullableString("expires_at"),
+                )
+            },
+        )
+    }
+
+    fun parseStoreCatalog(json: String): StoreCatalog {
+        val data = dataObject(json)
+        val productsJson = data.optJSONArray("products")
+        val providersJson = data.optJSONArray("payment_providers")
+        val products = buildList {
+            if (productsJson != null) {
+                for (index in 0 until productsJson.length()) {
+                    val item = productsJson.getJSONObject(index)
+                    add(
+                        StoreProduct(
+                            id = item.getString("id"),
+                            name = item.optNullableString("name") ?: "Diamond pack",
+                            description = item.optNullableString("description") ?: "",
+                            type = item.optNullableString("type") ?: "",
+                            value = item.optInt("value", 0),
+                            bonusValue = item.optInt("bonus_value", 0),
+                            firstBuyBonusValue = item.optInt("first_buy_bonus_value", 0),
+                            currency = item.optNullableString("currency") ?: "",
+                            originalPrice = item.optBigDecimal("original_price"),
+                            price = item.requiredBigDecimal("price"),
+                            firstBuyPrice = item.optBigDecimal("first_buy_price"),
+                            discountRate = item.optBigDecimal("discount_rate"),
+                            firstBuyDiscount = item.optBigDecimal("first_buy_discount"),
+                            icon = item.optNullableString("icon") ?: "",
+                            isFirstBuyPromotion = item.optBoolean("is_first_buy_promotion", false),
+                            isPromotion = item.optBoolean("is_promotion", false),
+                            isSubscription = item.optBoolean("is_subscription", false),
+                            promotionType = item.optNullableString("promotion_type") ?: "",
+                            sortOrder = item.optInt("sort_order", 0),
+                            tags = item.optNullableString("tags") ?: "",
+                            thirdPartyProductId = item.optNullableString("third_party_product_id") ?: "",
+                            vipLevel = item.optInt("vip_level", 0),
+                        ),
+                    )
+                }
+            }
+        }.sortedWith(compareBy<StoreProduct> { it.sortOrder }.thenBy { it.id })
+        val providers = buildList {
+            if (providersJson != null) {
+                for (index in 0 until providersJson.length()) {
+                    val item = providersJson.getJSONObject(index)
+                    val platforms = item.optJSONArray("supported_platforms")
+                    add(
+                        StorePaymentProvider(
+                            priority = item.optInt("priority", 0),
+                            code = item.optNullableString("provider_code") ?: "",
+                            name = item.optNullableString("provider_name") ?: "",
+                            supportedPlatforms = buildList {
+                                if (platforms != null) {
+                                    for (platformIndex in 0 until platforms.length()) {
+                                        add(platforms.optString(platformIndex))
+                                    }
+                                }
+                            }.filter { it.isNotBlank() },
+                        ),
+                    )
+                }
+            }
+        }.sortedWith(compareByDescending<StorePaymentProvider> { it.priority }.thenBy { it.code })
+        val userInfo = data.optJSONObject("user_info")?.let { item ->
+            StoreUserInfo(
+                currentDiamond = item.optInt("current_diamond", 0),
+                hasMadeFirstPurchase = item.optBoolean("has_made_first_purchase", false),
+                isVip = item.optBoolean("is_vip", false),
+            )
+        }
+        return StoreCatalog(
+            products = products,
+            paymentProviders = providers,
+            userInfo = userInfo,
+        )
+    }
+
     fun parseAuthSession(json: String): AuthSession {
         val data = dataObject(json)
         return AuthSession(
@@ -160,6 +287,18 @@ object AchatBackendParsers {
         }
         return root.optJSONArray("data") ?: error(root.optString("message", "Missing response data"))
     }
+}
+
+private fun JSONObject.optBigDecimal(name: String): BigDecimal {
+    val value = opt(name)
+    if (value == null || value == JSONObject.NULL) return BigDecimal.ZERO
+    return value.toString().toBigDecimalOrNull() ?: BigDecimal.ZERO
+}
+
+private fun JSONObject.requiredBigDecimal(name: String): BigDecimal {
+    val value = opt(name)
+    check(value != null && value != JSONObject.NULL) { "Missing $name" }
+    return value.toString().toBigDecimalOrNull() ?: error("Invalid $name")
 }
 
 private fun JSONObject.optNullableString(name: String): String? =

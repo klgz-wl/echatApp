@@ -6,10 +6,25 @@ import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+interface StorePaymentGateway {
+    suspend fun createStoreOrder(productId: String): StoreOrder
+    suspend fun initializeStorePayment(orderId: String): PaymentInitialization
+    suspend fun storePaymentStatus(orderId: String): PaymentOrderStatus
+    suspend fun reportStorePaymentEvent(
+        orderId: String,
+        eventType: String,
+        channelCode: String,
+        openMode: String,
+        url: String = "",
+        errorCode: String = "",
+        errorMessage: String = "",
+    )
+}
+
 class AchatRepository(
     context: Context,
     private val client: AchatBackendClient = AchatBackendClient(),
-) {
+) : StorePaymentGateway {
     private val appContext = context.applicationContext
     private val sessionStore = AchatSessionStore(appContext)
 
@@ -72,6 +87,48 @@ class AchatRepository(
         require(taskId.isNotBlank()) { "Task id is required" }
         val session = ensureSession()
         client.visualGenerationTask(session.token, taskId)
+    }
+
+    suspend fun storeCatalog(): StoreCatalog = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.storeCatalog(session.token)
+    }
+
+    suspend fun userCurrencySnapshot(): UserCurrency = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.userCurrency(session.token)
+    }
+
+    override suspend fun createStoreOrder(productId: String): StoreOrder = withContext(Dispatchers.IO) {
+        require(productId.isNotBlank()) { "Product id is required" }
+        val session = ensureSession()
+        client.createStoreOrder(session.token, productId)
+    }
+
+    override suspend fun initializeStorePayment(orderId: String): PaymentInitialization = withContext(Dispatchers.IO) {
+        require(orderId.isNotBlank()) { "Order id is required" }
+        val session = ensureSession()
+        client.initializeStorePayment(session.token, orderId)
+    }
+
+    override suspend fun storePaymentStatus(orderId: String): PaymentOrderStatus = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.storePaymentStatus(session.token, orderId)
+    }
+
+    override suspend fun reportStorePaymentEvent(
+        orderId: String,
+        eventType: String,
+        channelCode: String,
+        openMode: String,
+        url: String,
+        errorCode: String,
+        errorMessage: String,
+    ) = withContext(Dispatchers.IO) {
+        val session = ensureSession()
+        client.reportStorePaymentEvent(
+            session.token, orderId, eventType, channelCode, openMode, url, errorCode, errorMessage,
+        )
     }
 
     suspend fun generatedResources(page: Int = 1, pageSize: Int = 20): List<VisualResource> = withContext(Dispatchers.IO) {

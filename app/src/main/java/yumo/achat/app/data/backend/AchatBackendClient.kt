@@ -40,6 +40,78 @@ class AchatBackendClient(
     fun userCurrency(token: String): UserCurrency =
         AchatBackendParsers.parseUserCurrency(get("/api/v1/user/currencies", token))
 
+    fun storeCatalog(token: String): StoreCatalog =
+        AchatBackendParsers.parseStoreCatalog(
+            get("/api/v1/products?product_type=diamond&platform=android&location=store", token),
+        )
+
+    fun createStoreOrder(token: String, productId: String): StoreOrder {
+        val body = JSONObject()
+            .put("product_id", productId)
+            .put("platform", "android")
+            .put("trigger", "top_up")
+        return AchatBackendParsers.parseStoreOrder(
+            request(
+                path = "/api/v1/orders",
+                method = "POST",
+                body = body.toString(),
+                headers = mapOf(
+                    "Authorization" to "Bearer $token",
+                    "Content-Type" to "application/json",
+                ),
+            ),
+        )
+    }
+
+    fun initializeStorePayment(token: String, orderId: String): PaymentInitialization {
+        val body = JSONObject().put("order_id", orderId)
+        return AchatBackendParsers.parsePaymentInitialization(
+            request(
+                path = "/payment-api/v1/client/payments/initialize",
+                method = "POST",
+                body = body.toString(),
+                headers = mapOf(
+                    "Authorization" to "Bearer $token",
+                    "Content-Type" to "application/json",
+                ),
+            ),
+        )
+    }
+
+    fun storePaymentStatus(token: String, orderId: String): PaymentOrderStatus =
+        AchatBackendParsers.parsePaymentOrderStatus(
+            get("/payment-api/v1/client/payments/$orderId/status", token),
+        )
+
+    fun reportStorePaymentEvent(
+        token: String,
+        orderId: String,
+        eventType: String,
+        channelCode: String,
+        openMode: String,
+        url: String = "",
+        errorCode: String = "",
+        errorMessage: String = "",
+    ) {
+        val body = JSONObject()
+            .put("event_type", eventType)
+            .put("channel_code", channelCode)
+            .put("open_mode", openMode)
+            .put("page", "top_up")
+            .put("url", url)
+            .put("error_code", errorCode)
+            .put("error_message", errorMessage)
+        request(
+            path = "/payment-api/v1/client/payments/$orderId/client-events",
+            method = "POST",
+            body = body.toString(),
+            headers = mapOf(
+                "Authorization" to "Bearer $token",
+                "Content-Type" to "application/json",
+            ),
+        )
+    }
+
     fun templates(token: String, modality: String, page: Int = 1, pageSize: Int = 20): List<VisualTemplate> =
         AchatBackendParsers.parseTemplates(
             get("/api/v1/visual-generation/$modality/templates?page=$page&page_size=$pageSize", token),
