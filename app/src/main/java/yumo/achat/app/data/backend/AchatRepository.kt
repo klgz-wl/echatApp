@@ -3,7 +3,10 @@ package yumo.achat.app.data.backend
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 interface StorePaymentGateway {
@@ -35,23 +38,48 @@ class AchatRepository(
 
     suspend fun loadHomeData(): AchatHomeData = withContext(Dispatchers.IO) {
         val session = ensureSession()
+        coroutineScope {
+            val profile = async { optionalBackendValue { client.userProfile(session.token) } }
+            val currency = async { optionalBackendValue { client.userCurrency(session.token) } }
+            val videoTemplates = async {
+                loadTemplateResult("Unable to load video templates") {
+                    client.templates(session.token, "video")
+                }
+            }
+            val imageTemplates = async {
+                loadTemplateResult("Unable to load image templates") {
+                    client.templates(session.token, "image")
+                }
+            }
+            val videoCategories = async {
+                optionalBackendValue { client.categories(session.token, "video") }.orEmpty()
+            }
+            val imageCategories = async {
+                optionalBackendValue { client.categories(session.token, "image") }.orEmpty()
+            }
+            val loadedVideoTemplates = videoTemplates.await()
+            val loadedImageTemplates = imageTemplates.await()
 
-        val profile = runCatching { client.userProfile(session.token) }.getOrNull()
-        val currency = runCatching { client.userCurrency(session.token) }.getOrNull()
-        val videoTemplates = runCatching { client.templates(session.token, "video") }.getOrDefault(emptyList())
-        val imageTemplates = runCatching { client.templates(session.token, "image") }.getOrDefault(emptyList())
-        val videoCategories = runCatching { client.categories(session.token, "video") }.getOrDefault(emptyList())
-        val imageCategories = runCatching { client.categories(session.token, "image") }.getOrDefault(emptyList())
+            AchatHomeData(
+                session = session,
+                profile = profile.await(),
+                currency = currency.await(),
+                videoTemplates = loadedVideoTemplates.templates,
+                imageTemplates = loadedImageTemplates.templates,
+                videoTemplateErrorMessage = loadedVideoTemplates.errorMessage,
+                imageTemplateErrorMessage = loadedImageTemplates.errorMessage,
+                videoCategories = videoCategories.await(),
+                imageCategories = imageCategories.await(),
+            )
+        }
+    }
 
-        AchatHomeData(
-            session = session,
-            profile = profile,
-            currency = currency,
-            videoTemplates = videoTemplates,
-            imageTemplates = imageTemplates,
-            videoCategories = videoCategories,
-            imageCategories = imageCategories,
-        )
+    suspend fun loadTemplates(modality: String): TemplateLoadResult = withContext(Dispatchers.IO) {
+        require(modality == "video" || modality == "image") { "Unsupported template modality" }
+        loadTemplateResult("Unable to load $modality templates") {
+            val session = ensureSession()
+            client.templates(session.token, modality)
+        }
     }
 
     suspend fun uploadSourceImage(uri: Uri): VisualResource = withContext(Dispatchers.IO) {
@@ -191,4 +219,12 @@ class AchatRepository(
         }
         return "source-image.$extension"
     }
+}
+
+private inline fun <T> optionalBackendValue(load: () -> T): T? = try {
+    load()
+} catch (error: CancellationException) {
+    throw error
+} catch (_: Throwable) {
+    null
 }

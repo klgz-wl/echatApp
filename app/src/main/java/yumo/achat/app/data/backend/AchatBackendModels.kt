@@ -1,6 +1,7 @@
 package yumo.achat.app.data.backend
 
 import java.math.BigDecimal
+import kotlinx.coroutines.CancellationException
 
 data class AuthSession(
     val userId: String,
@@ -156,6 +157,25 @@ data class VisualCategory(
     val sortOrder: Int,
 )
 
+data class TemplateLoadResult(
+    val templates: List<VisualTemplate>,
+    val errorMessage: String?,
+)
+
+internal inline fun loadTemplateResult(
+    fallbackMessage: String,
+    load: () -> List<VisualTemplate>,
+): TemplateLoadResult = try {
+    TemplateLoadResult(templates = load(), errorMessage = null)
+} catch (error: CancellationException) {
+    throw error
+} catch (error: Throwable) {
+    TemplateLoadResult(
+        templates = emptyList(),
+        errorMessage = error.message?.takeIf { it.isNotBlank() } ?: fallbackMessage,
+    )
+}
+
 data class VisualResource(
     val id: String,
     val taskId: String?,
@@ -192,6 +212,8 @@ data class AchatHomeData(
     val currency: UserCurrency?,
     val videoTemplates: List<VisualTemplate>,
     val imageTemplates: List<VisualTemplate>,
+    val videoTemplateErrorMessage: String?,
+    val imageTemplateErrorMessage: String?,
     val videoCategories: List<VisualCategory>,
     val imageCategories: List<VisualCategory>,
 )

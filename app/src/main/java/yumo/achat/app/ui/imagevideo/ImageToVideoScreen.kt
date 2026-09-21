@@ -124,6 +124,7 @@ import yumo.achat.app.data.backend.StoreCatalog
 import yumo.achat.app.data.backend.PreparedStorePayment
 import yumo.achat.app.data.backend.PaymentOrderStatus
 import yumo.achat.app.data.backend.StoreUserInfo
+import yumo.achat.app.data.backend.TemplateLoadResult
 import yumo.achat.app.data.backend.VisualCategory
 import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualTemplate
@@ -176,9 +177,30 @@ internal data class AchatBackendUiState(
     val diamondBalance: Int = 0,
     val videoTemplates: List<VisualTemplate> = emptyList(),
     val imageTemplates: List<VisualTemplate> = emptyList(),
+    val videoTemplatesLoading: Boolean = true,
+    val imageTemplatesLoading: Boolean = true,
+    val videoTemplateErrorMessage: String? = null,
+    val imageTemplateErrorMessage: String? = null,
     val videoCategories: List<VisualCategory> = emptyList(),
     val imageCategories: List<VisualCategory> = emptyList(),
 )
+
+internal fun AchatBackendUiState.withTemplateLoadResult(
+    modality: String,
+    result: TemplateLoadResult,
+): AchatBackendUiState = when (modality) {
+    "video" -> copy(
+        videoTemplates = if (result.errorMessage == null) result.templates else videoTemplates,
+        videoTemplatesLoading = false,
+        videoTemplateErrorMessage = result.errorMessage,
+    )
+    "image" -> copy(
+        imageTemplates = if (result.errorMessage == null) result.templates else imageTemplates,
+        imageTemplatesLoading = false,
+        imageTemplateErrorMessage = result.errorMessage,
+    )
+    else -> error("Unsupported template modality")
+}
 
 internal fun AchatBackendUiState.withLoadedProfile(
     profile: yumo.achat.app.data.backend.UserProfile?,
@@ -349,6 +371,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { AchatRepository(context) }
+    val templateScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
@@ -405,6 +428,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val avatarUpdatedMessage = stringResource(R.string.profile_avatar_updated)
     val avatarUpdateFailedMessage = stringResource(R.string.profile_avatar_update_failed)
     val nameUpdatedMessage = stringResource(R.string.profile_name_updated)
+    val videoTemplatesFallback = stringResource(R.string.video_templates_error)
+    val imageTemplatesFallback = stringResource(R.string.image_templates_error)
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
         profileEditingController.saveAvatar(uri)
@@ -417,6 +442,23 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 type = "image/*"
             },
         )
+    }
+
+    fun retryTemplates(section: TemplateSection) {
+        val modality = if (section == TemplateSection.Video) "video" else "image"
+        backendState = when (section) {
+            TemplateSection.Video -> backendState.copy(videoTemplatesLoading = true)
+            TemplateSection.Image -> backendState.copy(imageTemplatesLoading = true)
+        }
+        templateScope.launch {
+            val result = repository.loadTemplates(modality)
+            val fallback = if (section == TemplateSection.Video) videoTemplatesFallback else imageTemplatesFallback
+            val errorMessage = result.errorMessage?.let { apiEnvelopeUserMessage(it, fallback) }
+            backendState = backendState.withTemplateLoadResult(
+                modality = modality,
+                result = result.copy(errorMessage = errorMessage),
+            )
+        }
     }
 
     LaunchedEffect(profileEditingController.completionSerial) {
@@ -501,13 +543,26 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
                 videoTemplates = homeData.videoTemplates,
                 imageTemplates = homeData.imageTemplates,
+                videoTemplatesLoading = false,
+                imageTemplatesLoading = false,
+                videoTemplateErrorMessage = homeData.videoTemplateErrorMessage?.let {
+                    apiEnvelopeUserMessage(it, videoTemplatesFallback)
+                },
+                imageTemplateErrorMessage = homeData.imageTemplateErrorMessage?.let {
+                    apiEnvelopeUserMessage(it, imageTemplatesFallback)
+                },
                 videoCategories = homeData.videoCategories,
                 imageCategories = homeData.imageCategories,
             )
         }.onFailure { error ->
+            val rawMessage = error.message ?: "Backend unavailable"
             backendState = backendState.copy(
                 isLoading = false,
-                errorMessage = error.message ?: "Backend unavailable",
+                errorMessage = rawMessage,
+                videoTemplatesLoading = false,
+                imageTemplatesLoading = false,
+                videoTemplateErrorMessage = apiEnvelopeUserMessage(rawMessage, videoTemplatesFallback),
+                imageTemplateErrorMessage = apiEnvelopeUserMessage(rawMessage, imageTemplatesFallback),
             )
         }
     }
@@ -638,6 +693,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onEditName = { destination = ImageToVideoDestination.EditName },
                     onEditAvatar = ::openAvatarPicker,
                     isAvatarSaving = profileEditingController.avatarSaving,
+                    onTemplateRetry = ::retryTemplates,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
                     topUpState = topUpState,
@@ -795,6 +851,7 @@ private fun TemplateBrowserScreen(
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     isAvatarSaving: Boolean,
+    onTemplateRetry: (TemplateSection) -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onProductSelect: (String) -> Unit,
     onPreparePayment: () -> Unit,
@@ -844,6 +901,16 @@ private fun TemplateBrowserScreen(
 
     val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
     val templates = if (section == TemplateSection.Image) backendState.imageTemplates else backendState.videoTemplates
+    val templatesLoading = if (section == TemplateSection.Image) {
+        backendState.imageTemplatesLoading
+    } else {
+        backendState.videoTemplatesLoading
+    }
+    val templateErrorMessage = if (section == TemplateSection.Image) {
+        backendState.imageTemplateErrorMessage
+    } else {
+        backendState.videoTemplateErrorMessage
+    }
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
@@ -879,15 +946,17 @@ private fun TemplateBrowserScreen(
             onSelect = onTabSelect,
         )
         TemplateBackendStatus(
-            isLoading = backendState.isLoading,
-            errorMessage = backendState.errorMessage,
+            isLoading = templatesLoading,
+            errorMessage = templateErrorMessage,
             selectedTemplate = selectedTemplate,
         )
         Spacer(Modifier.height(7.dp))
         TemplateFeedPager(
             templates = templates,
             currentTemplate = currentTemplate,
-            isLoading = backendState.isLoading,
+            isLoading = templatesLoading,
+            errorMessage = templateErrorMessage,
+            onRetry = { onTemplateRetry(section) },
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
             onMoveTemplate = { direction -> onMoveTemplate(direction, navigationTotal) },
@@ -918,6 +987,8 @@ private fun TemplateFeedPager(
     templates: List<VisualTemplate>,
     currentTemplate: Int,
     isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection) -> Unit,
@@ -929,6 +1000,8 @@ private fun TemplateFeedPager(
     if (templates.isEmpty()) {
         LiveTemplatePlaceholderCard(
             isLoading = isLoading,
+            errorMessage = errorMessage,
+            onRetry = onRetry,
             modifier = modifier,
         )
         return
@@ -990,13 +1063,24 @@ private fun TemplateFeedPager(
 }
 
 @Composable
-private fun LiveTemplatePlaceholderCard(isLoading: Boolean, modifier: Modifier = Modifier) {
+internal fun LiveTemplatePlaceholderCard(
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val title = stringResource(
-        if (isLoading) R.string.template_feed_loading_title else R.string.template_feed_empty_title,
+        when {
+            isLoading -> R.string.template_feed_loading_title
+            errorMessage != null -> R.string.template_feed_error_title
+            else -> R.string.template_feed_empty_title
+        },
     )
-    val body = stringResource(
-        if (isLoading) R.string.template_feed_loading_body else R.string.template_feed_empty_body,
-    )
+    val body = when {
+        isLoading -> stringResource(R.string.template_feed_loading_body)
+        errorMessage != null -> errorMessage
+        else -> stringResource(R.string.template_feed_empty_body)
+    }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(2.dp))
@@ -1035,6 +1119,18 @@ private fun LiveTemplatePlaceholderCard(isLoading: Boolean, modifier: Modifier =
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
             )
+            if (!isLoading) {
+                Text(
+                    text = stringResource(R.string.template_feed_retry),
+                    color = AchatCyan,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, AchatCyan.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                        .clickable(onClick = onRetry)
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

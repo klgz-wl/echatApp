@@ -7,6 +7,20 @@ import org.junit.Test
 
 class AchatBackendParsersTest {
     @Test
+    fun `template response requires items array`() {
+        assertThrows(IllegalStateException::class.java) {
+            AchatBackendParsers.parseTemplates("""{"code":0,"data":{"page":1,"total":0}}""")
+        }
+        assertThrows(IllegalStateException::class.java) {
+            AchatBackendParsers.parseTemplates("""{"code":0,"data":{"items":"invalid"}}""")
+        }
+        assertEquals(
+            emptyList<VisualTemplate>(),
+            AchatBackendParsers.parseTemplates("""{"code":0,"data":{"items":[]}}"""),
+        )
+    }
+
+    @Test
     fun `parse uploaded profile file`() {
         val upload = AchatBackendParsers.parseUploadedFile(
             """

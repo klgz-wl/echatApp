@@ -175,7 +175,7 @@ object AchatBackendParsers {
 
     fun parseTemplates(json: String): List<VisualTemplate> {
         val data = dataObject(json)
-        val items = data.optJSONArray("items") ?: return emptyList()
+        val items = data.opt("items") as? org.json.JSONArray ?: error("Missing or invalid template items")
         return buildList {
             for (index in 0 until items.length()) {
                 val item = items.getJSONObject(index)

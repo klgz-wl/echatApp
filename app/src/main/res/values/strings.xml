@@ -129,4 +129,8 @@
     <string name="template_feed_loading_body">Fetching real templates from the server...</string>
     <string name="template_feed_empty_title">No live templates</string>
     <string name="template_feed_empty_body">Please retry after templates are available.</string>
+    <string name="template_feed_error_title">Templates unavailable</string>
+    <string name="template_feed_retry">RETRY</string>
+    <string name="video_templates_error">Unable to load video templates</string>
+    <string name="image_templates_error">Unable to load image templates</string>
 </resources>
