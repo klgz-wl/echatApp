@@ -4,10 +4,16 @@ import android.content.Context
 import org.json.JSONObject
 import java.util.UUID
 
-class AchatSessionStore(context: Context) {
+internal interface AuthSessionStore {
+    fun deviceId(): String
+    fun readSession(): AuthSession?
+    fun saveSession(session: AuthSession)
+}
+
+class AchatSessionStore(context: Context) : AuthSessionStore {
     private val preferences = context.getSharedPreferences("achat_backend_session", Context.MODE_PRIVATE)
 
-    fun deviceId(): String {
+    override fun deviceId(): String {
         val existing = preferences.getString(KEY_DEVICE_ID, null)
         if (!existing.isNullOrBlank()) {
             return existing
@@ -17,7 +23,7 @@ class AchatSessionStore(context: Context) {
         }
     }
 
-    fun readSession(): AuthSession? {
+    override fun readSession(): AuthSession? {
         val stored = preferences.getString(KEY_AUTH_SESSION, null) ?: return null
         return runCatching {
             val json = JSONObject(stored)
@@ -31,7 +37,7 @@ class AchatSessionStore(context: Context) {
         }.getOrNull()
     }
 
-    fun saveSession(session: AuthSession) {
+    override fun saveSession(session: AuthSession) {
         val json = JSONObject()
             .put("userId", session.userId)
             .put("token", session.token)

@@ -4,6 +4,11 @@ import java.math.BigDecimal
 import org.json.JSONObject
 
 object AchatBackendParsers {
+    fun parseRefreshedAccessToken(json: String): String {
+        val data = dataObject(json)
+        return data.optNullableString("token") ?: error("Missing refreshed access token")
+    }
+
     fun parseStoreOrder(json: String): StoreOrder {
         val data = dataObject(json)
         return StoreOrder(

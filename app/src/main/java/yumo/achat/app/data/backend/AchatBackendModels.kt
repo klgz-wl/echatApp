@@ -163,9 +163,9 @@ data class TemplateLoadResult(
     val errorMessage: String?,
 )
 
-internal inline fun loadTemplateResult(
+internal suspend inline fun loadTemplateResult(
     fallbackMessage: String,
-    load: () -> List<VisualTemplate>,
+    crossinline load: suspend () -> List<VisualTemplate>,
 ): TemplateLoadResult = try {
     TemplateLoadResult(templates = load(), errorMessage = null)
 } catch (error: CancellationException) {

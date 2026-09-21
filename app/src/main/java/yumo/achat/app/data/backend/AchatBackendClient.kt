@@ -6,9 +6,19 @@ import java.net.URL
 import java.util.UUID
 import yumo.achat.app.BuildConfig
 
+internal interface AchatAuthApi {
+    fun loginAnonymously(deviceId: String): AuthSession
+    fun refreshAccessToken(refreshToken: String): String
+}
+
+internal class AchatBackendHttpException(
+    val statusCode: Int,
+    val responseBody: String,
+) : IllegalStateException(responseBody.ifBlank { "HTTP $statusCode" })
+
 class AchatBackendClient(
     private val baseUrl: String = BuildConfig.ACHAT_API_BASE_URL,
-) {
+) : AchatAuthApi {
     fun anonymousLogin(
         deviceId: String,
         packageName: String = BuildConfig.APPLICATION_ID,
@@ -30,6 +40,20 @@ class AchatBackendClient(
                     "Content-Type" to "application/json",
                     "X-Device-ID" to deviceId,
                 ),
+            ),
+        )
+    }
+
+    override fun loginAnonymously(deviceId: String): AuthSession = anonymousLogin(deviceId)
+
+    override fun refreshAccessToken(refreshToken: String): String {
+        val body = JSONObject().put("refresh_token", refreshToken)
+        return AchatBackendParsers.parseRefreshedAccessToken(
+            request(
+                path = "/api/v1/auth/refresh",
+                method = "POST",
+                body = body.toString(),
+                headers = mapOf("Content-Type" to "application/json"),
             ),
         )
     }
@@ -262,7 +286,7 @@ class AchatBackendClient(
             val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (responseCode !in 200..299) {
-                error(response.ifBlank { "HTTP $responseCode" })
+                throw AchatBackendHttpException(responseCode, response)
             }
             return response
         } finally {

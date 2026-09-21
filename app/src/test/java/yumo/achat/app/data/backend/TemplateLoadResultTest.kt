@@ -5,10 +5,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertThrows
+import kotlinx.coroutines.runBlocking
 
 class TemplateLoadResultTest {
     @Test
-    fun `successful empty response remains a genuine empty state`() {
+    fun `successful empty response remains a genuine empty state`() = runBlocking {
         val result = loadTemplateResult("Unable to load video templates") { emptyList() }
 
         assertEquals(emptyList<VisualTemplate>(), result.templates)
@@ -16,7 +17,7 @@ class TemplateLoadResultTest {
     }
 
     @Test
-    fun `failed response retains its error instead of becoming successful empty`() {
+    fun `failed response retains its error instead of becoming successful empty`() = runBlocking {
         val result = loadTemplateResult("Unable to load video templates") {
             throw IllegalStateException("HTTP 503")
         }
@@ -26,7 +27,7 @@ class TemplateLoadResultTest {
     }
 
     @Test
-    fun `session failure is represented as retryable template failure`() {
+    fun `session failure is represented as retryable template failure`() = runBlocking {
         val result = loadTemplateResult(
             fallbackMessage = "Unable to load video templates",
             load = { throw IllegalStateException("Session unavailable") },
@@ -38,7 +39,7 @@ class TemplateLoadResultTest {
     @Test
     fun `template loading does not swallow coroutine cancellation`() {
         assertThrows(CancellationException::class.java) {
-            loadTemplateResult("fallback") { throw CancellationException("cancel") }
+            runBlocking { loadTemplateResult("fallback") { throw CancellationException("cancel") } }
         }
     }
 }
