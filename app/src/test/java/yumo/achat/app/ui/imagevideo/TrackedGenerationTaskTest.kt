@@ -17,7 +17,7 @@ class TrackedGenerationTaskTest {
             quality = "fast",
             templateId = "template-1",
             diamondCost = 22,
-            estimatedPollIntervalSeconds = null,
+            estimatedPollIntervalSeconds = 5,
             refunded = false,
             errorMessage = null,
             resource = VisualResource(
@@ -42,6 +42,7 @@ class TrackedGenerationTaskTest {
         assertEquals("image/webp", trackedTask.mimeType)
         assertTrue(trackedTask.isFinished)
         assertTrue(trackedTask.canOpenResult)
+        assertEquals(5, trackedTask.pollIntervalSeconds)
     }
 
     @Test

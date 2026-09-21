@@ -3,6 +3,7 @@ package yumo.achat.app.ui.imagevideo
 import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualResource
 import yumo.achat.app.data.backend.isVisualGenerationFinished
+import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
 
 internal data class TrackedGenerationTask(
     val taskId: String,
@@ -12,6 +13,7 @@ internal data class TrackedGenerationTask(
     val resultUrl: String?,
     val mimeType: String,
     val errorMessage: String?,
+    val pollIntervalSeconds: Int = 3,
 ) {
     val isFinished: Boolean
         get() = isVisualGenerationFinished(status)
@@ -32,6 +34,7 @@ internal fun VisualGenerationTask.toTrackedGenerationTask(title: String): Tracke
         resultUrl = resource?.url?.takeIf { it.isNotBlank() },
         mimeType = resource?.mimeType.orEmpty(),
         errorMessage = errorMessage,
+        pollIntervalSeconds = visualGenerationPollIntervalSeconds(estimatedPollIntervalSeconds),
     )
 
 internal fun VisualResource.toTrackedGenerationTask(defaultTitle: String): TrackedGenerationTask =

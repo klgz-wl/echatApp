@@ -61,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,8 +129,6 @@ import yumo.achat.app.data.backend.TemplateLoadResult
 import yumo.achat.app.data.backend.VisualCategory
 import yumo.achat.app.data.backend.VisualGenerationTask
 import yumo.achat.app.data.backend.VisualTemplate
-import yumo.achat.app.data.backend.isVisualGenerationFinished
-import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
@@ -162,6 +161,12 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
 
 internal fun shouldRefreshTopUp(currentNavigation: Int, selectedNavigation: Int): Boolean =
     currentNavigation == 2 && selectedNavigation == 2
+
+internal fun balanceAfterGenerationTaskCreated(currentBalance: Int, diamondCost: Int): Int =
+    (currentBalance - diamondCost.coerceAtLeast(0)).coerceAtLeast(0)
+
+internal fun shouldRefreshBalanceForTaskStatus(status: String): Boolean =
+    status == "succeeded" || status == "failed"
 
 private enum class TemplateSection {
     Video,
@@ -371,7 +376,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { AchatRepository(context) }
-    val templateScope = rememberCoroutineScope()
+    val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
@@ -402,6 +407,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var profileMessage by remember { mutableStateOf<TransientMessage?>(null) }
     var profileMessageSerial by remember { mutableStateOf(0L) }
     var profileRevision by remember { mutableStateOf(0L) }
+    var chargedGenerationTaskIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var diamondBalanceRefreshSerial by remember { mutableStateOf(0L) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
     val trackedTasks = mergeTrackedGenerationTasks(sessionTasks, serverHistoryTasks)
     val templateEdgeHint = templateEdgeHintRes?.let { messageRes ->
@@ -450,7 +457,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             TemplateSection.Video -> backendState.copy(videoTemplatesLoading = true)
             TemplateSection.Image -> backendState.copy(imageTemplatesLoading = true)
         }
-        templateScope.launch {
+        screenScope.launch {
             val result = repository.loadTemplates(modality)
             val fallback = if (section == TemplateSection.Video) videoTemplatesFallback else imageTemplatesFallback
             val errorMessage = result.errorMessage?.let { apiEnvelopeUserMessage(it, fallback) }
@@ -459,6 +466,37 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 result = result.copy(errorMessage = errorMessage),
             )
         }
+    }
+
+    fun refreshDiamondBalance() {
+        diamondBalanceRefreshSerial += 1
+        val requestSerial = diamondBalanceRefreshSerial
+        screenScope.launch {
+            try {
+                val currency = repository.userCurrencySnapshot()
+                if (shouldApplyCurrencySnapshot(requestSerial, diamondBalanceRefreshSerial)) {
+                    backendState = backendState.copy(diamondBalance = currency.diamondBalance)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // Keep the last visible balance; the next refresh opportunity reconciles it.
+            }
+        }
+    }
+
+    fun handleGenerationTaskCreated(task: VisualGenerationTask, trackedTask: TrackedGenerationTask) {
+        sessionTasks = upsertTrackedGenerationTask(sessionTasks, trackedTask)
+        if (shouldApplyGenerationCharge(task.taskId, chargedGenerationTaskIds)) {
+            chargedGenerationTaskIds = chargedGenerationTaskIds + task.taskId
+            backendState = backendState.copy(
+                diamondBalance = balanceAfterGenerationTaskCreated(
+                    currentBalance = backendState.diamondBalance,
+                    diamondCost = task.diamondCost,
+                ),
+            )
+        }
+        refreshDiamondBalance()
     }
 
     LaunchedEffect(profileEditingController.completionSerial) {
@@ -587,6 +625,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(destination, selectedNavigation, topUpRefreshSerial) {
         if (destination != ImageToVideoDestination.Templates || selectedNavigation != 2) return@LaunchedEffect
+        refreshDiamondBalance()
         topUpState = TopUpUiState(
             isLoading = true,
             diamondBalance = backendState.diamondBalance,
@@ -638,8 +677,24 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(topUpPaymentController.successSerial) {
         if (topUpPaymentController.successSerial > 0) {
             topUpRefreshSerial += 1
-            runCatching { repository.userCurrencySnapshot() }.onSuccess { currency ->
-                backendState = backendState.copy(diamondBalance = currency.diamondBalance)
+            refreshDiamondBalance()
+        }
+    }
+
+    sessionTasks.filterNot { it.isFinished }.forEach { trackedTask ->
+        key(trackedTask.taskId) {
+            LaunchedEffect(trackedTask.taskId) {
+                pollGenerationTaskUntilFinished(
+                    initialTask = trackedTask,
+                    waitForNextPoll = { intervalSeconds -> delay(intervalSeconds * 1_000L) },
+                    fetch = repository::getVisualGenerationTask,
+                    onUpdate = { updatedTask ->
+                        sessionTasks = upsertTrackedGenerationTask(sessionTasks, updatedTask)
+                        if (shouldRefreshBalanceForTaskStatus(updatedTask.status)) {
+                            refreshDiamondBalance()
+                        }
+                    },
+                )
             }
         }
     }
@@ -720,9 +775,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     diamondBalance = backendState.diamondBalance,
                     selectedTemplate = selectedGenerationTemplate,
-                    onTaskUpdated = { trackedTask ->
-                        sessionTasks = upsertTrackedGenerationTask(sessionTasks, trackedTask)
-                    },
+                    trackedTasks = sessionTasks,
+                    onTaskCreated = ::handleGenerationTaskCreated,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -865,6 +919,7 @@ private fun TemplateBrowserScreen(
             selectedNavigation = selectedNavigation,
             selectedProductId = selectedProductId,
             state = topUpState,
+            diamondBalance = backendState.diamondBalance,
             purchaseState = purchaseState,
             checkoutState = checkoutState,
             isReconciling = isReconciling,
@@ -2334,6 +2389,7 @@ internal fun TopUpScreen(
     selectedNavigation: Int,
     selectedProductId: String?,
     state: TopUpUiState,
+    diamondBalance: Int = state.diamondBalance,
     purchaseState: TopUpPurchaseState,
     checkoutState: TopUpCheckoutState = TopUpCheckoutState.Idle,
     isReconciling: Boolean = false,
@@ -2347,7 +2403,6 @@ internal fun TopUpScreen(
         product.toCreditPackPresentation(catalog?.userInfo, index)
     }
     val selectedPack = packs.firstOrNull { it.id == selectedProductId }
-    val diamondBalance = state.diamondBalance
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2858,7 +2913,8 @@ private fun UploadPhotoScreen(
     onNavigationSelect: (Int) -> Unit,
     diamondBalance: Int,
     selectedTemplate: SelectedGenerationTemplate?,
-    onTaskUpdated: (TrackedGenerationTask) -> Unit,
+    trackedTasks: List<TrackedGenerationTask>,
+    onTaskCreated: (VisualGenerationTask, TrackedGenerationTask) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -2879,8 +2935,6 @@ private fun UploadPhotoScreen(
     val taskFailedPattern = stringResource(R.string.task_failed)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
     val uploadSuccessPattern = stringResource(R.string.upload_success)
-    val defaultTaskTitle = stringResource(R.string.default_task_title)
-    val trackedTaskTitle = selectedTemplate?.title ?: defaultTaskTitle
     fun showUploadMessage(
         text: String,
         tone: TransientMessageTone = TransientMessageTone.Neutral,
@@ -2934,9 +2988,12 @@ private fun UploadPhotoScreen(
         }
     }
 
-    LaunchedEffect(currentTask?.taskId, currentTask?.status) {
-        val task = currentTask ?: return@LaunchedEffect
-        if (isVisualGenerationFinished(task.status)) {
+    val trackedCurrentTask = currentTask?.taskId?.let { taskId ->
+        trackedTasks.firstOrNull { it.taskId == taskId }
+    }
+    LaunchedEffect(trackedCurrentTask?.taskId, trackedCurrentTask?.status) {
+        val task = trackedCurrentTask ?: return@LaunchedEffect
+        if (task.isFinished) {
             if (task.status == "succeeded") {
                 showUploadMessage(
                     text = taskSucceededPattern.format(task.taskId.take(8)),
@@ -2952,18 +3009,6 @@ private fun UploadPhotoScreen(
         }
 
         showUploadMessage(taskStatusPattern.format(task.taskId.take(8), task.status))
-        delay(visualGenerationPollIntervalSeconds(task.estimatedPollIntervalSeconds) * 1_000L)
-        runCatching {
-            repository.getVisualGenerationTask(task.taskId)
-        }.onSuccess { updatedTask ->
-            currentTask = updatedTask
-            onTaskUpdated(updatedTask.toTrackedGenerationTask(trackedTaskTitle))
-        }.onFailure { error ->
-            showUploadMessage(
-                text = visualGenerationUserMessage(error.message, uploadFailedMessage),
-                tone = TransientMessageTone.Error,
-            )
-        }
     }
 
     Column(
@@ -3036,7 +3081,7 @@ private fun UploadPhotoScreen(
                         )
                     }.onSuccess { task ->
                         currentTask = task
-                        onTaskUpdated(task.toTrackedGenerationTask(template.title))
+                        onTaskCreated(task, task.toTrackedGenerationTask(template.title))
                         showUploadMessage(taskCreatedPattern.format(task.taskId.take(8), task.status))
                     }.onFailure { error ->
                         showUploadMessage(
