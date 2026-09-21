@@ -16,6 +16,7 @@ import java.io.File
 import java.util.Collections
 
 private const val TemplateVideoCacheBytes = 120L * 1024L * 1024L
+private const val TemplateVideoPreloadBytes = 768L * 1024L
 
 @OptIn(UnstableApi::class)
 internal object TemplateVideoCache {
@@ -25,21 +26,27 @@ internal object TemplateVideoCache {
     fun mediaSourceFactory(context: Context): DefaultMediaSourceFactory =
         DefaultMediaSourceFactory(cacheDataSourceFactory(context))
 
-    fun preload(context: Context, urls: List<String>) {
+    fun preload(context: Context, urls: List<String>, session: TemplateVideoPreloadSession) {
         val appContext = context.applicationContext
         urls.filter { it.isNotBlank() }.forEach { url ->
+            if (session.isCancelled) return
             if (!preloadUrls.add(url)) {
                 return@forEach
             }
 
-            runCatching {
-                CacheWriter(
-                    cacheDataSourceFactory(appContext).createDataSource(),
-                    DataSpec(Uri.parse(url)),
-                    null,
-                    null,
-                ).cache()
-            }.also {
+            val writer = CacheWriter(
+                cacheDataSourceFactory(appContext).createDataSource(),
+                DataSpec.Builder()
+                    .setUri(Uri.parse(url))
+                    .setPosition(0)
+                    .setLength(TemplateVideoPreloadBytes)
+                    .build(),
+                null,
+                null,
+            )
+            session.attach(writer)
+            runCatching { writer.cache() }.also {
+                session.detach(writer)
                 preloadUrls.remove(url)
             }
         }
@@ -65,5 +72,34 @@ internal object TemplateVideoCache {
                 StandaloneDatabaseProvider(appContext),
             ).also { simpleCache = it }
         }
+    }
+}
+
+@OptIn(UnstableApi::class)
+internal class TemplateVideoPreloadSession {
+    @Volatile var isCancelled: Boolean = false
+        private set
+
+    @Volatile private var writer: CacheWriter? = null
+
+    @Synchronized
+    fun attach(writer: CacheWriter) {
+        if (isCancelled) {
+            writer.cancel()
+        } else {
+            this.writer = writer
+        }
+    }
+
+    @Synchronized
+    fun detach(writer: CacheWriter) {
+        if (this.writer === writer) this.writer = null
+    }
+
+    @Synchronized
+    fun cancel() {
+        isCancelled = true
+        writer?.cancel()
+        writer = null
     }
 }

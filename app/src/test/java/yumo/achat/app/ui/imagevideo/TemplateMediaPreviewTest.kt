@@ -16,11 +16,21 @@ class TemplateMediaPreviewTest {
 
     @Test
     fun `uses remote video preview for video templates with urls`() {
-        val template = template(mimeType = "video/mp4", fileUrl = "https://example.test/template.mp4")
+        val template = template(
+            mimeType = "video/mp4",
+            fileUrl = "https://example.test/template.mp4",
+            previewUrl = "https://example.test/poster.webp",
+        )
 
         val media = template.toPreviewMedia()
 
-        assertEquals(TemplatePreviewMedia.RemoteVideo("https://example.test/template.mp4"), media)
+        assertEquals(
+            TemplatePreviewMedia.RemoteVideo(
+                url = "https://example.test/template.mp4",
+                posterUrl = "https://example.test/poster.webp",
+            ),
+            media,
+        )
     }
 
     @Test
@@ -32,12 +42,13 @@ class TemplateMediaPreviewTest {
         assertEquals(TemplatePreviewMedia.LocalPlaceholder, media)
     }
 
-    private fun template(mimeType: String, fileUrl: String) = VisualTemplate(
+    private fun template(mimeType: String, fileUrl: String, previewUrl: String = "") = VisualTemplate(
         id = "template",
         categoryId = null,
         categoryName = null,
         name = "Template",
         fileUrl = fileUrl,
+        previewUrl = previewUrl,
         mimeType = mimeType,
         width = 720,
         height = 1280,

@@ -139,6 +139,7 @@ data class VisualTemplate(
     val categoryName: String?,
     val name: String,
     val fileUrl: String,
+    val previewUrl: String = "",
     val mimeType: String,
     val width: Int,
     val height: Int,

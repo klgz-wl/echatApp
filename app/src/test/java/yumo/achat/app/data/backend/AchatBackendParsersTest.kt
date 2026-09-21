@@ -305,6 +305,7 @@ class AchatBackendParsersTest {
                     "id": "hot",
                     "name": "Hot",
                     "file_url": "https://example.test/hot.webp",
+                    "preview_url": "https://example.test/hot-poster.webp",
                     "mime_type": "video/mp4",
                     "width": 720,
                     "height": 1280,
@@ -324,6 +325,8 @@ class AchatBackendParsersTest {
         assertEquals(listOf("hot", "cold"), templates.map { it.id })
         assertEquals("Hot", templates.first().name)
         assertEquals("video/mp4", templates.first().mimeType)
+        assertEquals("https://example.test/hot-poster.webp", templates.first().previewUrl)
+        assertEquals("", templates.last().previewUrl)
         assertEquals(9, templates.first().fastPrice)
         assertEquals(null, templates.first().qualityPrice)
     }

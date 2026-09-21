@@ -187,6 +187,7 @@ object AchatBackendParsers {
                         categoryName = item.optNullableString("category_name"),
                         name = item.optNullableString("name") ?: "Visual Template",
                         fileUrl = item.optNullableString("file_url") ?: "",
+                        previewUrl = item.optNullableString("preview_url") ?: "",
                         mimeType = item.optNullableString("mime_type") ?: "",
                         width = item.optInt("width", 0),
                         height = item.optInt("height", 0),

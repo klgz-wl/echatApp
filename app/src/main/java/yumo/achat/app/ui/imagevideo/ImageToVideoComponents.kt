@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -71,6 +75,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import yumo.achat.app.R
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
@@ -258,8 +263,14 @@ private fun TemplatePreviewImage(
         }
 
         is TemplatePreviewMedia.RemoteImage -> {
+            val context = LocalContext.current
             AsyncImage(
-                model = media.url,
+                model = ImageRequest.Builder(context)
+                    .data(media.url)
+                    .size(TemplatePreviewWidthPx, TemplatePreviewHeightPx)
+                    .scale(coilScaleForContentScale(contentScale))
+                    .crossfade(150)
+                    .build(),
                 contentDescription = contentDescription,
                 contentScale = contentScale,
                 error = placeholder,
@@ -268,12 +279,33 @@ private fun TemplatePreviewImage(
         }
 
         is TemplatePreviewMedia.RemoteVideo -> {
-            TemplatePreviewVideo(
-                url = media.url,
-                isPlaying = isPlaying,
-                resizeMode = videoResizeMode,
-                modifier = modifier,
-            )
+            var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
+            Box(modifier = modifier.background(Color.Black)) {
+                TemplatePreviewVideo(
+                    url = media.url,
+                    isPlaying = isPlaying,
+                    resizeMode = videoResizeMode,
+                    onFirstFrame = { hasRenderedFirstFrame = true },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                AnimatedVisibility(
+                    visible = media.posterUrl.isNotBlank() && shouldShowVideoPoster(hasRenderedFirstFrame),
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(media.posterUrl)
+                            .size(TemplatePreviewWidthPx, TemplatePreviewHeightPx)
+                            .scale(coilScaleForContentScale(contentScale))
+                            .crossfade(120)
+                            .build(),
+                        contentDescription = contentDescription,
+                        contentScale = contentScale,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
     }
 }
@@ -284,28 +316,48 @@ private fun TemplatePreviewVideo(
     url: String,
     isPlaying: Boolean,
     resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+    onFirstFrame: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val player = remember(url) {
-        ExoPlayer.Builder(context)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val firstFrameCallback = rememberUpdatedState(onFirstFrame)
+    var lifecycleStarted by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    val binding = remember(url) {
+        val player = ExoPlayer.Builder(context)
             .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context))
             .build()
-            .apply {
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() = firstFrameCallback.value()
+        }
+        player.addListener(listener)
+        player.apply {
             repeatMode = Player.REPEAT_MODE_ONE
             setMediaItem(MediaItem.fromUri(url))
             prepare()
         }
+        TemplatePlayerBinding(player, listener)
     }
 
-    LaunchedEffect(player, isPlaying) {
-        player.playWhenReady = isPlaying
-    }
-
-    DisposableEffect(player) {
+    DisposableEffect(binding) {
         onDispose {
-            player.release()
+            binding.player.removeListener(binding.listener)
+            binding.player.release()
         }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            lifecycleStarted = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(binding.player, isPlaying, lifecycleStarted) {
+        binding.player.playWhenReady = shouldPlayVideo(isPlaying, lifecycleStarted)
     }
 
     AndroidView(
@@ -313,16 +365,21 @@ private fun TemplatePreviewVideo(
             PlayerView(viewContext).apply {
                 useController = false
                 this.resizeMode = resizeMode
-                this.player = player
+                this.player = binding.player
             }
         },
         update = { playerView ->
             playerView.resizeMode = resizeMode
-            playerView.player = player
+            playerView.player = binding.player
         },
         modifier = modifier.background(Color.Black),
     )
 }
+
+private data class TemplatePlayerBinding(
+    val player: ExoPlayer,
+    val listener: Player.Listener,
+)
 
 @Composable
 private fun TemplateMetadata(durationSeconds: Int, modifier: Modifier = Modifier) {

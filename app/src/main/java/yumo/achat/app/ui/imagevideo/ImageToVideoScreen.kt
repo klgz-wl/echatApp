@@ -920,6 +920,7 @@ private fun TemplateBrowserScreen(
     } else {
         emptyList()
     }
+    val nearbyImageUrls = templates.nearbyImagePreviewUrls(selectedTemplateIndex)
     val selectedGenerationTemplate = selectedTemplate?.let { template ->
         SelectedGenerationTemplate(
             templateId = template.id,
@@ -930,7 +931,7 @@ private fun TemplateBrowserScreen(
             durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
         )
     }
-    TemplateVideoPreloader(urls = nearbyVideoUrls)
+    TemplateMediaPreloader(videoUrls = nearbyVideoUrls, imageUrls = nearbyImageUrls)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1026,6 +1027,7 @@ private fun TemplateFeedPager(
 
     VerticalPager(
         state = pagerState,
+        key = { page -> templatePagerKey(templates, page) },
         modifier = modifier,
     ) { page ->
         val template = templates[page]
@@ -1034,7 +1036,11 @@ private fun TemplateFeedPager(
             totalPages = templates.size,
             durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
             previewMedia = template.toPreviewMedia(),
-            isPlaying = isPlaying,
+            isPlaying = shouldPlayTemplatePage(
+                page = page,
+                currentPage = pagerState.currentPage,
+                requestedPlaying = isPlaying,
+            ),
             onPlayToggle = onPlayToggle,
             onPrevious = {
                 if (page == 0) {
@@ -1136,13 +1142,18 @@ internal fun LiveTemplatePlaceholderCard(
 }
 
 @Composable
-private fun TemplateVideoPreloader(urls: List<String>) {
+internal fun TemplateMediaPreloader(
+    videoUrls: List<String>,
+    imageUrls: List<String>,
+    coordinator: TemplateMediaPrefetchCoordinator = DefaultTemplateMediaPrefetchCoordinator,
+) {
     val context = LocalContext.current
-    LaunchedEffect(urls) {
-        if (urls.isNotEmpty()) {
-            withContext(Dispatchers.IO) {
-                TemplateVideoCache.preload(context, urls)
-            }
+    DisposableEffect(videoUrls, imageUrls, coordinator) {
+        val videoHandle = coordinator.prefetchVideoPrefixes(context, videoUrls)
+        val imageHandle = coordinator.prefetchImages(context, imageUrls)
+        onDispose {
+            videoHandle.cancel()
+            imageHandle.cancel()
         }
     }
 }
