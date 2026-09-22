@@ -220,6 +220,14 @@ internal fun AchatBackendUiState.withLoadedProfile(
     )
 }
 
+internal fun shouldShowLocalTemplateFallback(
+    templates: List<VisualTemplate>,
+    isLoading: Boolean,
+    errorMessage: String?,
+): Boolean = templates.isEmpty() && !isLoading && errorMessage != null
+
+internal fun visibleTemplatePrice(template: VisualTemplate?): Int? = template?.displayPrice
+
 internal data class TopUpUiState(
     val isLoading: Boolean = false,
     val catalog: StoreCatalog? = null,
@@ -968,7 +976,7 @@ private fun TemplateBrowserScreen(
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
-    val visiblePrice = selectedTemplate?.displayPrice ?: 22
+    val visiblePrice = visibleTemplatePrice(selectedTemplate)
     val nearbyVideoUrls = if (section == TemplateSection.Video) {
         templates.nearbyVideoPreviewUrls(selectedTemplateIndex)
     } else {
@@ -1011,6 +1019,11 @@ private fun TemplateBrowserScreen(
             currentTemplate = currentTemplate,
             isLoading = templatesLoading,
             errorMessage = templateErrorMessage,
+            showLocalFallback = shouldShowLocalTemplateFallback(
+                templates = templates,
+                isLoading = templatesLoading,
+                errorMessage = templateErrorMessage,
+            ),
             onRetry = { onTemplateRetry(section) },
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
@@ -1043,6 +1056,7 @@ private fun TemplateFeedPager(
     currentTemplate: Int,
     isLoading: Boolean,
     errorMessage: String?,
+    showLocalFallback: Boolean,
     onRetry: () -> Unit,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
@@ -1053,6 +1067,23 @@ private fun TemplateFeedPager(
     modifier: Modifier = Modifier,
 ) {
     if (templates.isEmpty()) {
+        if (showLocalFallback) {
+            HeroCard(
+                currentPage = 1,
+                totalPages = 1,
+                durationSeconds = 5,
+                previewMedia = TemplatePreviewMedia.LocalPlaceholder,
+                isPlaying = isPlaying,
+                onPlayToggle = onPlayToggle,
+                onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
+                onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
+                enableSwipeGestures = false,
+                edgeHint = edgeHint,
+                onEdgeHintDismiss = onEdgeHintDismiss,
+                modifier = modifier,
+            )
+            return
+        }
         LiveTemplatePlaceholderCard(
             isLoading = isLoading,
             errorMessage = errorMessage,

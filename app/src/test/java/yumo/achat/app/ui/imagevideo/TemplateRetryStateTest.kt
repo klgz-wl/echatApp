@@ -3,6 +3,7 @@ package yumo.achat.app.ui.imagevideo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import yumo.achat.core.backend.TemplateLoadResult
 import yumo.achat.core.backend.VisualTemplate
@@ -48,6 +49,23 @@ class TemplateRetryStateTest {
         assertEquals(listOf(newImage), updated.imageTemplates)
         assertNull(updated.imageTemplateErrorMessage)
         assertFalse(updated.imageTemplatesLoading)
+    }
+
+    @Test
+    fun `offline template failure uses local visual fallback without synthetic price`() {
+        assertTrue(
+            shouldShowLocalTemplateFallback(
+                templates = emptyList(),
+                isLoading = false,
+                errorMessage = "Unable to resolve host",
+            ),
+        )
+        assertNull(visibleTemplatePrice(null))
+    }
+
+    @Test
+    fun `template price is shown only for selected live template quote`() {
+        assertEquals(1, visibleTemplatePrice(template("video-live")))
     }
 
     private fun template(id: String) = VisualTemplate(
