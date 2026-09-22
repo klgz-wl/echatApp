@@ -23,7 +23,7 @@
 
 - 接入前已运行真实工程 `testDebugUnitTest assembleDebug lintDebug`。
 - Core 边界采用 TDD：新增 app→Core typed-config 测试，先因 Core 类型不存在而失败，再完成模块和迁移使其通过。
-- 最终本地命令实际通过：app 63 项 JVM 测试、Core 45 项 JVM 测试；模拟器上 app 29 项、Core 1 项 instrumented 测试；app/Core Debug 构建和 lint。
+- 最终使用 Temurin JDK17 的本地命令实际通过：app 63 项 JVM 测试、Core 45 项 JVM 测试；模拟器上 app 29 项、Core 1 项 instrumented 测试；app/Core Debug 构建和 lint。
 - 静态 UI 测试改用 debug-only TestActivity 与 `AchatAppGateway` 确定性 fake，避免真实模板/profile 响应改变导航断言；另保留生产 `MainActivity` 冷启动 smoke test，覆盖默认 factory 到真实 Core 的装配路径。
-- 脚手架 `doctor --project .` 已实际运行：锁定 kit 完整性通过，随后以退出码 2 停在 `缺少接入文件：config/dev.properties`。目标当前还没有 JDK17 和匹配的独立 sharedDev 附件，因此未运行 `verify`，sharedDev APK 身份和 dev/prod flavor 矩阵尚未验收。
+- 脚手架 `doctor --project .` 已使用 JDK17 环境实际运行：锁定 kit 完整性通过，随后以退出码 2 停在 `缺少接入文件：config/dev.properties`。目标仍没有匹配的独立 sharedDev 附件，因此未运行 `verify`，sharedDev APK 身份和 dev/prod flavor 矩阵尚未验收。
 - 未执行真实匿名登录、生成扣钻/退款、Google Billing、第三方支付、归因或四端收数验收；模拟器 UI 与本地构建不代表这些平台已通过。

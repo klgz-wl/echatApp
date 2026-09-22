@@ -39,7 +39,7 @@
   - Core JVM：45 项通过。
   - app instrumented：29 项在 `emulator-5554` 通过。
   - Core instrumented：1 项在 `emulator-5554` 通过。
-  - app/Core Debug 构建与 lint：通过。
+  - 使用 Temurin JDK17 运行 app/Core Debug 构建与 lint：通过。
 - `doctor --project .`：锁定 kit 完整性通过，随后退出码 2，首个缺项为 `config/dev.properties`。
 
 ## Git 与远程
@@ -50,10 +50,10 @@
 
 ## 未验收与继续条件
 
-- 当前未安装/登记 JDK17；本地 Gradle daemon 使用 Java 25，因此不能作为包要求的 JDK17 证据。
+- 已在用户目录安装并登记 Temurin JDK `17.0.20.1`：`/Users/kuailegeziwl/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home`。验收命令临时将 Gradle daemon 条件切到 17 并验证后恢复仓库原值 25，未留下工具链配置改动。
 - 未找到独立 `private-dev-signing` 附件，未装配 sharedDev；没有用默认 debug 证书冒充。
 - 真实工程尚未接入 scaffold 的 `config/app.properties`、dev/prod 配置、Firebase文件、environment flavor 及两个 analytics integration 模块。现有 release 服务地址被保留，未按 prepared 的 DEV_REUSE 静默覆盖。
 - 因上述条件，未运行普通 scaffold `verify`，未验证 sharedDev APK 身份/dev-prod 矩阵；本范围不运行 `verify --refactored` 或 `pack`。
 - 未执行真实匿名登录、生成扣钻/退款、Google Billing、第三方支付、AppsFlyer/Referrer、Firebase/数数/backend 四端收数验收。
 
-继续 scaffold 全矩阵接入前，需要本机 JDK17 路径、独立签名附件绝对路径，以及对“保留现有 release 正式地址”与包内 `prod=DEV_REUSE` 冲突的明确取舍。无需、也不应在聊天中提供任何签名密码。
+继续 scaffold 全矩阵接入前，需要独立签名附件绝对路径，以及对“保留现有 release 正式地址”与包内 `prod=DEV_REUSE` 冲突的明确取舍。无需、也不应在聊天中提供任何签名密码。
