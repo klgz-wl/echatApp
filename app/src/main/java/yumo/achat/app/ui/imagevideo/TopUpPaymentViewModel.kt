@@ -81,6 +81,10 @@ internal class TopUpPaymentController(
             checkoutState = TopUpCheckoutState.Idle
             return
         }
+        if (checkoutState == TopUpCheckoutState.TimedOut && state is TopUpPurchaseState.OfficialReady) {
+            checkoutState = TopUpCheckoutState.Idle
+            return
+        }
         if (failedCheckout != null || checkoutState == TopUpCheckoutState.TimedOut ||
             checkoutState is TopUpCheckoutState.Succeeded
         ) {

@@ -109,6 +109,24 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
+    fun `official timeout retry reuses prepared route without a new order`() {
+        val gateway = FakeGateway()
+        val controller = controller(gateway)
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", googleProductId = "play.pack.100")),
+        )
+        controller.prepare()
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        controller.forceCheckoutState(TopUpCheckoutState.TimedOut)
+
+        controller.prepare()
+
+        assertEquals(TopUpCheckoutState.Idle, controller.checkoutState)
+        assertEquals(route, controller.state)
+        assertEquals(1, gateway.createCount)
+    }
+
+    @Test
     fun `restore lookup blocks new order until lookup completes`() {
         val gateway = FakeGateway()
         val controller = controller(gateway)
@@ -128,6 +146,12 @@ class TopUpPaymentControllerTest {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         errorMessage = { it.message ?: "Payment failed" },
     )
+
+    private fun TopUpPaymentController.forceCheckoutState(value: TopUpCheckoutState) {
+        javaClass.getDeclaredMethod("setCheckoutState", TopUpCheckoutState::class.java)
+            .apply { isAccessible = true }
+            .invoke(this, value)
+    }
 
     private class FakeGateway(
         private val createOrder: suspend (String) -> StoreOrder = { order(it) },
