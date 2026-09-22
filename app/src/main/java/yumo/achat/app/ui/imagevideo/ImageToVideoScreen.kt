@@ -239,6 +239,10 @@ internal fun canSubmitSimulatedFeedback(text: String, hasAttachment: Boolean): B
 
 internal fun shouldShowFeedbackAttachmentPreview(hasAttachment: Boolean): Boolean = hasAttachment
 
+internal fun feedbackAttachmentPreviewHeightDp(): Int = 160
+
+internal fun feedbackAttachmentPreviewContentScale(): ContentScale = ContentScale.Fit
+
 internal data class TopUpUiState(
     val isLoading: Boolean = false,
     val catalog: StoreCatalog? = null,
@@ -2288,44 +2292,50 @@ private fun FeedbackAttachmentPreview(
     modifier: Modifier = Modifier,
 ) {
     val description = stringResource(R.string.feedback_preview_description)
-    Box(
-        modifier = modifier
-            .height(96.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xD40B1020))
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.55f), AchatPink.copy(alpha = 0.45f))),
-                RoundedCornerShape(8.dp),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        when {
-            bitmap != null -> Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = description,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            !uri.isNullOrBlank() -> AsyncImage(
-                model = uri,
-                contentDescription = description,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+    Column(modifier = modifier) {
+        Text(
+            text = description,
+            color = AchatMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(6.dp))
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .background(Color.Black.copy(alpha = 0.45f))
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .fillMaxWidth()
+                .height(feedbackAttachmentPreviewHeightDp().dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xD40B1020))
+                .border(
+                    1.dp,
+                    Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.55f), AchatPink.copy(alpha = 0.45f))),
+                    RoundedCornerShape(10.dp),
+                )
+                .padding(6.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = stringResource(R.string.feedback_preview_description),
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color.Black.copy(alpha = 0.25f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    bitmap != null -> Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = description,
+                        contentScale = feedbackAttachmentPreviewContentScale(),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    !uri.isNullOrBlank() -> AsyncImage(
+                        model = uri,
+                        contentDescription = description,
+                        contentScale = feedbackAttachmentPreviewContentScale(),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
     }
 }

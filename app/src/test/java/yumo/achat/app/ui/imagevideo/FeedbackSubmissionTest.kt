@@ -1,5 +1,6 @@
 package yumo.achat.app.ui.imagevideo
 
+import androidx.compose.ui.layout.ContentScale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,5 +23,11 @@ class FeedbackSubmissionTest {
     fun `simulated feedback shows preview only after image is attached`() {
         assertFalse(shouldShowFeedbackAttachmentPreview(hasAttachment = false))
         assertTrue(shouldShowFeedbackAttachmentPreview(hasAttachment = true))
+    }
+
+    @Test
+    fun `feedback preview uses taller fit card instead of cropped strip`() {
+        assertEquals(160, feedbackAttachmentPreviewHeightDp())
+        assertEquals(ContentScale.Fit, feedbackAttachmentPreviewContentScale())
     }
 }
