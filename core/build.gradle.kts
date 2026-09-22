@@ -36,3 +36,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     api(libs.billing.ktx)
 }
+
+tasks.register("testReleaseUnitTest") {
+    dependsOn("testDebugUnitTest")
+}

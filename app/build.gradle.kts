@@ -1,7 +1,22 @@
+import java.security.MessageDigest
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
+
+fun readProperties(path: String) = Properties().apply {
+    rootProject.file(path).takeIf { it.isFile }?.inputStream()?.use(::load)
+}
+
+fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val common = rootProject.extra["appConfig"] as Properties
+val mode = common.getProperty("kit.prod.mode", "DEV_REUSE")
+val devProperties = readProperties("config/dev.properties")
+val signingProperties = readProperties("config/signing.local.properties")
 
 val flavorEndpoints = mapOf(
     "dev" to mapOf(
@@ -20,16 +35,42 @@ val flavorEndpoints = mapOf(
     ),
 )
 
+val flavorApplicationIds = mapOf(
+    "dev" to "yumo.achat.app",
+    "prod" to if (mode == "DEV_REUSE") "yumo.achat.app" else "REPLACE_PROD_APPLICATION_ID",
+)
+
+val flavorConfigurations = listOf("dev", "prod").associateWith { env ->
+    Properties().apply {
+        putAll(common)
+        putAll(readProperties("config/$env.properties"))
+        setProperty("applicationId", flavorApplicationIds.getValue(env))
+        val endpointKey = if (env == "prod" && mode == "DEV_REUSE") "dev" else env
+        flavorEndpoints.getValue(endpointKey).forEach { (key, value) ->
+            setProperty("build.string.$key", value)
+        }
+    }
+}
+
+fun configurationFingerprint(config: Properties): String {
+    val canonical = config.stringPropertyNames()
+        .sorted()
+        .joinToString(separator = "", postfix = "") { "$it=${config.getProperty(it)}\n" }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(canonical.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+}
+
 android {
-    namespace = "yumo.achat.app"
-    compileSdk = 37
+    namespace = common.getProperty("app.namespace")
+    compileSdk = common.getProperty("sdk.compile").toInt()
 
     defaultConfig {
         applicationId = "yumo.achat.app"
-        minSdk = 24
-        targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        minSdk = common.getProperty("sdk.min").toInt()
+        targetSdk = common.getProperty("sdk.target").toInt()
+        versionCode = common.getProperty("app.version.code").toInt()
+        versionName = common.getProperty("app.version.name")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
@@ -37,19 +78,60 @@ android {
         buildConfigField("String", "ACHAT_CLIENT_VERSION", "\"2.0.0\"")
     }
 
+    signingConfigs {
+        create("sharedDev") {
+            storeFile = signingProperties.getProperty("storeFile")?.let { rootProject.file(it) }
+            storePassword = signingProperties.getProperty("storePassword")
+            keyAlias = signingProperties.getProperty("keyAlias")
+            keyPassword = signingProperties.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("sharedDev")
             buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
             buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
         }
         release {
+            signingConfig = signingConfigs.getByName("sharedDev")
             isMinifyEnabled = false
-            buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://release.appjoly.com\"")
-            buildConfigField("String", "ACHAT_WS_URL", "\"wss://release.appjoly.com/connection/websocket\"")
+            buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
+            buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        flavorConfigurations.forEach { (env, config) ->
+            create(env) {
+                dimension = "environment"
+                applicationId = config.getProperty("applicationId")
+                signingConfig = signingConfigs.getByName("sharedDev")
+                val baseUrl = config.getProperty("build.string.CORE_BASE_URL").removeSuffix("/api/v1/")
+                val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
+                buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
+                buildConfigField("String", "ACHAT_WS_URL", quoted(wsUrl))
+                buildConfigField("String", "ACHAT_CLIENT_VERSION", quoted("2.0.0"))
+                buildConfigField("String", "PROD_CONFIG_STATUS", quoted(mode))
+                val expectedKeys = (common.stringPropertyNames() + devProperties.stringPropertyNames() + config.stringPropertyNames())
+                    .filter { it.startsWith("build.") }
+                    .toSet()
+                expectedKeys.forEach { key ->
+                    val (_, type, field) = key.split('.', limit = 3)
+                    val value = config.getProperty(key).orEmpty()
+                    when (type) {
+                        "string" -> buildConfigField("String", field, quoted(value))
+                        "boolean" -> buildConfigField("boolean", field, value.toBooleanStrictOrNull()?.toString() ?: "false")
+                        "int" -> buildConfigField("int", field, value.toIntOrNull()?.toString() ?: "0")
+                    }
+                }
+                resValue("string", "kit_configuration_fingerprint", configurationFingerprint(config))
+            }
         }
     }
 
@@ -61,6 +143,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 }
 
@@ -92,4 +175,8 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+tasks.register("testDevReleaseUnitTest") {
+    dependsOn("testDevDebugUnitTest")
 }

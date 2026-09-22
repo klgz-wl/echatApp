@@ -27,3 +27,7 @@ dependencies {
     implementation(libs.thinkingdata.sdk)
     implementation(libs.thinkingdata.thirdparty.sdk)
 }
+
+tasks.register("testReleaseUnitTest") {
+    dependsOn("testDebugUnitTest")
+}
