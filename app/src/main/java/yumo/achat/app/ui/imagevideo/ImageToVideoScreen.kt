@@ -65,6 +65,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -237,7 +238,10 @@ internal fun simulatedFeedbackAcknowledgement(): String = "Thanks for your feedb
 internal fun canSubmitSimulatedFeedback(text: String, hasAttachment: Boolean): Boolean =
     text.isNotBlank() || hasAttachment
 
-internal fun shouldShowFeedbackAttachmentPreview(hasAttachment: Boolean): Boolean = hasAttachment
+internal fun feedbackAttachmentCount(cameraCount: Int, libraryCount: Int): Int =
+    cameraCount.coerceAtLeast(0) + libraryCount.coerceAtLeast(0)
+
+internal fun shouldShowFeedbackAttachmentPreview(attachmentCount: Int): Boolean = attachmentCount > 0
 
 internal fun feedbackAttachmentPreviewHeightDp(): Int = 160
 
@@ -2101,25 +2105,23 @@ private fun FeedbackScreen(
     var feedbackSubmitted by remember { mutableStateOf(false) }
     var feedbackText by rememberSaveable { mutableStateOf("") }
     var attachmentMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var cameraPreview by remember { mutableStateOf<Bitmap?>(null) }
-    var libraryPreviewUri by rememberSaveable { mutableStateOf<String?>(null) }
+    val cameraPreviews = remember { mutableStateListOf<Bitmap>() }
+    var libraryPreviewUris by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     val cameraAttachedMessage = stringResource(R.string.feedback_camera_attached)
     val libraryAttachedMessage = stringResource(R.string.feedback_library_attached)
     val submitHint = stringResource(R.string.feedback_submit_hint)
-    val hasAttachment = cameraPreview != null || libraryPreviewUri != null
-    val canSubmit = canSubmitSimulatedFeedback(feedbackText, hasAttachment)
+    val attachmentCount = feedbackAttachmentCount(cameraPreviews.size, libraryPreviewUris.size)
+    val canSubmit = canSubmitSimulatedFeedback(feedbackText, attachmentCount > 0)
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) {
-            cameraPreview = bitmap
-            libraryPreviewUri = null
+            cameraPreviews += bitmap
             attachmentMessage = cameraAttachedMessage
             feedbackSubmitted = false
         }
     }
-    val libraryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            libraryPreviewUri = uri.toString()
-            cameraPreview = null
+    val libraryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) {
+            libraryPreviewUris = (libraryPreviewUris + uris.map(Uri::toString)).distinct()
             attachmentMessage = libraryAttachedMessage
             feedbackSubmitted = false
         }
@@ -2170,11 +2172,21 @@ private fun FeedbackScreen(
                 fontWeight = FontWeight.SemiBold,
             )
         }
-        if (shouldShowFeedbackAttachmentPreview(hasAttachment)) {
+        if (shouldShowFeedbackAttachmentPreview(attachmentCount)) {
             Spacer(Modifier.height(8.dp))
             FeedbackAttachmentPreview(
-                bitmap = cameraPreview,
-                uri = libraryPreviewUri,
+                cameraBitmaps = cameraPreviews,
+                uris = libraryPreviewUris,
+                onRemoveCamera = { index ->
+                    if (index in cameraPreviews.indices) {
+                        cameraPreviews.removeAt(index)
+                        feedbackSubmitted = false
+                    }
+                },
+                onRemoveUri = { index ->
+                    libraryPreviewUris = libraryPreviewUris.filterIndexed { candidate, _ -> candidate != index }
+                    feedbackSubmitted = false
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -2287,8 +2299,10 @@ private fun FeedbackMediaButton(
 
 @Composable
 private fun FeedbackAttachmentPreview(
-    bitmap: Bitmap?,
-    uri: String?,
+    cameraBitmaps: List<Bitmap>,
+    uris: List<String>,
+    onRemoveCamera: (Int) -> Unit,
+    onRemoveUri: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val description = stringResource(R.string.feedback_preview_description)
@@ -2300,35 +2314,29 @@ private fun FeedbackAttachmentPreview(
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.height(6.dp))
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(feedbackAttachmentPreviewHeightDp().dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xD40B1020))
-                .border(
-                    1.dp,
-                    Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.55f), AchatPink.copy(alpha = 0.45f))),
-                    RoundedCornerShape(10.dp),
-                )
-                .padding(6.dp),
-            contentAlignment = Alignment.Center,
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(Color.Black.copy(alpha = 0.25f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                when {
-                    bitmap != null -> Image(
+            cameraBitmaps.forEachIndexed { index, bitmap ->
+                FeedbackAttachmentPreviewCard(
+                    onRemove = { onRemoveCamera(index) },
+                ) {
+                    Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = description,
                         contentScale = feedbackAttachmentPreviewContentScale(),
                         modifier = Modifier.fillMaxSize(),
                     )
-                    !uri.isNullOrBlank() -> AsyncImage(
+                }
+            }
+            uris.forEachIndexed { index, uri ->
+                FeedbackAttachmentPreviewCard(
+                    onRemove = { onRemoveUri(index) },
+                ) {
+                    AsyncImage(
                         model = uri,
                         contentDescription = description,
                         contentScale = feedbackAttachmentPreviewContentScale(),
@@ -2336,6 +2344,49 @@ private fun FeedbackAttachmentPreview(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FeedbackAttachmentPreviewCard(
+    onRemove: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .width(150.dp)
+            .height(feedbackAttachmentPreviewHeightDp().dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xD40B1020))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.55f), AchatPink.copy(alpha = 0.45f))),
+                RoundedCornerShape(10.dp),
+            )
+            .padding(6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(7.dp))
+                .background(Color.Black.copy(alpha = 0.25f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.58f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                .clickable(onClick = onRemove),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("×", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

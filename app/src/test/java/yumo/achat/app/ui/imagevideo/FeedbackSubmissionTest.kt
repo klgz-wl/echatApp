@@ -20,9 +20,16 @@ class FeedbackSubmissionTest {
     }
 
     @Test
+    fun `simulated feedback supports multiple image attachments`() {
+        assertEquals(0, feedbackAttachmentCount(cameraCount = 0, libraryCount = 0))
+        assertEquals(3, feedbackAttachmentCount(cameraCount = 1, libraryCount = 2))
+        assertTrue(shouldShowFeedbackAttachmentPreview(feedbackAttachmentCount(cameraCount = 1, libraryCount = 2)))
+    }
+
+    @Test
     fun `simulated feedback shows preview only after image is attached`() {
-        assertFalse(shouldShowFeedbackAttachmentPreview(hasAttachment = false))
-        assertTrue(shouldShowFeedbackAttachmentPreview(hasAttachment = true))
+        assertFalse(shouldShowFeedbackAttachmentPreview(attachmentCount = 0))
+        assertTrue(shouldShowFeedbackAttachmentPreview(attachmentCount = 1))
     }
 
     @Test
