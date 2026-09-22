@@ -27,3 +27,11 @@
 - 静态 UI 测试改用 debug-only TestActivity 与 `AchatAppGateway` 确定性 fake，避免真实模板/profile 响应改变导航断言；另保留生产 `MainActivity` 冷启动 smoke test，覆盖默认 factory 到真实 Core 的装配路径。
 - 脚手架 `doctor --project .` 已使用 JDK17 环境实际运行：锁定 kit 完整性通过，随后以退出码 2 停在 `缺少接入文件：config/dev.properties`。目标仍没有匹配的独立 sharedDev 附件，因此未运行 `verify`，sharedDev APK 身份和 dev/prod flavor 矩阵尚未验收。
 - 未执行真实匿名登录、生成扣钻/退款、Google Billing、第三方支付、归因或四端收数验收；模拟器 UI 与本地构建不代表这些平台已通过。
+
+## DEV_REUSE 矩阵补充
+
+- dev/prod 使用相同 test API、WebSocket、Firebase 和包名；目标外置 SDK 配置按现有依赖约束适配为 compile/target 37，并参与 APK 配置指纹。
+- devRelease 启用 R8 与资源收缩；四个变体的最终 Manifest 禁止 backup/迁移并移除 SDK 合并的备份规则。
+- Gradle 签名门禁除校验密码/私钥外，还将 alias 证书与锁定 `dev-certificate.der` 比较；普通 scaffold doctor 另校验 keystore SHA-256，APK verifier 再校验证书 SHA-1。
+- Analytics integration 已打包但宿主未激活。AppsFlyer 延迟等待前台 Activity 时使用有界内存队列，并为每个事件冻结当时身份；完整 SDK 日志被强制限制在 Debug。后续激活必须保证每个 SDK 只有一个 application-scoped 实例。
+- 当前 flavor AndroidTest 已完成编译和 APK 打包；本轮运行时模拟器已断开，未把旧的无 flavor 设备结果冒充本轮 DEV_REUSE 设备证据。

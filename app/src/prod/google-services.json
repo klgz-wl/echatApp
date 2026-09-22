@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "184401426143",
+    "project_id": "social-29867",
+    "storage_bucket": "social-29867.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184401426143:android:72048447c97c6196395b6a",
+        "android_client_info": {
+          "package_name": "yumo.achat.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "184401426143-v3oi4mc4h93p3gvbqo0b7h2n828k7gv6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "yumo.achat.app",
+            "certificate_hash": "14a3fb2627e7fd878571b9ca9f148b0f590b7c0b"
+          }
+        },
+        {
+          "client_id": "184401426143-k08m6g6tdjgr939l1fgek3rcfkd6cbfk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcTmei064qo95aaYjzaZNlsUyeBR9azJA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "184401426143-k08m6g6tdjgr939l1fgek3rcfkd6cbfk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "184401426143-ogu6pqii00dra8r6l15eqako6b02a43e.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "yumo.achat.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

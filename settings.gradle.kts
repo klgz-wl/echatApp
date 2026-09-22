@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "echatApp"
 include(":app")
 include(":core")
+include(":integration:analytics-appsflyer")
+include(":integration:analytics-thinkingdata")

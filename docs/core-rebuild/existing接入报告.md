@@ -40,7 +40,19 @@
   - app instrumented：29 项在 `emulator-5554` 通过。
   - Core instrumented：1 项在 `emulator-5554` 通过。
   - 使用 Temurin JDK17 运行 app/Core Debug 构建与 lint：通过。
-- `doctor --project .`：锁定 kit 完整性通过，随后退出码 2，首个缺项为 `config/dev.properties`。
+- 初次 `doctor --project .` 在配置装配前停于 `config/dev.properties`；完成 DEV_REUSE 配置后已推进到唯一当前门禁“缺dev签名附件”。
+
+### DEV_REUSE 后续装配
+
+- 开发者确认 prod 按交接包采用 `DEV_REUSE`，不再使用原 `release.appjoly.com` 作为本阶段 prod；dev/prod 均指向 test 服务并使用相同 Firebase 文件。
+- 目标已增加 environment flavor、完整配置 BuildConfig、配置指纹、Google app id 资源及两个 analytics integration 模块。SDK 已作为运行时依赖打包，但尚未在宿主生命周期实例化或调用，因此不声称真实收数；合并 Manifest 已禁止备份/迁移并移除 SDK 备份规则。
+- 目标配置按现有 Compose/Core 依赖要求适配为 compile/target SDK 37；该值写入目标 `config/app.properties` 并参与配置指纹，锁定 kit 内原文件保持不变。
+- JDK17 下，Core、AppsFlyer integration、ThinkingData integration release 单测及 app `testDevReleaseUnitTest/assembleDevDebug/assembleDevRelease/lintDevRelease/assembleProdDebug` 均在显式排除签名门禁时通过。
+- 最终诊断计数：Core release 46、AppsFlyer 10、ThinkingData 3、app devRelease 65、app prodRelease 65，均为 0 failure/0 error；devRelease 的 R8/资源收缩和 flavor AndroidTest 编译打包通过。当前无连接设备，因此本轮 flavor 设备测试未执行。
+- `verifyDevConfiguration` 不排除时会准确失败于“签名四项配置未齐全”；`doctor` 已推进并准确停在“缺dev签名附件”。
+- 诊断 devDebug/prodDebug APK 使用默认 Android Debug 证书（SHA-1 与锁定 sharedDev 不同），devRelease APK 未签名；均未作为签名或 scaffold verify 证据。
+- 锁定上游 `core_scaffold.py verify` 的任务列表遗漏 ThinkingData release 单测；本项目不修改锁定 kit，而是在 AGENTS 提交前命令中额外强制运行该测试并单独报告结果。
+- AppsFlyer 6.18.1 在 R8 阶段仍输出一条其内部 companion 元数据警告，但 R8、资源收缩和 APK 打包成功；记录为上游 SDK 风险，不通过宽泛 `dontwarn` 隐藏。
 
 ## Git 与远程
 
@@ -52,8 +64,8 @@
 
 - 已在用户目录安装并登记 Temurin JDK `17.0.20.1`：`/Users/kuailegeziwl/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home`。验收命令临时将 Gradle daemon 条件切到 17 并验证后恢复仓库原值 25，未留下工具链配置改动。
 - 未找到独立 `private-dev-signing` 附件，未装配 sharedDev；没有用默认 debug 证书冒充。
-- 真实工程尚未接入 scaffold 的 `config/app.properties`、dev/prod 配置、Firebase文件、environment flavor 及两个 analytics integration 模块。现有 release 服务地址被保留，未按 prepared 的 DEV_REUSE 静默覆盖。
-- 因上述条件，未运行普通 scaffold `verify`，未验证 sharedDev APK 身份/dev-prod 矩阵；本范围不运行 `verify --refactored` 或 `pack`。
+- 真实工程已接入 scaffold 的固定配置、Firebase 文件、environment flavor 及两个 analytics integration 模块，但 sharedDev 私密附件仍缺失，且 analytics 宿主生命周期尚未激活。
+- 因签名条件缺失，未运行普通 scaffold `verify`，未验证 sharedDev APK 身份；本范围不运行 `verify --refactored` 或 `pack`。
 - 未执行真实匿名登录、生成扣钻/退款、Google Billing、第三方支付、AppsFlyer/Referrer、Firebase/数数/backend 四端收数验收。
 
-继续 scaffold 全矩阵接入前，需要独立签名附件绝对路径，以及对“保留现有 release 正式地址”与包内 `prod=DEV_REUSE` 冲突的明确取舍。无需、也不应在聊天中提供任何签名密码。
+本次 DEV_REUSE 矩阵的自动验收仍缺独立签名附件；Analytics 真实平台验收另需宿主生命周期接入。完整 Core 重构仍未授权/实施，schema=2 Model 台账为空，`verify --refactored` 与 `pack` 不属于“只差签名”的状态。无需、也不应在聊天中提供任何签名密码。

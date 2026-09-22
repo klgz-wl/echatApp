@@ -9,6 +9,7 @@
 - Model 字段前缀：`ach_`。本阶段只登记，不实施全量 1–5 字段扩展。
 - 存储前缀：`achat`。
 - prod 状态：`DEV_REUSE`。
+- prod 地址策略：开发者已确认按交接包执行，临时 prod 完整复用 test 服务、dev Firebase 和 sharedDev；不是正式发布配置。
 
 ## 实施阶段
 
@@ -18,6 +19,7 @@
 4. [x] 在真实工程建立独立 `:core` 边界，将当前唯一生效的后端、会话、生成和支付网关连同测试迁入 Core；app 继续保留 UI/生命周期职责，并通过 typed config 显式传入身份和地址。
 5. [x] 使用本机 Temurin JDK17 完成真实目标的 Core/app JVM 测试、Core/app 模拟器测试、Debug 构建和 lint；`doctor` 已运行并停在缺少 config，sharedDev 仍缺失，未运行 `verify`。
 6. [x] 完成实际 Core 边界接入阶段的验证、中文提交并推送 `origin/core_v1`；scaffold 全矩阵及平台验收继续按未验收项管理。
+7. [x] 接入 `dev/prod` environment 矩阵、固定配置及 AppsFlyer/ThinkingData integration 运行时依赖边界；签名附件缺失时保持门禁失败，不用默认 debug 证书冒充。SDK 尚未由宿主实例化，真实收数另行验收。
 
 ## 验收边界
 
