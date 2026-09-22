@@ -12,10 +12,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import yumo.achat.app.R
-import yumo.achat.app.data.backend.AchatRepository
-import yumo.achat.app.data.backend.PreparedStorePayment
-import yumo.achat.app.data.backend.StoreOrder
-import yumo.achat.app.data.backend.StorePaymentGateway
+import yumo.achat.core.backend.AchatRepository
+import yumo.achat.core.backend.PreparedStorePayment
+import yumo.achat.core.backend.StoreOrder
+import yumo.achat.core.backend.StorePaymentGateway
 
 internal class TopUpPaymentController(
     private val gateway: StorePaymentGateway,

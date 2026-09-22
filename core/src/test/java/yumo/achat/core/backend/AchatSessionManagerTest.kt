@@ -1,4 +1,4 @@
-package yumo.achat.app.data.backend
+package yumo.achat.core.backend
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

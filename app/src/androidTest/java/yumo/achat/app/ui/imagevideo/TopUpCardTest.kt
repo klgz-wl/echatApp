@@ -13,10 +13,10 @@ import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import yumo.achat.app.data.backend.StoreCatalog
-import yumo.achat.app.data.backend.StoreProduct
-import yumo.achat.app.data.backend.StoreOrder
-import yumo.achat.app.data.backend.StoreUserInfo
+import yumo.achat.core.backend.StoreCatalog
+import yumo.achat.core.backend.StoreProduct
+import yumo.achat.core.backend.StoreOrder
+import yumo.achat.core.backend.StoreUserInfo
 import yumo.achat.app.ui.theme.AchatTheme
 
 class TopUpCardTest {

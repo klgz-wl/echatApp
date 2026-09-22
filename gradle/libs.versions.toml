@@ -62,6 +62,7 @@ appsFlyer = "6.18.1"
 installReferrer = "2.2"
 thinkingData = "3.4.0"
 thinkingDataThirdParty = "2.0.0"
+json = "20250517"
 
 # Testing
 junit = "4.13.2"
@@ -137,6 +138,7 @@ install-referrer = { group = "com.android.installreferrer", name = "installrefer
 appsflyer-sdk = { group = "com.appsflyer", name = "af-android-sdk", version.ref = "appsFlyer" }
 thinkingdata-sdk = { group = "cn.thinkingdata.android", name = "ThinkingAnalyticsSDK", version.ref = "thinkingData" }
 thinkingdata-thirdparty-sdk = { group = "cn.thinkingdata.android", name = "TAThirdParty", version.ref = "thinkingDataThirdParty" }
+json = { group = "org.json", name = "json", version.ref = "json" }
 
 # Firebase
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }

@@ -2,7 +2,7 @@ package yumo.achat.app.ui.imagevideo
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import yumo.achat.app.data.backend.UserProfile
+import yumo.achat.core.backend.UserProfile
 
 class ProfileLoadMergeTest {
     @Test

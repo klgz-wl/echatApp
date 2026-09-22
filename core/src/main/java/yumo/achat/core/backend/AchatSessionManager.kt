@@ -1,4 +1,4 @@
-package yumo.achat.app.data.backend
+package yumo.achat.core.backend
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException

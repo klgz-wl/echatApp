@@ -1,10 +1,9 @@
-package yumo.achat.app.data.backend
+package yumo.achat.core.backend
 
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
-import yumo.achat.app.BuildConfig
 
 internal interface AchatAuthApi {
     fun loginAnonymously(deviceId: String): AuthSession
@@ -17,13 +16,15 @@ internal class AchatBackendHttpException(
 ) : IllegalStateException(responseBody.ifBlank { "HTTP $statusCode" })
 
 class AchatBackendClient(
-    private val baseUrl: String = BuildConfig.ACHAT_API_BASE_URL,
+    private val baseUrl: String = DEFAULT_API_BASE_URL,
+    private val packageName: String = DEFAULT_PACKAGE_NAME,
+    private val clientVersion: String = DEFAULT_CLIENT_VERSION,
 ) : AchatAuthApi {
     fun anonymousLogin(
         deviceId: String,
-        packageName: String = BuildConfig.APPLICATION_ID,
+        packageName: String = this.packageName,
         platform: String = "android",
-        version: String = BuildConfig.ACHAT_CLIENT_VERSION,
+        version: String = clientVersion,
     ): AuthSession {
         val body = JSONObject()
             .put("device_id", deviceId)
@@ -42,6 +43,12 @@ class AchatBackendClient(
                 ),
             ),
         )
+    }
+
+    companion object {
+        const val DEFAULT_API_BASE_URL = "https://test.appjoly.com"
+        const val DEFAULT_PACKAGE_NAME = "yumo.achat.app"
+        const val DEFAULT_CLIENT_VERSION = "2.0.0"
     }
 
     override fun loginAnonymously(deviceId: String): AuthSession = anonymousLogin(deviceId)

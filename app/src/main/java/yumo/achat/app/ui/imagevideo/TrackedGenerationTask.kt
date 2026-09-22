@@ -1,9 +1,9 @@
 package yumo.achat.app.ui.imagevideo
 
-import yumo.achat.app.data.backend.VisualGenerationTask
-import yumo.achat.app.data.backend.VisualResource
-import yumo.achat.app.data.backend.isVisualGenerationFinished
-import yumo.achat.app.data.backend.visualGenerationPollIntervalSeconds
+import yumo.achat.core.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualResource
+import yumo.achat.core.backend.isVisualGenerationFinished
+import yumo.achat.core.backend.visualGenerationPollIntervalSeconds
 
 internal data class TrackedGenerationTask(
     val taskId: String,

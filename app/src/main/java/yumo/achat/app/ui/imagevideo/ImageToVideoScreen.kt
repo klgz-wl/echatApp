@@ -119,16 +119,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yumo.achat.app.R
-import yumo.achat.app.data.backend.AchatRepository
-import yumo.achat.app.data.backend.StoreProduct
-import yumo.achat.app.data.backend.StoreCatalog
-import yumo.achat.app.data.backend.PreparedStorePayment
-import yumo.achat.app.data.backend.PaymentOrderStatus
-import yumo.achat.app.data.backend.StoreUserInfo
-import yumo.achat.app.data.backend.TemplateLoadResult
-import yumo.achat.app.data.backend.VisualCategory
-import yumo.achat.app.data.backend.VisualGenerationTask
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.AchatRepository
+import yumo.achat.core.backend.StoreProduct
+import yumo.achat.core.backend.StoreCatalog
+import yumo.achat.core.backend.PreparedStorePayment
+import yumo.achat.core.backend.PaymentOrderStatus
+import yumo.achat.core.backend.StoreUserInfo
+import yumo.achat.core.backend.TemplateLoadResult
+import yumo.achat.core.backend.VisualCategory
+import yumo.achat.core.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualTemplate
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
@@ -208,7 +208,7 @@ internal fun AchatBackendUiState.withTemplateLoadResult(
 }
 
 internal fun AchatBackendUiState.withLoadedProfile(
-    profile: yumo.achat.app.data.backend.UserProfile?,
+    profile: yumo.achat.core.backend.UserProfile?,
     fallbackId: String,
     preserveCurrent: Boolean,
 ): AchatBackendUiState = if (preserveCurrent) {
@@ -233,7 +233,7 @@ internal sealed interface TopUpPurchaseState {
     data class Preparing(val productId: String) : TopUpPurchaseState
     data class OfficialReady(
         val productId: String,
-        val order: yumo.achat.app.data.backend.StoreOrder,
+        val order: yumo.achat.core.backend.StoreOrder,
         val channelCode: String,
         val sdkProductId: String,
     ) : TopUpPurchaseState {
@@ -243,7 +243,7 @@ internal sealed interface TopUpPurchaseState {
     }
     data class ThirdPartyReady(
         val productId: String,
-        val order: yumo.achat.app.data.backend.StoreOrder,
+        val order: yumo.achat.core.backend.StoreOrder,
         val channelCode: String,
         val openMode: String,
         val paymentUrl: String,
@@ -256,7 +256,7 @@ internal sealed interface TopUpPurchaseState {
     data class Error(
         val productId: String,
         val message: String,
-        val order: yumo.achat.app.data.backend.StoreOrder? = null,
+        val order: yumo.achat.core.backend.StoreOrder? = null,
     ) : TopUpPurchaseState
 }
 
@@ -418,7 +418,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    fun applyProfile(profile: yumo.achat.app.data.backend.UserProfile) {
+    fun applyProfile(profile: yumo.achat.core.backend.UserProfile) {
         profileRevision += 1
         backendState = backendState.copy(
             profileName = profile.displayName,

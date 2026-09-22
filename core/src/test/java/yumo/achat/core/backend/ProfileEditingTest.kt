@@ -1,4 +1,4 @@
-package yumo.achat.app.data.backend
+package yumo.achat.core.backend
 
 import org.json.JSONObject
 import java.io.InputStream

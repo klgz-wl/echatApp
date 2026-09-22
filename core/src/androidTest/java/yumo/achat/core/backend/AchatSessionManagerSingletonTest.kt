@@ -1,4 +1,4 @@
-package yumo.achat.app.data.backend
+package yumo.achat.core.backend
 
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertSame

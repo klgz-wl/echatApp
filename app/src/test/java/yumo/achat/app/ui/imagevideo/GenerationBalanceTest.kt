@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
-import yumo.achat.app.data.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualGenerationTask
 
 class GenerationBalanceTest {
     @Test
