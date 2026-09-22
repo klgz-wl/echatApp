@@ -111,6 +111,8 @@
     <string name="feedback_library_attached">Library image attached locally</string>
     <string name="feedback_submit_hint">Add a note or image to submit</string>
     <string name="feedback_thanks">Thanks for your feedback</string>
+    <string name="feedback_preview_description">Selected feedback image preview</string>
+    <string name="feedback_local_only_note">This is a local simulation for now. We will wire it to the feedback API when the backend contract is ready.</string>
     <string name="submit_feedback">Submit Feedback</string>
     <string name="name_picker_selected">Edit display name</string>
     <string name="close_name_picker_description">Close name picker</string>

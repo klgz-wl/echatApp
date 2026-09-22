@@ -17,4 +17,10 @@ class FeedbackSubmissionTest {
         assertTrue(canSubmitSimulatedFeedback("The layout looks broken", hasAttachment = false))
         assertTrue(canSubmitSimulatedFeedback("", hasAttachment = true))
     }
+
+    @Test
+    fun `simulated feedback shows preview only after image is attached`() {
+        assertFalse(shouldShowFeedbackAttachmentPreview(hasAttachment = false))
+        assertTrue(shouldShowFeedbackAttachmentPreview(hasAttachment = true))
+    }
 }
