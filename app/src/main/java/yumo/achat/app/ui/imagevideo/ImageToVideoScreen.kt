@@ -52,6 +52,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -227,6 +228,11 @@ internal fun shouldShowLocalTemplateFallback(
 ): Boolean = templates.isEmpty() && !isLoading && errorMessage != null
 
 internal fun visibleTemplatePrice(template: VisualTemplate?): Int? = template?.displayPrice
+
+internal fun simulatedFeedbackAcknowledgement(): String = "Thanks for your feedback"
+
+internal fun canSubmitSimulatedFeedback(text: String, hasAttachment: Boolean): Boolean =
+    text.isNotBlank() || hasAttachment
 
 internal data class TopUpUiState(
     val isLoading: Boolean = false,
@@ -2083,6 +2089,25 @@ private fun FeedbackScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var feedbackSubmitted by remember { mutableStateOf(false) }
+    var feedbackText by rememberSaveable { mutableStateOf("") }
+    var attachmentMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val cameraAttachedMessage = stringResource(R.string.feedback_camera_attached)
+    val libraryAttachedMessage = stringResource(R.string.feedback_library_attached)
+    val submitHint = stringResource(R.string.feedback_submit_hint)
+    val canSubmit = canSubmitSimulatedFeedback(feedbackText, attachmentMessage != null)
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) {
+            attachmentMessage = cameraAttachedMessage
+            feedbackSubmitted = false
+        }
+    }
+    val libraryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            attachmentMessage = libraryAttachedMessage
+            feedbackSubmitted = false
+        }
+    }
     Column(
         modifier = modifier
             .statusBarsPadding()
@@ -2105,17 +2130,62 @@ private fun FeedbackScreen(
                 label = stringResource(R.string.take_photo),
                 primary = false,
                 modifier = Modifier.weight(1f),
+                onClick = {
+                    feedbackSubmitted = false
+                    cameraLauncher.launch(null)
+                },
             )
             FeedbackMediaButton(
                 label = stringResource(R.string.library),
                 primary = true,
                 modifier = Modifier.weight(1f),
+                onClick = {
+                    feedbackSubmitted = false
+                    libraryLauncher.launch("image/*")
+                },
+            )
+        }
+        attachmentMessage?.let { message ->
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = message,
+                color = AchatCyan,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
             )
         }
         Spacer(Modifier.height(10.dp))
-        FeedbackInputBox()
+        FeedbackInputBox(
+            value = feedbackText,
+            onValueChange = {
+                feedbackText = it
+                feedbackSubmitted = false
+            },
+        )
         Spacer(Modifier.weight(1f))
-        FeedbackSubmitButton()
+        if (feedbackSubmitted) {
+            Text(
+                text = stringResource(R.string.feedback_thanks),
+                color = AchatCyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            Spacer(Modifier.height(10.dp))
+        } else if (!canSubmit) {
+            Text(
+                text = submitHint,
+                color = AchatMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        FeedbackSubmitButton(
+            enabled = canSubmit,
+            onClick = { feedbackSubmitted = true },
+        )
     }
 }
 
@@ -2166,6 +2236,7 @@ private fun FeedbackMediaButton(
     label: String,
     primary: Boolean,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
     val background = if (primary) {
         Brush.horizontalGradient(listOf(Color(0xFF7D55E9), AchatPink))
@@ -2182,7 +2253,7 @@ private fun FeedbackMediaButton(
                 if (primary) Color.White.copy(alpha = 0.12f) else AchatCyan.copy(alpha = 0.45f),
                 RoundedCornerShape(6.dp),
             )
-            .clickable { },
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -2198,7 +2269,10 @@ private fun FeedbackMediaButton(
 }
 
 @Composable
-private fun FeedbackInputBox() {
+private fun FeedbackInputBox(
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2208,35 +2282,61 @@ private fun FeedbackInputBox() {
             .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
             .padding(16.dp),
     ) {
-        Text(
-            text = stringResource(R.string.feedback_input_placeholder),
-            color = AchatMuted,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
+        BasicTextField(
+            value = value,
+            onValueChange = { onValueChange(it.take(1000)) },
+            textStyle = MaterialTheme.typography.bodySmall.copy(
+                color = Color.White,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+            modifier = Modifier.fillMaxSize(),
+            decorationBox = { innerTextField ->
+                if (value.isBlank()) {
+                    Text(
+                        text = stringResource(R.string.feedback_input_placeholder),
+                        color = AchatMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+                innerTextField()
+            },
         )
     }
 }
 
 @Composable
-private fun FeedbackSubmitButton() {
+private fun FeedbackSubmitButton(enabled: Boolean, onClick: () -> Unit) {
+    val gradient = if (enabled) {
+        Brush.horizontalGradient(listOf(Color(0xFF2FDDF3), Color(0xFF7952E8), AchatPink))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFF303545), Color(0xFF343747)))
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(46.dp)
             .clip(RoundedCornerShape(2.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF2FDDF3), Color(0xFF7952E8), AchatPink)))
-            .clickable { },
+            .background(gradient)
+            .clickable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
             text = stringResource(R.string.submit_feedback),
-            color = Color.White,
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.width(8.dp))
-        Text("✦", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "✦",
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

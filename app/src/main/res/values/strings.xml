@@ -107,6 +107,10 @@
     <string name="take_photo">Take Photo</string>
     <string name="library">Library</string>
     <string name="feedback_input_placeholder">Describe what happened...</string>
+    <string name="feedback_camera_attached">Photo attached locally</string>
+    <string name="feedback_library_attached">Library image attached locally</string>
+    <string name="feedback_submit_hint">Add a note or image to submit</string>
+    <string name="feedback_thanks">Thanks for your feedback</string>
     <string name="submit_feedback">Submit Feedback</string>
     <string name="name_picker_selected">Edit display name</string>
     <string name="close_name_picker_description">Close name picker</string>
