@@ -12,7 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import yumo.achat.app.R
-import yumo.achat.core.backend.PreparedStorePayment
+import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreOrder
 import yumo.achat.core.backend.StorePaymentGateway
 
@@ -41,6 +41,7 @@ internal class TopUpPaymentController(
     private var refreshJob: Job? = null
     private var requestSerial = 0L
     private val successfulOrderIds = mutableSetOf<String>()
+    private var officialProductIds: Map<String, String> = emptyMap()
 
     fun beginReconciliationLookup() {
         reconciliationCount += 1
@@ -63,7 +64,9 @@ internal class TopUpPaymentController(
         refreshJob?.cancel()
     }
 
-    fun retainAvailableProducts(productIds: List<String>) {
+    fun retainAvailableProducts(products: List<StoreProduct>) {
+        officialProductIds = products.associate { product -> product.id to product.officialProductId }
+        val productIds = products.map { it.id }
         val retained = selectedProductId?.takeIf { it in productIds }
         selectProduct(retained ?: productIds.firstOrNull())
     }
@@ -105,8 +108,13 @@ internal class TopUpPaymentController(
                     order = null
                     error("Payment order product mismatch")
                 }
-                val initialization = gateway.initializeStorePayment(order.id)
-                val preparedState = PreparedStorePayment(order, initialization).toTopUpPurchaseState(productId)
+                val sdkProductId = officialProductIds[productId].orEmpty().ifBlank { productId }
+                val preparedState = TopUpPurchaseState.OfficialReady(
+                    productId = productId,
+                    order = order,
+                    channelCode = "google_play",
+                    sdkProductId = sdkProductId,
+                )
                 if (requestSerial == serial && selectedProductId == productId) {
                     state = preparedState
                 }

@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import yumo.achat.core.backend.PaymentInitialization
+import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreOrder
 import yumo.achat.core.backend.StorePaymentGateway
 import yumo.achat.core.backend.PaymentOrderStatus
@@ -30,25 +31,34 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
-    fun `initialize retry reuses the previously created order`() {
-        var initializeAttempts = 0
-        val gateway = FakeGateway(
-            initialize = {
-                initializeAttempts += 1
-                if (initializeAttempts == 1) error("route unavailable")
-                officialInitialization()
-            },
-        )
+    fun `official payment falls back to product id when catalog google sku is absent`() {
+        val gateway = FakeGateway()
         val controller = controller(gateway)
 
-        controller.selectProduct("pack-100")
-        controller.prepare()
-        assertTrue(controller.state is TopUpPurchaseState.Error)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100")))
         controller.prepare()
 
         assertEquals(1, gateway.createCount)
-        assertEquals(2, initializeAttempts)
-        assertTrue(controller.state is TopUpPurchaseState.OfficialReady)
+        assertEquals(0, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("pack-100", route.sdkProductId)
+    }
+
+    @Test
+    fun `official payment directly uses catalog google sku without payment initialization`() {
+        val gateway = FakeGateway()
+        val controller = controller(gateway)
+
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", googleProductId = "play.pack.100")),
+        )
+        controller.prepare()
+
+        assertEquals(1, gateway.createCount)
+        assertEquals(0, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("play.pack.100", route.sdkProductId)
+        assertEquals("google_play", route.channelCode)
     }
 
     @Test
@@ -65,34 +75,23 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
-    fun `third party polling succeeds only after backend fulfillment`() {
+    fun `official polling succeeds only after backend fulfillment`() {
         val gateway = FakeGateway(
-            initialize = {
-                PaymentInitialization(
-                    orderId = "order-1",
-                    channelType = "third_party",
-                    channelCode = "payu_web_us",
-                    openMode = "webview",
-                    paymentUrl = "https://checkout.example/pay/1",
-                    expiresAt = null,
-                    queryIntervalSeconds = 10,
-                    maxQuerySeconds = 600,
-                    sdkProductId = "",
-                )
-            },
             paymentStatus = {
                 PaymentOrderStatus(it, "paid", "payu_web_us", "fulfilled", null, null, null, null)
             },
         )
         val controller = controller(gateway)
-        controller.selectProduct("pack-100")
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", googleProductId = "play.pack.100")),
+        )
         controller.prepare()
-        val route = controller.state as TopUpPurchaseState.ThirdPartyReady
+        val route = controller.state as TopUpPurchaseState.OfficialReady
 
-        controller.openThirdParty(route)
+        controller.onGooglePurchaseAccepted(route, pending = false)
 
         assertTrue(controller.checkoutState is TopUpCheckoutState.Succeeded)
-        assertEquals(listOf("link_ok", "page_opened", "paid_while_open"), gateway.events)
+        assertEquals(emptyList<String>(), gateway.events)
     }
 
     @Test
@@ -191,6 +190,32 @@ class TopUpPaymentControllerTest {
             queryIntervalSeconds = 0,
             maxQuerySeconds = 0,
             sdkProductId = "diamonds_100",
+        )
+
+        private fun product(id: String, googleProductId: String = "") = StoreProduct(
+            id = id,
+            name = "Diamonds",
+            description = "",
+            type = "diamond",
+            value = 100,
+            bonusValue = 0,
+            firstBuyBonusValue = 0,
+            currency = "USD",
+            originalPrice = BigDecimal("4.99"),
+            price = BigDecimal("4.99"),
+            firstBuyPrice = BigDecimal.ZERO,
+            discountRate = BigDecimal.ZERO,
+            firstBuyDiscount = BigDecimal.ZERO,
+            icon = "",
+            isFirstBuyPromotion = false,
+            isPromotion = false,
+            isSubscription = false,
+            promotionType = "",
+            sortOrder = 0,
+            tags = "",
+            thirdPartyProductId = "",
+            googleProductId = googleProductId,
+            vipLevel = 0,
         )
     }
 }

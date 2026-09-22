@@ -198,6 +198,7 @@ class AchatBackendParsersTest {
                     "promotion_type": "first_buy",
                     "tags": "HOT",
                     "icon": "https://example.test/100.webp",
+                    "google_product_id": "play.diamonds_100",
                     "third_party_product_id": "diamonds_100",
                     "sort_order": 20,
                     "vip_level": 0
@@ -228,6 +229,8 @@ class AchatBackendParsersTest {
         assertEquals(listOf("pack-25", "pack-100"), catalog.products.map { it.id })
         assertEquals(BigDecimal("4.99"), catalog.products.last().price)
         assertEquals(BigDecimal("2.99"), catalog.products.last().firstBuyPrice)
+        assertEquals("play.diamonds_100", catalog.products.last().googleProductId)
+        assertEquals("play.diamonds_100", catalog.products.last().officialProductId)
         assertEquals(listOf("payu_web_us", "google_play"), catalog.paymentProviders.map { it.code })
         assertEquals(42, catalog.userInfo?.currentDiamond)
     }

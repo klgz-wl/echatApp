@@ -69,8 +69,12 @@ data class StoreProduct(
     val sortOrder: Int,
     val tags: String,
     val thirdPartyProductId: String,
+    val googleProductId: String,
     val vipLevel: Int,
-)
+) {
+    val officialProductId: String
+        get() = googleProductId.ifBlank { id }
+}
 
 data class StoreUserInfo(
     val currentDiamond: Int,

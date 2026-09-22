@@ -108,6 +108,7 @@ class CreditPackPresentationTest {
         sortOrder = 20,
         tags = "HOT",
         thirdPartyProductId = "diamonds_100",
+        googleProductId = "play.diamonds_100",
         vipLevel = 0,
     )
 }

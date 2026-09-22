@@ -662,7 +662,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 catalog = catalog,
                 diamondBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance,
             )
-            topUpPaymentController.retainAvailableProducts(catalog.products.map { it.id })
+            topUpPaymentController.retainAvailableProducts(catalog.products)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {

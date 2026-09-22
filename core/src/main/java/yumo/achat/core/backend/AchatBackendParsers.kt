@@ -93,6 +93,7 @@ object AchatBackendParsers {
                             sortOrder = item.optInt("sort_order", 0),
                             tags = item.optNullableString("tags") ?: "",
                             thirdPartyProductId = item.optNullableString("third_party_product_id") ?: "",
+                            googleProductId = item.optNullableString("google_product_id") ?: "",
                             vipLevel = item.optInt("vip_level", 0),
                         ),
                     )
