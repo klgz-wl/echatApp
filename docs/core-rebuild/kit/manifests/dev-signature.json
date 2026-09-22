@@ -1,0 +1,7 @@
+{
+  "certificate_sha1": "14a3fb2627e7fd878571b9ca9f148b0f590b7c0b",
+  "keystore_sha256": "8488af7a95916c2399384ecee1218396182a4c80714744e7860cdbe84c2b408b",
+  "firebase_matched": true,
+  "private_attachment": "../private-dev-signing/config",
+  "passwords_included": false
+}

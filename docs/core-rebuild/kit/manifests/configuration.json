@@ -1,0 +1,1284 @@
+[
+  {
+    "key": "app.namespace",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "app.version.code",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "app.version.name",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "applicationId",
+    "type": "Gradle property",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.APPSFLYER_DEBUG_LOGGING",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 111
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.APPSFLYER_DIAGNOSTIC_LOGGING",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": true,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 111
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_APPSFLYER",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 98
+      },
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 111
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_BACKEND_ANALYTICS",
+    "type": "boolean",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 98
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_DEBUG_LOG",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 104
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_FIREBASE_ANALYTICS",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 98
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_FIREBASE_CRASHLYTICS",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_FIREBASE_MESSAGING",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_REGION_RESTRICTION",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 22
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_SECURE_WINDOW",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/MainActivity.kt",
+        "line": 94
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.ENABLE_THINKINGDATA",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 98
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.HTTP_LOG_REDACTION",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 104
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.boolean.TD_DEBUG_MODE",
+    "type": "boolean",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 112
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ANALYTICS_BACKGROUND_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 31
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ANALYTICS_DEDUPE_LIMIT",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 32
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ANALYTICS_QUEUE_CAPACITY",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 32
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ATTRIBUTION_CACHE_WAIT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 47
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ATTRIBUTION_RETRY_ATTEMPTS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 47
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ATTRIBUTION_RETRY_INTERVAL_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 47
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.ATTRIBUTION_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 47
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.GENERATION_MAX_IMAGE_BYTES",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 71
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.NETWORK_TIMEOUT_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 100
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PASSWORD_MAX_LENGTH",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 107
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PASSWORD_MIN_LENGTH",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 107
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_EVENT_ATTEMPTS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 42
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_EVENT_LIMIT",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 42
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_EVENT_RETRY_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 42
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_POLL_INTERVAL_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 40
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_POLL_MAX_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 41
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.PAYMENT_SUCCESS_DISPLAY_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 41
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_CHECK_INTERVAL_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 90
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_DEDUPE_WINDOW_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 90
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_FIRST_MESSAGE_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 89
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_IDLE_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 89
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_RETRY_INITIAL_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 88
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.RECHARGE_RETRY_MAX_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 88
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.REGION_LOOKUP_RETRY_ATTEMPTS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 24
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.REGION_LOOKUP_RETRY_DELAY_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 25
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.REGION_LOOKUP_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 27
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.STARTUP_TIMEOUT_MS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 48
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.USERNAME_MAX_LENGTH",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 107
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.USERNAME_MIN_LENGTH",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 107
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.VISUAL_PAGE_SIZE",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 68
+      },
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 78
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.VISUAL_POLL_DEFAULT_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 68
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.VISUAL_POLL_MAX_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 68
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.VISUAL_POLL_MIN_SECONDS",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 68
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.int.WALLET_PAGE_SIZE",
+    "type": "int",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 96
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.ABOUT_URL",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 109
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.ANALYTICS_STORAGE_NAME",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 31
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.APPSFLYER_DEV_KEY",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 111
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.BILLING_STORAGE_NAME",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 94
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.BLOCKED_REGION_CODES",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 23
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.CONTACT_EMAIL",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 51
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.CONTACT_URL",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 109
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.CORE_BASE_URL",
+    "type": "string",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 102
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.CORE_CDN_URL",
+    "type": "string",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 102
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.CORE_STREAM_URL",
+    "type": "string",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 102
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.DATABASE_NAME",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 103
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.DEEP_LINK_SCHEME",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.DESIGN_PREVIEW_MODE",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.GENERATION_STORAGE_DIRECTORY",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 71
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.GOOGLE_WEB_CLIENT_ID",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [],
+    "prod_may_be_blank": true,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.HOME_TEMPLATE_MODALITY",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 78
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.PAYMENT_BASE_URL",
+    "type": "string",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 40
+      }
+    ],
+    "prod_may_be_blank": true,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.PAYMENT_FLOW",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 37
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.PAYMENT_STORAGE_NAME",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 40
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.PRIVACY_POLICY_URL",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 108
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.PURCHASE_TRIGGER",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 94
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.REGION_LOOKUP_URL",
+    "type": "string",
+    "source": "app/build.gradle.kts",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 26
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.STORAGE_NAME",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 103
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.TD_APP_ID",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 112
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.TD_SERVER_URL",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 112
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.TERMS_OF_SERVICE_URL",
+    "type": "string",
+    "source": "config/dev.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 108
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.WALLET_PRODUCT_LOCATION",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 96
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "build.string.WALLET_PRODUCT_TYPE",
+    "type": "string",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "BuildConfig→宿主配置/DI",
+    "consumer_locations": [
+      {
+        "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+        "line": 96
+      }
+    ],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "core.namespace",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "sdk.compile",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "sdk.min",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "sdk.minor",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  },
+  {
+    "key": "sdk.target",
+    "type": "Gradle property",
+    "source": "config/app.properties",
+    "overrides_common": false,
+    "delivery_value": "config/dev/effective.properties",
+    "consumer": "Gradle工程参数",
+    "consumer_locations": [],
+    "prod_may_be_blank": false,
+    "secret_value_omitted": true
+  }
+]

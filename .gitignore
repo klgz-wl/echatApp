@@ -19,9 +19,20 @@ local.properties
 captures/
 artifacts/
 
+# Core scaffold local state and prepared reference workspace
+.core-scaffold/prepared/
+.core-scaffold/transactions/
+.core-scaffold/lock
+.core-scaffold/installed.json
+.core-scaffold/verification.json
+.core-scaffold/verify.log
+*.local.json
+
 # Signing material and credentials
 *.jks
 *.keystore
+*.local.properties
+config/*.local.properties
 keystore.properties
 
 # macOS

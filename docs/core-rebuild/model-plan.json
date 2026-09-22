@@ -1,0 +1,8 @@
+{
+  "schema": 2,
+  "prefix": "ach_",
+  "developer_confirmed": true,
+  "models": [],
+  "baseline_mapping": [],
+  "status": "待AI逐项实现；不能通过refactored校验"
+}
