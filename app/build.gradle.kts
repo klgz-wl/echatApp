@@ -3,6 +3,23 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val flavorEndpoints = mapOf(
+    "dev" to mapOf(
+        "CORE_BASE_URL" to "https://test.appjoly.com/api/v1/",
+        "PAYMENT_BASE_URL" to "https://test.appjoly.com/payment-api/v1/",
+        "CORE_STREAM_URL" to "wss://test.appjoly.com",
+        "CORE_CDN_URL" to "https://cdn.appjoly.com",
+        "REGION_LOOKUP_URL" to "https://api.country.is/",
+    ),
+    "prod" to mapOf(
+        "CORE_BASE_URL" to "",
+        "PAYMENT_BASE_URL" to "",
+        "CORE_STREAM_URL" to "",
+        "CORE_CDN_URL" to "",
+        "REGION_LOOKUP_URL" to "",
+    ),
+)
+
 android {
     namespace = "yumo.achat.app"
     compileSdk = 37

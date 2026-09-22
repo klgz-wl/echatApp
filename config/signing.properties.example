@@ -1,0 +1,4 @@
+storeFile=config/shared-dev.jks
+storePassword=
+keyAlias=
+keyPassword=
