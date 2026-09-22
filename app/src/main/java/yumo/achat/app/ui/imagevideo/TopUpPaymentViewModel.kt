@@ -12,7 +12,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import yumo.achat.app.R
-import yumo.achat.core.backend.AchatRepository
 import yumo.achat.core.backend.PreparedStorePayment
 import yumo.achat.core.backend.StoreOrder
 import yumo.achat.core.backend.StorePaymentGateway
@@ -315,7 +314,7 @@ internal sealed interface TopUpCheckoutState {
 internal class TopUpPaymentViewModel(application: Application) : AndroidViewModel(application) {
     private val billingManager = GooglePlayBillingManager.get(application)
     val controller = TopUpPaymentController(
-        gateway = AchatRepository(application),
+        gateway = createAchatRepository(application),
         scope = viewModelScope,
         errorMessage = { error ->
             apiEnvelopeUserMessage(

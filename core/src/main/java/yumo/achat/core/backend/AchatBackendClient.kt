@@ -16,10 +16,12 @@ internal class AchatBackendHttpException(
 ) : IllegalStateException(responseBody.ifBlank { "HTTP $statusCode" })
 
 class AchatBackendClient(
-    private val baseUrl: String = DEFAULT_API_BASE_URL,
-    private val packageName: String = DEFAULT_PACKAGE_NAME,
-    private val clientVersion: String = DEFAULT_CLIENT_VERSION,
+    configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
 ) : AchatAuthApi {
+    private val baseUrl: String = configuration.apiBaseUrl
+    private val packageName: String = configuration.packageName
+    private val clientVersion: String = configuration.clientVersion
+
     fun anonymousLogin(
         deviceId: String,
         packageName: String = this.packageName,
@@ -45,11 +47,7 @@ class AchatBackendClient(
         )
     }
 
-    companion object {
-        const val DEFAULT_API_BASE_URL = "https://test.appjoly.com"
-        const val DEFAULT_PACKAGE_NAME = "yumo.achat.app"
-        const val DEFAULT_CLIENT_VERSION = "2.0.0"
-    }
+    constructor(baseUrl: String) : this(AchatBackendConfiguration.Default.copy(apiBaseUrl = baseUrl))
 
     override fun loginAnonymously(deviceId: String): AuthSession = anonymousLogin(deviceId)
 

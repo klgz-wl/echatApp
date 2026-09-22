@@ -91,13 +91,16 @@ internal class AchatSessionManager(
     companion object {
         @Volatile private var applicationInstance: AchatSessionManager? = null
 
-        fun application(context: Context): AchatSessionManager =
+        fun application(
+            context: Context,
+            configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
+        ): AchatSessionManager =
             applicationInstance ?: synchronized(this) {
                 applicationInstance ?: run {
                     val appContext = context.applicationContext
                     AchatSessionManager(
                         store = AchatSessionStore(appContext),
-                        authApi = AchatBackendClient(),
+                        authApi = AchatBackendClient(configuration),
                     ).also { applicationInstance = it }
                 }
             }

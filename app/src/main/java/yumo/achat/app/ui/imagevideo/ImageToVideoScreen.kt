@@ -119,7 +119,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yumo.achat.app.R
-import yumo.achat.core.backend.AchatRepository
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
 import yumo.achat.core.backend.PreparedStorePayment
@@ -375,7 +374,7 @@ internal fun formatStoreMoney(amount: BigDecimal, currencyCode: String, locale: 
 fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
-    val repository = remember(context) { AchatRepository(context) }
+    val repository = remember(context) { createAchatRepository(context) }
     val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
@@ -2919,7 +2918,7 @@ private fun UploadPhotoScreen(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
-    val repository = remember(appContext) { AchatRepository(appContext) }
+    val repository = remember(appContext) { createAchatRepository(appContext) }
     val scope = rememberCoroutineScope()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }
