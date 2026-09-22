@@ -169,6 +169,9 @@ internal fun balanceAfterGenerationTaskCreated(currentBalance: Int, diamondCost:
 internal fun shouldRefreshBalanceForTaskStatus(status: String): Boolean =
     status == "succeeded" || status == "failed"
 
+internal fun templatePriceForDisplay(template: VisualTemplate?): Int? =
+    template?.displayPrice?.takeIf { it >= 0 }
+
 private enum class TemplateSection {
     Video,
     Image,
@@ -978,14 +981,14 @@ private fun TemplateBrowserScreen(
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
-    val visiblePrice = selectedTemplate?.displayPrice ?: 22
+    val visiblePrice = templatePriceForDisplay(selectedTemplate)
     val nearbyVideoUrls = if (section == TemplateSection.Video) {
         templates.nearbyVideoPreviewUrls(selectedTemplateIndex)
     } else {
         emptyList()
     }
     val nearbyImageUrls = templates.nearbyImagePreviewUrls(selectedTemplateIndex)
-    val selectedGenerationTemplate = selectedTemplate?.let { template ->
+    val selectedGenerationTemplate = selectedTemplate?.takeIf { visiblePrice != null }?.let { template ->
         SelectedGenerationTemplate(
             templateId = template.id,
             modality = if (section == TemplateSection.Image) "image" else "video",
