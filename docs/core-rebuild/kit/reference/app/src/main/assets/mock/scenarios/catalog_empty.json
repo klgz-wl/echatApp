@@ -1,0 +1,27 @@
+{
+  "catalog": {
+    "categories": [
+      {
+        "id": "hot",
+        "label": "category_hot",
+        "icon": "HOT"
+      },
+      {
+        "id": "trending",
+        "label": "category_trending",
+        "icon": "TRENDING"
+      },
+      {
+        "id": "new",
+        "label": "category_new",
+        "icon": "NEW"
+      },
+      {
+        "id": "featured",
+        "label": "category_featured",
+        "icon": "NONE"
+      }
+    ],
+    "templates": []
+  }
+}

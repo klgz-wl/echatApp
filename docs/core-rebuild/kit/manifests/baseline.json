@@ -1,0 +1,6 @@
+{
+  "baseline": "273835ab7d6d9ef772bb3dd8c219da5389e60d6b",
+  "core_kotlin_files": 57,
+  "reference_files": 154,
+  "purpose": "参考基线和重构提示词；非已经改完随机字段的目标项目"
+}

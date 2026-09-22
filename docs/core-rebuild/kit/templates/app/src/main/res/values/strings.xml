@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Core Integration Harness</string>
+    <string name="retry">Retry</string>
+    <string name="wallet">Refresh wallet</string>
+    <string name="library">Check catalog and resources</string>
+    <string name="status_library">Catalog and resources loaded from the service.</string>
+    <string name="status_idle">Ready</string>
+    <string name="status_loading">Checking availability and signing in…</string>
+    <string name="status_mode_a">Authenticated · Mode A</string>
+    <string name="status_mode_b">Authenticated · Mode B</string>
+    <string name="status_failed">Something went wrong. Please try again later.</string>
+    <string name="status_wallet">Wallet refreshed from the service.</string>
+</resources>

@@ -14,3 +14,12 @@
 - The Me profile name and avatar edit actions are backend-persisted. Use the in-feature editable name sheet for `PUT /api/v1/user/profile`, and use the single-image picker plus `/api/v1/files/upload` before persisting the returned avatar URL. Keep the two pencil actions distinct and expose loading/error/success states.
 - Never commit `local.properties`, IDE state, build output, transient generated screenshots, keystores, or credentials. Curated design baselines under `docs/screenshots/` may be committed when their purpose and asset provenance are documented.
 - Before completion, run `./gradlew --no-configuration-cache testDebugUnitTest assembleDebug lintDebug`. Run `connectedDebugAndroidTest` when a compatible emulator or device is available and UI behavior changed.
+
+## 每次任务必须 git commit and push（Core脚手架规则）
+
+1. 每次完成一个明确的开发、修复、重构、配置或文档任务后，自动执行中文 git commit，并 git push，无需重复询问。纯问答或没有文件变更时不制造空提交。
+2. 开始和提交前检查 git status；只按明确路径暂存本任务文件，禁止 git add . 或 git add -A，禁止提交签名、密码、本机配置和构建缓存。
+3. 提交前完成适用验证；纯文档检查内容、引用及 git diff --check。验证失败先修复，外部条件阻塞时如实记录，不伪称通过。
+4. 推送当前分支已配置的 upstream；无 upstream 时推送 origin 的同名分支并建立跟踪。禁止 force push、改写已有提交或复制参考仓库的 .git/远程。
+5. 无远程时保留本地提交并报告。网络、鉴权或推送失败时保留提交，报告原因，不把本地提交当作已推送；远程领先时正常整合并重新验证。
+6. 保留目标已有 Git 仓库、分支和远程配置，不伪造作者或 Co-Authored-By。完成报告列出提交哈希、远程分支、变更与验证结果。

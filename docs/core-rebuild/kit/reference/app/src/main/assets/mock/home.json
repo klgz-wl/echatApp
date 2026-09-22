@@ -1,0 +1,171 @@
+{
+  "delayMs": 250,
+  "catalog": {
+    "categories": [
+      {
+        "id": "hot",
+        "label": "category_hot",
+        "icon": "HOT"
+      },
+      {
+        "id": "trending",
+        "label": "category_trending",
+        "icon": "TRENDING"
+      },
+      {
+        "id": "new",
+        "label": "category_new",
+        "icon": "NEW"
+      },
+      {
+        "id": "featured",
+        "label": "category_featured",
+        "icon": "NONE"
+      }
+    ],
+    "templates": [
+      {
+        "id": "home_portrait",
+        "title": "template_portrait_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "trending"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "template_portrait",
+          "width": 172,
+          "height": 232
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": false,
+        "prices": {
+          "fast": 7,
+          "quality": 12
+        }
+      },
+      {
+        "id": "home_perfume",
+        "title": "template_perfume_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "new"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "home_perfume",
+          "width": 172,
+          "height": 276
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": true
+      },
+      {
+        "id": "home_flames",
+        "title": "template_flames_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "trending"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "home_flames",
+          "width": 172,
+          "height": 233
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": true
+      },
+      {
+        "id": "home_flower",
+        "title": "template_flower_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "new"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "home_flower",
+          "width": 172,
+          "height": 276
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": true
+      },
+      {
+        "id": "home_flower_short",
+        "title": "template_flower_short_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "trending"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "home_flower_short",
+          "width": 172,
+          "height": 233
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": true
+      },
+      {
+        "id": "home_portrait_tall",
+        "title": "template_portrait_tall_title",
+        "description": "template_start_description",
+        "categories": [
+          "hot",
+          "new"
+        ],
+        "mediaKind": "VIDEO",
+        "preview": {
+          "asset": "template_portrait_tall",
+          "width": 172,
+          "height": 276
+        },
+        "widePreview": {
+          "asset": "template_flower_wide",
+          "width": 335,
+          "height": 230
+        },
+        "durationSeconds": 20,
+        "hasVoice": true,
+        "isNew": true
+      }
+    ]
+  }
+}

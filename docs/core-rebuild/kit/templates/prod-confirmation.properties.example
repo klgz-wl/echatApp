@@ -1,0 +1,4 @@
+# 复制为prod-confirmation.local.properties；逐项核对后由开发者确认。
+# 包名及地址在app/build.gradle.kts替换；SDK配置在config/prod.properties。
+# 同步替换app/src/prod/google-services.json和正式签名。
+confirmed=false

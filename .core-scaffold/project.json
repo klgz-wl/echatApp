@@ -1,0 +1,15 @@
+{
+  "project_name": "echatApp",
+  "app_namespace": "yumo.achat.app",
+  "core_namespace": "yumo.achat.core",
+  "model_prefix": "ach_",
+  "storage_prefix": "achat",
+  "app_module": "app",
+  "prod_mode": "DEV_REUSE",
+  "retain_all_capabilities": true,
+  "developer_confirmed": true,
+  "project_mode": "existing",
+  "schema": 1,
+  "phase": "EXISTING_PENDING_INTEGRATION",
+  "kit_baseline": "273835ab7d6d9ef772bb3dd8c219da5389e60d6b"
+}

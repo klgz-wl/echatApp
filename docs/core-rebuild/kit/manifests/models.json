@@ -1,0 +1,6336 @@
+[
+  {
+    "id": "app/src/main/java/com/vexora/app/MainActivity.kt:44:MainActivity",
+    "source": "app/src/main/java/com/vexora/app/MainActivity.kt",
+    "line": 44,
+    "name": "MainActivity",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/VexoraApp.kt:10:VexoraApp",
+    "source": "app/src/main/java/com/vexora/app/VexoraApp.kt",
+    "line": 10,
+    "name": "VexoraApp",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/analytics/AnalyticsHub.kt:18:AnalyticsHub",
+    "source": "app/src/main/java/com/vexora/app/analytics/AnalyticsHub.kt",
+    "line": 18,
+    "name": "AnalyticsHub",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "firebase",
+        "type": "FirebaseAnalyticsSink"
+      },
+      {
+        "name": "appsFlyer",
+        "type": "AppsFlyerAnalytics"
+      },
+      {
+        "name": "thinkingData",
+        "type": "ThinkingDataAnalytics"
+      },
+      {
+        "name": "backend",
+        "type": "BackendAnalyticsSink"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "policy",
+        "type": "AnalyticsPolicy"
+      },
+      {
+        "name": "queue",
+        "type": "BusinessEventQueue"
+      },
+      {
+        "name": "storage",
+        "type": "SessionStorage"
+      },
+      {
+        "name": "identity",
+        "type": "ClientIdentity"
+      },
+      {
+        "name": "attributionReports",
+        "type": "dagger.Lazy<com.vexora.core.attribution.AttributionReports>)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt:13:BusinessEvent",
+    "source": "app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt",
+    "line": 13,
+    "name": "BusinessEvent",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "parameters",
+        "type": "Map<String"
+      },
+      {
+        "name": "userId",
+        "type": "String?)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt:17:BusinessEventQueue",
+    "source": "app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt",
+    "line": 17,
+    "name": "BusinessEventQueue",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "AnalyticsConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/analytics/FirebaseAnalyticsSink.kt:13:FirebaseAnalyticsSink",
+    "source": "app/src/main/java/com/vexora/app/analytics/FirebaseAnalyticsSink.kt",
+    "line": 13,
+    "name": "FirebaseAnalyticsSink",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/analytics/ForegroundAnalytics.kt:12:ForegroundAnalytics",
+    "source": "app/src/main/java/com/vexora/app/analytics/ForegroundAnalytics.kt",
+    "line": 12,
+    "name": "ForegroundAnalytics",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "events",
+        "type": "BusinessEventQueue"
+      },
+      {
+        "name": "config",
+        "type": "AnalyticsConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt:17:ConfigurationModule",
+    "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
+    "line": 17,
+    "name": "ConfigurationModule",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/media/LegacyWebpDecoder.kt:14:LegacyWebpDecoder",
+    "source": "app/src/main/java/com/vexora/app/media/LegacyWebpDecoder.kt",
+    "line": 14,
+    "name": "LegacyWebpDecoder",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "result",
+        "type": "SourceResult)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/media/LegacyWebpDecoder.kt:22:Factory",
+    "source": "app/src/main/java/com/vexora/app/media/LegacyWebpDecoder.kt",
+    "line": 22,
+    "name": "Factory",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt:15:CatalogUiState",
+    "source": "app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt",
+    "line": 15,
+    "name": "CatalogUiState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "loading",
+        "type": "Boolean"
+      },
+      {
+        "name": "failed",
+        "type": "Boolean"
+      },
+      {
+        "name": "catalog",
+        "type": "TemplateCatalog?"
+      },
+      {
+        "name": "selectedCategory",
+        "type": "String?"
+      },
+      {
+        "name": "loadingMore",
+        "type": "Boolean"
+      },
+      {
+        "name": "moreFailed",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt:21:CatalogViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt",
+    "line": 21,
+    "name": "CatalogViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "repository",
+        "type": "TemplateRepository"
+      },
+      {
+        "name": "mock",
+        "type": "TemplateRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "saved",
+        "type": "SavedStateHandle)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt:19:QualityOption",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
+    "line": 19,
+    "name": "QualityOption",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "label",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt:20:GenerationOptions",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
+    "line": 20,
+    "name": "GenerationOptions",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "defaultQuality",
+        "type": "String"
+      },
+      {
+        "name": "qualities",
+        "type": "List<QualityOption>)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt:21:GenerationUiState",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
+    "line": 21,
+    "name": "GenerationUiState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "request",
+        "type": "GenerationRequest?"
+      },
+      {
+        "name": "template",
+        "type": "Template?"
+      },
+      {
+        "name": "quality",
+        "type": "String"
+      },
+      {
+        "name": "preparing",
+        "type": "Boolean"
+      },
+      {
+        "name": "submitting",
+        "type": "Boolean"
+      },
+      {
+        "name": "error",
+        "type": "GenerationFailure?"
+      },
+      {
+        "name": "purchaseNeeded",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt:29:GenerationViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
+    "line": 29,
+    "name": "GenerationViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "repository",
+        "type": "GenerationRequestRepository"
+      },
+      {
+        "name": "storage",
+        "type": "PrivateGenerationStorage"
+      },
+      {
+        "name": "downloads",
+        "type": "UploadedPhotoDownloadApi"
+      },
+      {
+        "name": "events",
+        "type": "EventTracker"
+      },
+      {
+        "name": "options",
+        "type": "GenerationOptions"
+      },
+      {
+        "name": "saved",
+        "type": "SavedStateHandle"
+      },
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/LibraryScreen.kt:29:ProfilePreview",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/LibraryScreen.kt",
+    "line": 29,
+    "name": "ProfilePreview",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "nameResource",
+        "type": "String"
+      },
+      {
+        "name": "avatarResource",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt:15:UploadedPhotosState",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt",
+    "line": 15,
+    "name": "UploadedPhotosState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "photos",
+        "type": "List<UploadedPhoto>"
+      },
+      {
+        "name": "busy",
+        "type": "Boolean"
+      },
+      {
+        "name": "failed",
+        "type": "Boolean"
+      },
+      {
+        "name": "page",
+        "type": "Int"
+      },
+      {
+        "name": "hasMore",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt:18:UploadedPhotosViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt",
+    "line": 18,
+    "name": "UploadedPhotosViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "repository",
+        "type": "UploadedPhotoRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt:13:VisualLibraryState",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt",
+    "line": 13,
+    "name": "VisualLibraryState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "requests",
+        "type": "List<GenerationRequest>"
+      },
+      {
+        "name": "resources",
+        "type": "List<VisualResource>"
+      },
+      {
+        "name": "loading",
+        "type": "Boolean"
+      },
+      {
+        "name": "failed",
+        "type": "Boolean"
+      },
+      {
+        "name": "pollingFailed",
+        "type": "Boolean"
+      },
+      {
+        "name": "loadingMore",
+        "type": "Boolean"
+      },
+      {
+        "name": "moreFailed",
+        "type": "Boolean"
+      },
+      {
+        "name": "hasMore",
+        "type": "Boolean"
+      },
+      {
+        "name": "nextPage",
+        "type": "Int"
+      },
+      {
+        "name": "modality",
+        "type": "String?"
+      },
+      {
+        "name": "dismissedHomeNotices",
+        "type": "Set<String>"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt:27:VisualLibraryViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt",
+    "line": 27,
+    "name": "VisualLibraryViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "tasks",
+        "type": "GenerationRequestRepository"
+      },
+      {
+        "name": "library",
+        "type": "VisualLibraryRepository"
+      },
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "photos",
+        "type": "PrivateGenerationStorage"
+      },
+      {
+        "name": "profile",
+        "type": "ProfilePreview"
+      },
+      {
+        "name": "config",
+        "type": "VisualPollingConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt:15:AuthUiState",
+    "source": "app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt",
+    "line": 15,
+    "name": "AuthUiState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "restoring",
+        "type": "Boolean"
+      },
+      {
+        "name": "busy",
+        "type": "Boolean"
+      },
+      {
+        "name": "mode",
+        "type": "AppMode?"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      },
+      {
+        "name": "sessionEpoch",
+        "type": "String?"
+      },
+      {
+        "name": "account",
+        "type": "String"
+      },
+      {
+        "name": "password",
+        "type": "String"
+      },
+      {
+        "name": "error",
+        "type": "Throwable?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt:22:AuthViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt",
+    "line": 22,
+    "name": "AuthViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "AppConfiguration"
+      },
+      {
+        "name": "analytics",
+        "type": "AnalyticsHub"
+      },
+      {
+        "name": "network",
+        "type": "NetworkAvailability"
+      },
+      {
+        "name": "startup",
+        "type": "AnonymousStartup"
+      },
+      {
+        "name": "profiles",
+        "type": "UserProfileRepository"
+      },
+      {
+        "name": "events",
+        "type": "com.vexora.app.analytics.BusinessEventQueue)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/DeviceRegionSource.kt:13:DeviceRegionSource",
+    "source": "app/src/main/java/com/vexora/app/ui/login/DeviceRegionSource.kt",
+    "line": 13,
+    "name": "DeviceRegionSource",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt:17:RegionGateState",
+    "source": "app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt",
+    "line": 17,
+    "name": "RegionGateState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "allowed",
+        "type": "Boolean"
+      },
+      {
+        "name": "busy",
+        "type": "Boolean"
+      },
+      {
+        "name": "error",
+        "type": "Throwable?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt:20:RegionGateViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt",
+    "line": 20,
+    "name": "RegionGateViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "region",
+        "type": "RegionAccess)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/RegionNetwork.kt:11:RegionNetwork",
+    "source": "app/src/main/java/com/vexora/app/ui/login/RegionNetwork.kt",
+    "line": 11,
+    "name": "RegionNetwork",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/login/StartupConfiguration.kt:9:StartupNetwork",
+    "source": "app/src/main/java/com/vexora/app/ui/login/StartupConfiguration.kt",
+    "line": 9,
+    "name": "StartupNetwork",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt:8:SettingsConfiguration",
+    "source": "app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt",
+    "line": 8,
+    "name": "SettingsConfiguration",
+    "kind": "class",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "version",
+        "type": "String"
+      },
+      {
+        "name": "contactEmail",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt:10:SettingsViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt",
+    "line": 10,
+    "name": "SettingsViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "config",
+        "type": "AppConfiguration"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/wallet/PaymentViewModel.kt:11:PaymentViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/wallet/PaymentViewModel.kt",
+    "line": 11,
+    "name": "PaymentViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "coordinator",
+        "type": "PaymentCoordinator"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/wallet/TransactionAmount.kt:9:TransactionAmount",
+    "source": "app/src/main/java/com/vexora/app/ui/wallet/TransactionAmount.kt",
+    "line": 9,
+    "name": "TransactionAmount",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "format",
+        "type": "Int"
+      },
+      {
+        "name": "value",
+        "type": "String"
+      },
+      {
+        "name": "color",
+        "type": "Color)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt:14:WalletUiState",
+    "source": "app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt",
+    "line": 14,
+    "name": "WalletUiState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "wallet",
+        "type": "WalletSnapshot"
+      },
+      {
+        "name": "balanceBusy",
+        "type": "Boolean"
+      },
+      {
+        "name": "productsBusy",
+        "type": "Boolean"
+      },
+      {
+        "name": "recordsBusy",
+        "type": "Boolean"
+      },
+      {
+        "name": "balanceError",
+        "type": "Throwable?"
+      },
+      {
+        "name": "productsError",
+        "type": "Throwable?"
+      },
+      {
+        "name": "recordsError",
+        "type": "Throwable?"
+      },
+      {
+        "name": "payment",
+        "type": "com.vexora.core.payment.PaymentViewState"
+      },
+      {
+        "name": "selectedId",
+        "type": "String?"
+      },
+      {
+        "name": "purchase",
+        "type": "CoinPurchaseState"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt:21:WalletViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt",
+    "line": 21,
+    "name": "WalletViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "repository",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "purchases",
+        "type": "CoinPurchaseController"
+      },
+      {
+        "name": "payments",
+        "type": "com.vexora.core.payment.PaymentCoordinator"
+      },
+      {
+        "name": "displayConfig",
+        "type": "CoinDisplayConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/web/WebViewModel.kt:14:WebContent",
+    "source": "app/src/main/java/com/vexora/app/ui/web/WebViewModel.kt",
+    "line": 14,
+    "name": "WebContent",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "loading",
+        "type": "Boolean"
+      },
+      {
+        "name": "failed",
+        "type": "Boolean"
+      },
+      {
+        "name": "html",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "app/src/main/java/com/vexora/app/ui/web/WebViewModel.kt:16:WebViewModel",
+    "source": "app/src/main/java/com/vexora/app/ui/web/WebViewModel.kt",
+    "line": 16,
+    "name": "WebViewModel",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context"
+      },
+      {
+        "name": "settings",
+        "type": "SettingsConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:3:AnalyticsSink",
+    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "line": 3,
+    "name": "AnalyticsSink",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:8:AttributionIdProvider",
+    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "line": 8,
+    "name": "AttributionIdProvider",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
+    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "line": 10,
+    "name": "AnalyticsPolicy",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "firebase",
+        "type": "Boolean"
+      },
+      {
+        "name": "appsFlyer",
+        "type": "Boolean"
+      },
+      {
+        "name": "thinkingData",
+        "type": "Boolean"
+      },
+      {
+        "name": "backend",
+        "type": "Boolean)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:18:BackendAnalyticsSink",
+    "source": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
+    "line": 18,
+    "name": "BackendAnalyticsSink",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "EventApi"
+      },
+      {
+        "name": "identity",
+        "type": "ClientIdentity"
+      },
+      {
+        "name": "deviceId",
+        "type": "suspend () -> String"
+      },
+      {
+        "name": "scope",
+        "type": "CoroutineScope"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
+    "source": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
+    "line": 28,
+    "name": "PendingEvent",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "time",
+        "type": "Long"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      },
+      {
+        "name": "parameters",
+        "type": "Map<String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:11:EventApi",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventApi.kt",
+    "line": 11,
+    "name": "EventApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:17:ReportEventRequest",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventApi.kt",
+    "line": 17,
+    "name": "ReportEventRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "deviceId",
+        "type": "String"
+      },
+      {
+        "name": "eventType",
+        "type": "String"
+      },
+      {
+        "name": "eventTime",
+        "type": "Long"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      },
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "appVersion",
+        "type": "String"
+      },
+      {
+        "name": "platform",
+        "type": "String"
+      },
+      {
+        "name": "parameters",
+        "type": "Map<String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:4:EventTracker",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "line": 4,
+    "name": "EventTracker",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:8:AnalyticsPlatform",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "line": 8,
+    "name": "AnalyticsPlatform",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "prefix",
+        "type": "String)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:11:NoOpEventTracker",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "line": 11,
+    "name": "NoOpEventTracker",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
+    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "line": 14,
+    "name": "AnalyticsConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "storageName",
+        "type": "String"
+      },
+      {
+        "name": "backgroundTimeoutMs",
+        "type": "Long"
+      },
+      {
+        "name": "queueCapacity",
+        "type": "Int"
+      },
+      {
+        "name": "dedupeLimit",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt:16:AttributionCoordinator",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt",
+    "line": 16,
+    "name": "AttributionCoordinator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "source",
+        "type": "ConversionSource"
+      },
+      {
+        "name": "storage",
+        "type": "AttributionStorage"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionStorage"
+      },
+      {
+        "name": "identity",
+        "type": "ClientIdentity"
+      },
+      {
+        "name": "config",
+        "type": "AttributionConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:10:LoginAttribution",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 10,
+    "name": "LoginAttribution",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "attributionSource",
+        "type": "String"
+      },
+      {
+        "name": "deviceId",
+        "type": "String"
+      },
+      {
+        "name": "afUid",
+        "type": "String"
+      },
+      {
+        "name": "network",
+        "type": "String?"
+      },
+      {
+        "name": "campaign",
+        "type": "String?"
+      },
+      {
+        "name": "campaignId",
+        "type": "String?"
+      },
+      {
+        "name": "adgroup",
+        "type": "String?"
+      },
+      {
+        "name": "adgroupId",
+        "type": "String?"
+      },
+      {
+        "name": "creative",
+        "type": "String?"
+      },
+      {
+        "name": "creativeId",
+        "type": "String?"
+      },
+      {
+        "name": "channel",
+        "type": "String?"
+      },
+      {
+        "name": "country",
+        "type": "String?"
+      },
+      {
+        "name": "platform",
+        "type": "String"
+      },
+      {
+        "name": "appVersion",
+        "type": "String"
+      },
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "extraData",
+        "type": "JsonObject"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:24:ConversionResult",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 24,
+    "name": "ConversionResult",
+    "kind": "sealed",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:25:Pending",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 25,
+    "name": "Pending",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:26:Success",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 26,
+    "name": "Success",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "data",
+        "type": "JsonObject)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:27:Failed",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 27,
+    "name": "Failed",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:30:ConversionSource",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 30,
+    "name": "ConversionSource",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:37:AttributionStorage",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 37,
+    "name": "AttributionStorage",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:41:LoginAttributionProvider",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 41,
+    "name": "LoginAttributionProvider",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "line": 42,
+    "name": "AttributionConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "timeoutMillis",
+        "type": "Long"
+      },
+      {
+        "name": "retryAttempts",
+        "type": "Int"
+      },
+      {
+        "name": "retryIntervalMillis",
+        "type": "Long"
+      },
+      {
+        "name": "cacheWaitMillis",
+        "type": "Long"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt:18:AttributionReportApi",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
+    "line": 18,
+    "name": "AttributionReportApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt:44:AttributionReports",
+    "source": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
+    "line": 44,
+    "name": "AttributionReports",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "coordinator",
+        "type": "AttributionCoordinator"
+      },
+      {
+        "name": "api",
+        "type": "AttributionReportApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "storage",
+        "type": "SessionStorage"
+      },
+      {
+        "name": "identity",
+        "type": "ClientIdentity"
+      },
+      {
+        "name": "config",
+        "type": "AttributionConfiguration"
+      },
+      {
+        "name": "profiles",
+        "type": "com.vexora.core.auth.UserProfileRepository)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:9:NetworkAvailability",
+    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "line": 9,
+    "name": "NetworkAvailability",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
+    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "line": 10,
+    "name": "StartupConfiguration",
+    "kind": "class",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "timeoutMillis",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:11:StartupOfflineException",
+    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "line": 11,
+    "name": "StartupOfflineException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:12:StartupUnavailableException",
+    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "line": 12,
+    "name": "StartupUnavailableException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:15:AnonymousStartup",
+    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "line": 15,
+    "name": "AnonymousStartup",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "auth",
+        "type": "AuthRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "attribution",
+        "type": "AttributionCoordinator"
+      },
+      {
+        "name": "profiles",
+        "type": "UserProfileRepository"
+      },
+      {
+        "name": "network",
+        "type": "NetworkAvailability"
+      },
+      {
+        "name": "config",
+        "type": "StartupConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:12:UserDataCleaner",
+    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "line": 12,
+    "name": "UserDataCleaner",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:14:AuthRepository",
+    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "line": 14,
+    "name": "AuthRepository",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:21:ApiAuthRepository",
+    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "line": 21,
+    "name": "ApiAuthRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "PublicAuthApi"
+      },
+      {
+        "name": "accountApi",
+        "type": "AccountApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "storage",
+        "type": "SessionStorage"
+      },
+      {
+        "name": "identity",
+        "type": "ClientIdentity"
+      },
+      {
+        "name": "config",
+        "type": "AppConfiguration"
+      },
+      {
+        "name": "attribution",
+        "type": "LoginAttributionProvider"
+      },
+      {
+        "name": "cleaner",
+        "type": "UserDataCleaner)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt:19:PreferenceSessionStorage",
+    "source": "core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt",
+    "line": 19,
+    "name": "PreferenceSessionStorage",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:16:Session",
+    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "line": 16,
+    "name": "Session",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "token",
+        "type": "String"
+      },
+      {
+        "name": "refreshToken",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "epoch",
+        "type": "String"
+      },
+      {
+        "name": "revision",
+        "type": "Long"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:19:SessionStorage",
+    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "line": 19,
+    "name": "SessionStorage",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:27:SessionCoordinator",
+    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "line": 27,
+    "name": "SessionCoordinator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "storage",
+        "type": "SessionStorage)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:18:UserProfile",
+    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "line": 18,
+    "name": "UserProfile",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "isNew",
+        "type": "Boolean)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:22:UserProfileApi",
+    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "line": 22,
+    "name": "UserProfileApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:26:ProfileMode",
+    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "line": 26,
+    "name": "ProfileMode",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "epoch",
+        "type": "String"
+      },
+      {
+        "name": "mode",
+        "type": "AppMode)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:30:UserProfileRepository",
+    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "line": 30,
+    "name": "UserProfileRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "UserProfileApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt",
+    "line": 3,
+    "name": "BillingConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "storageName",
+        "type": "String"
+      },
+      {
+        "name": "defaultTrigger",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt:3:BillingConnectionState",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt",
+    "line": 3,
+    "name": "BillingConnectionState",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingManager.kt:29:BillingManager",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingManager.kt",
+    "line": 29,
+    "name": "BillingManager",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "config",
+        "type": "BillingConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:3:BillingProduct",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "line": 3,
+    "name": "BillingProduct",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "title",
+        "type": "String"
+      },
+      {
+        "name": "description",
+        "type": "String"
+      },
+      {
+        "name": "price",
+        "type": "String"
+      },
+      {
+        "name": "priceAmountMicros",
+        "type": "Long"
+      },
+      {
+        "name": "currencyCode",
+        "type": "String"
+      },
+      {
+        "name": "productType",
+        "type": "BillingProductType"
+      },
+      {
+        "name": "offerToken",
+        "type": "String?"
+      },
+      {
+        "name": "subscriptionOfferDetails",
+        "type": "List<SubscriptionOfferDetails>?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "line": 16,
+    "name": "SubscriptionOfferDetails",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "offerId",
+        "type": "String"
+      },
+      {
+        "name": "offerToken",
+        "type": "String"
+      },
+      {
+        "name": "basePlanId",
+        "type": "String"
+      },
+      {
+        "name": "pricingPhases",
+        "type": "List<PricingPhase>"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:23:PricingPhase",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "line": 23,
+    "name": "PricingPhase",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "billingPeriod",
+        "type": "String"
+      },
+      {
+        "name": "billingCycleCount",
+        "type": "Int"
+      },
+      {
+        "name": "priceFormatted",
+        "type": "String"
+      },
+      {
+        "name": "priceAmountMicros",
+        "type": "Long"
+      },
+      {
+        "name": "recurrenceMode",
+        "type": "Int"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:3:BillingProductType",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "line": 3,
+    "name": "BillingProductType",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:30:BillingClient",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "line": 30,
+    "name": "BillingClient",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:31:ProductType",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "line": 31,
+    "name": "ProductType",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:3:BillingPurchase",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "line": 3,
+    "name": "BillingPurchase",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String?"
+      },
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "purchaseToken",
+        "type": "String"
+      },
+      {
+        "name": "purchaseTime",
+        "type": "Long"
+      },
+      {
+        "name": "purchaseState",
+        "type": "PurchaseState"
+      },
+      {
+        "name": "isAcknowledged",
+        "type": "Boolean"
+      },
+      {
+        "name": "isAutoRenewing",
+        "type": "Boolean"
+      },
+      {
+        "name": "signature",
+        "type": "String"
+      },
+      {
+        "name": "originalJson",
+        "type": "String"
+      },
+      {
+        "name": "productName",
+        "type": "String"
+      },
+      {
+        "name": "productType",
+        "type": "BillingProductType"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:17:PurchaseState",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "line": 17,
+    "name": "PurchaseState",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:28:BillingResult",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "line": 28,
+    "name": "BillingResult",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "responseCode",
+        "type": "Int"
+      },
+      {
+        "name": "data",
+        "type": "T?"
+      },
+      {
+        "name": "errorMessage",
+        "type": "String?"
+      },
+      {
+        "name": "debugMessage",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:44:BillingResponseCode",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "line": 44,
+    "name": "BillingResponseCode",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt:14:BillingPurchaseAdmission",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
+    "line": 14,
+    "name": "BillingPurchaseAdmission",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt:21:BillingPurchaseLease",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
+    "line": 21,
+    "name": "BillingPurchaseLease",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "occupied",
+        "type": "AtomicBoolean"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/BillingRepository.kt:18:BillingRepository",
+    "source": "core/src/main/java/com/vexora/core/billing/BillingRepository.kt",
+    "line": 18,
+    "name": "BillingRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "manager",
+        "type": "BillingManager"
+      },
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "events",
+        "type": "EventTracker)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:14:CoinPurchaseStatus",
+    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "line": 14,
+    "name": "CoinPurchaseStatus",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
+    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "line": 15,
+    "name": "CoinPurchaseState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "epoch",
+        "type": "String?"
+      },
+      {
+        "name": "status",
+        "type": "CoinPurchaseStatus"
+      },
+      {
+        "name": "failureStage",
+        "type": "ConsumablePurchaseStage?"
+      },
+      {
+        "name": "revision",
+        "type": "Long"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:20:CoinPurchaseController",
+    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "line": 20,
+    "name": "CoinPurchaseController",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "billing",
+        "type": "BillingRepository"
+      },
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "admission",
+        "type": "BillingPurchaseAdmission"
+      },
+      {
+        "name": "orchestrator",
+        "type": "ConsumablePurchaseOrchestrator"
+      },
+      {
+        "name": "config",
+        "type": "BillingConfiguration"
+      },
+      {
+        "name": "tracker",
+        "type": "EventTracker"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:13:ConsumablePurchaseOrchestrator",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 13,
+    "name": "ConsumablePurchaseOrchestrator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:76:ConsumablePurchaseStage",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 76,
+    "name": "ConsumablePurchaseStage",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:84:PurchaseStepResult",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 84,
+    "name": "PurchaseStepResult",
+    "kind": "sealed",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 85,
+    "name": "Success",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "value",
+        "type": "T)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 86,
+    "name": "Pending",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "value",
+        "type": "T)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 87,
+    "name": "Failure",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "message",
+        "type": "String?"
+      },
+      {
+        "name": "code",
+        "type": "Int?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:90:ConsumablePurchaseResult",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 90,
+    "name": "ConsumablePurchaseResult",
+    "kind": "sealed",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 91,
+    "name": "Success",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "storeProduct",
+        "type": "StoreProduct)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 93,
+    "name": "Failure",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "stage",
+        "type": "ConsumablePurchaseStage"
+      },
+      {
+        "name": "message",
+        "type": "String?"
+      },
+      {
+        "name": "code",
+        "type": "Int?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 99,
+    "name": "Pending",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "storeProduct",
+        "type": "StoreProduct)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:101:InProgress",
+    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "line": 101,
+    "name": "InProgress",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
+    "source": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
+    "line": 3,
+    "name": "PendingPurchaseRecord",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "orderId",
+        "type": "String?"
+      },
+      {
+        "name": "productType",
+        "type": "BillingProductType"
+      },
+      {
+        "name": "purchaseToken",
+        "type": "String?"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:12:PendingPurchaseRegistry",
+    "source": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
+    "line": 12,
+    "name": "PendingPurchaseRegistry",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt:7:PurchaseFulfillmentCoordinator",
+    "source": "core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt",
+    "line": 7,
+    "name": "PurchaseFulfillmentCoordinator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "scope",
+        "type": "CoroutineScope"
+      },
+      {
+        "name": "onFulfilled",
+        "type": "(String) -> Unit"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt:11:PurchaseRequestCoordinator",
+    "source": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
+    "line": 11,
+    "name": "PurchaseRequestCoordinator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt:77:PurchaseRequest",
+    "source": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
+    "line": 77,
+    "name": "PurchaseRequest",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "productType",
+        "type": "BillingProductType"
+      },
+      {
+        "name": "orderId",
+        "type": "String?"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      },
+      {
+        "name": "deferred",
+        "type": "CompletableDeferred<BillingResult<BillingPurchase>>"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
+    "source": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
+    "line": 9,
+    "name": "CatalogConfiguration",
+    "kind": "class",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "homeModality",
+        "type": "MediaKind"
+      },
+      {
+        "name": "pageSize",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:14:ApiTemplateRepository",
+    "source": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
+    "line": 14,
+    "name": "ApiTemplateRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "VisualGenerationApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "CatalogConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:9:CatalogChannel",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 9,
+    "name": "CatalogChannel",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:10:MediaKind",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 10,
+    "name": "MediaKind",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:11:CategoryIcon",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 11,
+    "name": "CategoryIcon",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:12:TemplateCategory",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 12,
+    "name": "TemplateCategory",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "label",
+        "type": "String"
+      },
+      {
+        "name": "icon",
+        "type": "CategoryIcon"
+      },
+      {
+        "name": "labelIsResource",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:13:TemplateMedia",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 13,
+    "name": "TemplateMedia",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "asset",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "remote",
+        "type": "Boolean"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:30:TemplatePrices",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 30,
+    "name": "TemplatePrices",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "fast",
+        "type": "Long?"
+      },
+      {
+        "name": "quality",
+        "type": "Long?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:37:Template",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 37,
+    "name": "Template",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "title",
+        "type": "String"
+      },
+      {
+        "name": "description",
+        "type": "String"
+      },
+      {
+        "name": "categories",
+        "type": "List<String>"
+      },
+      {
+        "name": "mediaKind",
+        "type": "MediaKind"
+      },
+      {
+        "name": "preview",
+        "type": "TemplateMedia"
+      },
+      {
+        "name": "widePreview",
+        "type": "TemplateMedia?"
+      },
+      {
+        "name": "alternatePreview",
+        "type": "TemplateMedia?"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "Int?"
+      },
+      {
+        "name": "hasVoice",
+        "type": "Boolean"
+      },
+      {
+        "name": "isNew",
+        "type": "Boolean"
+      },
+      {
+        "name": "textIsResource",
+        "type": "Boolean"
+      },
+      {
+        "name": "prices",
+        "type": "TemplatePrices?"
+      },
+      {
+        "name": "cover",
+        "type": "TemplateMedia?"
+      },
+      {
+        "name": "tags",
+        "type": "List<String>"
+      },
+      {
+        "name": "isHomeFeatured",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 44,
+    "name": "TemplateCatalog",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "categories",
+        "type": "List<TemplateCategory>"
+      },
+      {
+        "name": "templates",
+        "type": "List<Template>"
+      },
+      {
+        "name": "remote",
+        "type": "Boolean"
+      },
+      {
+        "name": "page",
+        "type": "Int"
+      },
+      {
+        "name": "hasMore",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:52:CatalogFixture",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 52,
+    "name": "CatalogFixture",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "delayMs",
+        "type": "Long"
+      },
+      {
+        "name": "failAttempts",
+        "type": "Int"
+      },
+      {
+        "name": "catalog",
+        "type": "TemplateCatalog)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:53:CatalogAssetSource",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 53,
+    "name": "CatalogAssetSource",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:54:TemplateRepository",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 54,
+    "name": "TemplateRepository",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:57:MockTemplateRepository",
+    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "line": 57,
+    "name": "MockTemplateRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "source",
+        "type": "CatalogAssetSource"
+      },
+      {
+        "name": "paths",
+        "type": "Map<String"
+      },
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:3:AppMode",
+    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "line": 3,
+    "name": "AppMode",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:5:AccountRules",
+    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "line": 5,
+    "name": "AccountRules",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "usernameMin",
+        "type": "Int"
+      },
+      {
+        "name": "usernameMax",
+        "type": "Int"
+      },
+      {
+        "name": "passwordMin",
+        "type": "Int"
+      },
+      {
+        "name": "passwordMax",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:14:AppConfiguration",
+    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "line": 14,
+    "name": "AppConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "accountRules",
+        "type": "AccountRules"
+      },
+      {
+        "name": "privacyUrl",
+        "type": "String"
+      },
+      {
+        "name": "termsUrl",
+        "type": "String"
+      },
+      {
+        "name": "aboutUrl",
+        "type": "String"
+      },
+      {
+        "name": "contactUrl",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt:3:ClientIdentity",
+    "source": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt",
+    "line": 3,
+    "name": "ClientIdentity",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "versionName",
+        "type": "String"
+      },
+      {
+        "name": "timeoutSeconds",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
+    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "line": 8,
+    "name": "CoreRuntimeConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "network",
+        "type": "NetworkConfig"
+      },
+      {
+        "name": "storage",
+        "type": "StorageConfig"
+      },
+      {
+        "name": "diagnostics",
+        "type": "DiagnosticsConfig"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
+    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "line": 14,
+    "name": "NetworkConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "baseUrl",
+        "type": "String"
+      },
+      {
+        "name": "streamUrl",
+        "type": "String"
+      },
+      {
+        "name": "cdnUrl",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
+    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "line": 51,
+    "name": "StorageConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "databaseName",
+        "type": "String"
+      },
+      {
+        "name": "preferencesName",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
+    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "line": 61,
+    "name": "DiagnosticsConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "enableDebugLogging",
+        "type": "Boolean"
+      },
+      {
+        "name": "redactHttpLogs",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:11:ApiResponse",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 11,
+    "name": "ApiResponse",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "code",
+        "type": "Int"
+      },
+      {
+        "name": "message",
+        "type": "String?"
+      },
+      {
+        "name": "data",
+        "type": "T?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:18:ServiceFailure",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 18,
+    "name": "ServiceFailure",
+    "kind": "sealed",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:19:InvalidResponse",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 19,
+    "name": "InvalidResponse",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:20:SignedOut",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 20,
+    "name": "SignedOut",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:21:Superseded",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 21,
+    "name": "Superseded",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:22:InvalidAccount",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 22,
+    "name": "InvalidAccount",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:23:Business",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 23,
+    "name": "Business",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "serverMessage",
+        "type": "String?)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:26:LoginRequest",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 26,
+    "name": "LoginRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "username",
+        "type": "String"
+      },
+      {
+        "name": "password",
+        "type": "String"
+      },
+      {
+        "name": "deviceId",
+        "type": "String"
+      },
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "platform",
+        "type": "String"
+      },
+      {
+        "name": "version",
+        "type": "String"
+      },
+      {
+        "name": "attribution",
+        "type": "LoginAttribution)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:30:AnonymousRequest",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 30,
+    "name": "AnonymousRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "deviceId",
+        "type": "String"
+      },
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "platform",
+        "type": "String"
+      },
+      {
+        "name": "version",
+        "type": "String"
+      },
+      {
+        "name": "attribution",
+        "type": "LoginAttribution)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:33:GoogleRequest",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 33,
+    "name": "GoogleRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "idToken",
+        "type": "String"
+      },
+      {
+        "name": "deviceId",
+        "type": "String"
+      },
+      {
+        "name": "packageName",
+        "type": "String"
+      },
+      {
+        "name": "platform",
+        "type": "String"
+      },
+      {
+        "name": "version",
+        "type": "String"
+      },
+      {
+        "name": "attribution",
+        "type": "LoginAttribution)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:37:RefreshRequest",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 37,
+    "name": "RefreshRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "refreshToken",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:39:AuthResponse",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 39,
+    "name": "AuthResponse",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "token",
+        "type": "String"
+      },
+      {
+        "name": "refreshToken",
+        "type": "String?"
+      },
+      {
+        "name": "userId",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:41:PublicAuthApi",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 41,
+    "name": "PublicAuthApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:47:AccountApi",
+    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "line": 47,
+    "name": "AccountApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/NetworkModule.kt:27:NetworkModule",
+    "source": "core/src/main/java/com/vexora/core/network/NetworkModule.kt",
+    "line": 27,
+    "name": "NetworkModule",
+    "kind": "object",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/network/NetworkModule.kt:81:SessionInterceptor",
+    "source": "core/src/main/java/com/vexora/core/network/NetworkModule.kt",
+    "line": 81,
+    "name": "SessionInterceptor",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "api",
+        "type": "PublicAuthApi"
+      },
+      {
+        "name": "invalidateOnRetriedUnauthorized",
+        "type": "Boolean"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt:16:LegacyPaymentFlow",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt",
+    "line": 16,
+    "name": "LegacyPaymentFlow",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "orders",
+        "type": "LegacyPaymentRepository"
+      },
+      {
+        "name": "purchases",
+        "type": "CoinPurchaseController"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 18,
+    "name": "LegacyPaymentOrder",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "notified",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:19:LegacyRechargeMatch",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 19,
+    "name": "LegacyRechargeMatch",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:20:LegacyOrderStorage",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 20,
+    "name": "LegacyOrderStorage",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:27:PreferenceLegacyOrderStorage",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 27,
+    "name": "PreferenceLegacyOrderStorage",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:39:LegacyOrderRegistry",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 39,
+    "name": "LegacyOrderRegistry",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "storage",
+        "type": "LegacyOrderStorage)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:60:LegacyPaymentRepository",
+    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "line": 60,
+    "name": "LegacyPaymentRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "config",
+        "type": "BillingConfiguration"
+      },
+      {
+        "name": "registry",
+        "type": "LegacyOrderRegistry)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:14:PaymentEnvelope",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 14,
+    "name": "PaymentEnvelope",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "data",
+        "type": "T?"
+      },
+      {
+        "name": "code",
+        "type": "Int?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 17,
+    "name": "InitializePaymentRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:18:PaymentSdkParams",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 18,
+    "name": "PaymentSdkParams",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "productId",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:19:InitializedPayment",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 19,
+    "name": "InitializedPayment",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "channelType",
+        "type": "String"
+      },
+      {
+        "name": "channelCode",
+        "type": "String"
+      },
+      {
+        "name": "openMode",
+        "type": "String"
+      },
+      {
+        "name": "sdkParams",
+        "type": "PaymentSdkParams?"
+      },
+      {
+        "name": "paymentUrl",
+        "type": "String?"
+      },
+      {
+        "name": "expiresAt",
+        "type": "String?"
+      },
+      {
+        "name": "queryIntervalSeconds",
+        "type": "Int?"
+      },
+      {
+        "name": "maxQuerySeconds",
+        "type": "Int?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 42,
+    "name": "PaymentOrderStatus",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "status",
+        "type": "String"
+      },
+      {
+        "name": "fulfillmentStatus",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:50:PaymentClientEvent",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 50,
+    "name": "PaymentClientEvent",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "eventType",
+        "type": "String"
+      },
+      {
+        "name": "channelCode",
+        "type": "String?"
+      },
+      {
+        "name": "openMode",
+        "type": "String?"
+      },
+      {
+        "name": "page",
+        "type": "String"
+      },
+      {
+        "name": "occurredAt",
+        "type": "String"
+      },
+      {
+        "name": "openedAt",
+        "type": "String?"
+      },
+      {
+        "name": "closedAt",
+        "type": "String?"
+      },
+      {
+        "name": "durationMs",
+        "type": "Long?"
+      },
+      {
+        "name": "errorCode",
+        "type": "String?"
+      },
+      {
+        "name": "metadata",
+        "type": "JsonObject?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 62,
+    "name": "PaymentEventReceipt",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "recorded",
+        "type": "Boolean)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:64:PaymentFailure",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 64,
+    "name": "PaymentFailure",
+    "kind": "sealed",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:65:Unavailable",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 65,
+    "name": "Unavailable",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:66:InvalidResponse",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 66,
+    "name": "InvalidResponse",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:67:Http",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 67,
+    "name": "Http",
+    "kind": "data",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "status",
+        "type": "Int"
+      },
+      {
+        "name": "reason",
+        "type": "String?)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:72:PaymentConfiguration",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "line": 72,
+    "name": "PaymentConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "baseUrl",
+        "type": "String"
+      },
+      {
+        "name": "storageName",
+        "type": "String"
+      },
+      {
+        "name": "intervalSeconds",
+        "type": "Int"
+      },
+      {
+        "name": "maxSeconds",
+        "type": "Int"
+      },
+      {
+        "name": "successDisplayMs",
+        "type": "Long"
+      },
+      {
+        "name": "eventLimit",
+        "type": "Int"
+      },
+      {
+        "name": "eventAttempts",
+        "type": "Int"
+      },
+      {
+        "name": "eventRetryMs",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt:12:PaymentCoordinator",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt",
+    "line": 12,
+    "name": "PaymentCoordinator",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "engine",
+        "type": "PaymentEngine"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "configuration",
+        "type": "PaymentConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:19:PaymentOrderFactory",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "line": 19,
+    "name": "PaymentOrderFactory",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:20:PaymentEventSink",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "line": 20,
+    "name": "PaymentEventSink",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:21:PaymentViewState",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "line": 21,
+    "name": "PaymentViewState",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "epoch",
+        "type": "String?"
+      },
+      {
+        "name": "record",
+        "type": "PaymentRecord?"
+      },
+      {
+        "name": "checkoutVisible",
+        "type": "Boolean"
+      },
+      {
+        "name": "busy",
+        "type": "Boolean"
+      },
+      {
+        "name": "storageFailed",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:26:PaymentEngine",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "line": 26,
+    "name": "PaymentEngine",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "storage",
+        "type": "PaymentStorage"
+      },
+      {
+        "name": "repository",
+        "type": "PaymentRepository"
+      },
+      {
+        "name": "orders",
+        "type": "PaymentOrderFactory"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "events",
+        "type": "PaymentEventSink"
+      },
+      {
+        "name": "clock",
+        "type": "PaymentClock"
+      },
+      {
+        "name": "config",
+        "type": "PaymentConfiguration"
+      },
+      {
+        "name": "tracker",
+        "type": "EventTracker"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
+    "line": 17,
+    "name": "QueuedPaymentEvent",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "key",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "event",
+        "type": "PaymentClientEvent"
+      },
+      {
+        "name": "attempts",
+        "type": "Int"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:22:PaymentEventQueue",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
+    "line": 22,
+    "name": "PaymentEventQueue",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "config",
+        "type": "PaymentConfiguration"
+      },
+      {
+        "name": "repository",
+        "type": "PaymentRepository"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "json",
+        "type": "Json"
+      },
+      {
+        "name": "tracker",
+        "type": "EventTracker)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:13:PaymentServiceApi",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "line": 13,
+    "name": "PaymentServiceApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:18:PaymentRepository",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "line": 18,
+    "name": "PaymentRepository",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:32:ApiPaymentRepository",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "line": 32,
+    "name": "ApiPaymentRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "PaymentServiceApi"
+      },
+      {
+        "name": "config",
+        "type": "PaymentConfiguration"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:13:PaymentStage",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "line": 13,
+    "name": "PaymentStage",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:14:PaymentRecord",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "line": 14,
+    "name": "PaymentRecord",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "key",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "source",
+        "type": "String"
+      },
+      {
+        "name": "orderId",
+        "type": "String?"
+      },
+      {
+        "name": "initialized",
+        "type": "InitializedPayment?"
+      },
+      {
+        "name": "stage",
+        "type": "PaymentStage"
+      },
+      {
+        "name": "openedAt",
+        "type": "Long?"
+      },
+      {
+        "name": "deadline",
+        "type": "Long?"
+      },
+      {
+        "name": "successShownAt",
+        "type": "Long?"
+      },
+      {
+        "name": "successAcknowledged",
+        "type": "Boolean"
+      },
+      {
+        "name": "error",
+        "type": "String?"
+      },
+      {
+        "name": "quotePrice",
+        "type": "Double?"
+      },
+      {
+        "name": "quoteCurrency",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:28:PaymentStorage",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "line": 28,
+    "name": "PaymentStorage",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:33:PreferencePaymentStorage",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "line": 33,
+    "name": "PreferencePaymentStorage",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:43:PaymentClock",
+    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "line": 43,
+    "name": "PaymentClock",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:8:PurchaseFlow",
+    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "line": 8,
+    "name": "PurchaseFlow",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
+    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "line": 9,
+    "name": "PurchaseFlowConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "flow",
+        "type": "PurchaseFlow)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:13:PurchaseFlowDispatcher",
+    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "line": 13,
+    "name": "PurchaseFlowDispatcher",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "config",
+        "type": "PurchaseFlowConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt:16:PurchaseRouter",
+    "source": "core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt",
+    "line": 16,
+    "name": "PurchaseRouter",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "dispatcher",
+        "type": "PurchaseFlowDispatcher"
+      },
+      {
+        "name": "service",
+        "type": "ServicePaymentFlow"
+      },
+      {
+        "name": "legacy",
+        "type": "LegacyPaymentFlow"
+      },
+      {
+        "name": "legacyOrders",
+        "type": "LegacyOrderRegistry"
+      },
+      {
+        "name": "payments",
+        "type": "PaymentCoordinator"
+      },
+      {
+        "name": "purchases",
+        "type": "CoinPurchaseController"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "events",
+        "type": "EventTracker)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt:14:ServicePaymentFlow",
+    "source": "core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt",
+    "line": 14,
+    "name": "ServicePaymentFlow",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "engine",
+        "type": "PaymentEngine"
+      },
+      {
+        "name": "purchases",
+        "type": "CoinPurchaseController"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt:13:CountryIsRegionSource",
+    "source": "core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt",
+    "line": 13,
+    "name": "CountryIsRegionSource",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 8,
+    "name": "RegionAccessConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "enabled",
+        "type": "Boolean"
+      },
+      {
+        "name": "blockedCountries",
+        "type": "Set<String>"
+      },
+      {
+        "name": "ipRetryAttempts",
+        "type": "Int"
+      },
+      {
+        "name": "ipRetryDelayMillis",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:12:LocalRegionKind",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 12,
+    "name": "LocalRegionKind",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:13:LocalRegion",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 13,
+    "name": "LocalRegion",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "kind",
+        "type": "LocalRegionKind"
+      },
+      {
+        "name": "country",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:14:LocalRegionSource",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 14,
+    "name": "LocalRegionSource",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:15:IpRegionSource",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 15,
+    "name": "IpRegionSource",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:16:RegionNetworkSource",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 16,
+    "name": "RegionNetworkSource",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:17:RegionRestrictedException",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 17,
+    "name": "RegionRestrictedException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "diagnosticCode",
+        "type": "String)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:18:RegionUnavailableException",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 18,
+    "name": "RegionUnavailableException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "diagnosticCode",
+        "type": "String"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:19:RegionOfflineException",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 19,
+    "name": "RegionOfflineException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:32:RegionAccess",
+    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "line": 32,
+    "name": "RegionAccess",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "configuration",
+        "type": "RegionAccessConfiguration"
+      },
+      {
+        "name": "local",
+        "type": "LocalRegionSource"
+      },
+      {
+        "name": "ip",
+        "type": "IpRegionSource"
+      },
+      {
+        "name": "network",
+        "type": "RegionNetworkSource)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 27,
+    "name": "SourcePhoto",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "fileName",
+        "type": "String"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "size",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 28,
+    "name": "GenerationRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "key",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "template",
+        "type": "Template"
+      },
+      {
+        "name": "quality",
+        "type": "String"
+      },
+      {
+        "name": "photo",
+        "type": "SourcePhoto"
+      },
+      {
+        "name": "submitted",
+        "type": "Boolean"
+      },
+      {
+        "name": "task",
+        "type": "VisualTask?"
+      },
+      {
+        "name": "failure",
+        "type": "GenerationFailure?"
+      },
+      {
+        "name": "homeNoticeDismissed",
+        "type": "Boolean"
+      },
+      {
+        "name": "source",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:32:GenerationFailure",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 32,
+    "name": "GenerationFailure",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:33:GenerationException",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 33,
+    "name": "GenerationException",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "reason",
+        "type": "GenerationFailure)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:34:GenerationStorage",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 34,
+    "name": "GenerationStorage",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:43:GenerationRequestRepository",
+    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "line": 43,
+    "name": "GenerationRequestRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "VisualGenerationApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "storage",
+        "type": "GenerationStorage"
+      },
+      {
+        "name": "json",
+        "type": "Json"
+      },
+      {
+        "name": "events",
+        "type": "EventTracker"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
+    "source": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
+    "line": 19,
+    "name": "GenerationConfiguration",
+    "kind": "class",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "directory",
+        "type": "String"
+      },
+      {
+        "name": "maxImageBytes",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:21:PrivateGenerationStorage",
+    "source": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
+    "line": 21,
+    "name": "PrivateGenerationStorage",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context"
+      },
+      {
+        "name": "config",
+        "type": "GenerationConfiguration"
+      },
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
+    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "line": 15,
+    "name": "UploadedPhoto",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "url",
+        "type": "String"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "thumbnailUrl",
+        "type": "String?"
+      },
+      {
+        "name": "resourceType",
+        "type": "String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:21:UploadedPhotoApi",
+    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "line": 21,
+    "name": "UploadedPhotoApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:26:UploadedPhotoDownloadApi",
+    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "line": 26,
+    "name": "UploadedPhotoDownloadApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:30:UploadedPhotoRepository",
+    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "line": 30,
+    "name": "UploadedPhotoRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "UploadedPhotoApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "VisualPollingConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:11:VisualCategory",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 11,
+    "name": "VisualCategory",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "sortOrder",
+        "type": "Int"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:12:VisualPage",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 12,
+    "name": "VisualPage",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "items",
+        "type": "List<T>"
+      },
+      {
+        "name": "page",
+        "type": "Int"
+      },
+      {
+        "name": "pageSize",
+        "type": "Int"
+      },
+      {
+        "name": "total",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 13,
+    "name": "VisualTemplate",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "categoryId",
+        "type": "String?"
+      },
+      {
+        "name": "categoryName",
+        "type": "String"
+      },
+      {
+        "name": "fileUrl",
+        "type": "String"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "duration",
+        "type": "Double"
+      },
+      {
+        "name": "hotScore",
+        "type": "Int"
+      },
+      {
+        "name": "createdAt",
+        "type": "String"
+      },
+      {
+        "name": "prices",
+        "type": "com.vexora.core.catalog.TemplatePrices?"
+      },
+      {
+        "name": "previewUrl",
+        "type": "String?"
+      },
+      {
+        "name": "tags",
+        "type": "List<String>"
+      },
+      {
+        "name": "isHomeFeatured",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:21:VisualResult",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 21,
+    "name": "VisualResult",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "url",
+        "type": "String"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "duration",
+        "type": "Double"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:23:VisualTask",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 23,
+    "name": "VisualTask",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "taskId",
+        "type": "String"
+      },
+      {
+        "name": "status",
+        "type": "String"
+      },
+      {
+        "name": "modality",
+        "type": "String"
+      },
+      {
+        "name": "quality",
+        "type": "String"
+      },
+      {
+        "name": "templateId",
+        "type": "String"
+      },
+      {
+        "name": "diamondCost",
+        "type": "Long"
+      },
+      {
+        "name": "pollIntervalSeconds",
+        "type": "Int?"
+      },
+      {
+        "name": "refunded",
+        "type": "Boolean"
+      },
+      {
+        "name": "refundAmount",
+        "type": "Long?"
+      },
+      {
+        "name": "errorCode",
+        "type": "String?"
+      },
+      {
+        "name": "errorMessage",
+        "type": "String?"
+      },
+      {
+        "name": "resource",
+        "type": "VisualResult?"
+      },
+      {
+        "name": "createdAt",
+        "type": "String"
+      },
+      {
+        "name": "startedAt",
+        "type": "String?"
+      },
+      {
+        "name": "completedAt",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:31:VisualResource",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 31,
+    "name": "VisualResource",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "taskId",
+        "type": "String"
+      },
+      {
+        "name": "modality",
+        "type": "String"
+      },
+      {
+        "name": "templateId",
+        "type": "String"
+      },
+      {
+        "name": "templateName",
+        "type": "String"
+      },
+      {
+        "name": "url",
+        "type": "String"
+      },
+      {
+        "name": "thumbnailUrl",
+        "type": "String?"
+      },
+      {
+        "name": "mimeType",
+        "type": "String"
+      },
+      {
+        "name": "width",
+        "type": "Int"
+      },
+      {
+        "name": "height",
+        "type": "Int"
+      },
+      {
+        "name": "duration",
+        "type": "Double"
+      },
+      {
+        "name": "createdAt",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:38:VisualGenerationApi",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "line": 38,
+    "name": "VisualGenerationApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
+    "line": 8,
+    "name": "VisualPollingConfiguration",
+    "kind": "class",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "defaultSeconds",
+        "type": "Int"
+      },
+      {
+        "name": "minSeconds",
+        "type": "Int"
+      },
+      {
+        "name": "maxSeconds",
+        "type": "Int"
+      },
+      {
+        "name": "pageSize",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:13:VisualLibraryRepository",
+    "source": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
+    "line": 13,
+    "name": "VisualLibraryRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "VisualGenerationApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "VisualPollingConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
+    "source": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt",
+    "line": 6,
+    "name": "CoinDisplayConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "symbols",
+        "type": "Map<String"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
+    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "line": 15,
+    "name": "RechargeNotice",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "epoch",
+        "type": "String"
+      },
+      {
+        "name": "key",
+        "type": "String"
+      },
+      {
+        "name": "orderId",
+        "type": "String?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
+    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "line": 16,
+    "name": "RechargeStreamConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "initialRetry",
+        "type": "Long"
+      },
+      {
+        "name": "maxRetry",
+        "type": "Long"
+      },
+      {
+        "name": "firstMessageTimeout",
+        "type": "Long"
+      },
+      {
+        "name": "idleTimeout",
+        "type": "Long"
+      },
+      {
+        "name": "checkInterval",
+        "type": "Long"
+      },
+      {
+        "name": "dedupeWindow",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:21:RechargeNotifications",
+    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "line": 21,
+    "name": "RechargeNotifications",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "client",
+        "type": "OkHttpClient"
+      },
+      {
+        "name": "runtime",
+        "type": "CoreRuntimeConfig"
+      },
+      {
+        "name": "config",
+        "type": "RechargeStreamConfiguration"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "wallet",
+        "type": "WalletRepository"
+      },
+      {
+        "name": "json",
+        "type": "Json)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:14:CoinProduct",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 14,
+    "name": "CoinProduct",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "type",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "price",
+        "type": "Double"
+      },
+      {
+        "name": "currency",
+        "type": "String"
+      },
+      {
+        "name": "coins",
+        "type": "Long?"
+      },
+      {
+        "name": "bonus",
+        "type": "Long?"
+      },
+      {
+        "name": "googleProductId",
+        "type": "String?"
+      },
+      {
+        "name": "subscription",
+        "type": "Boolean"
+      },
+      {
+        "name": "thirdPartyProductId",
+        "type": "String?"
+      },
+      {
+        "name": "firstBuyPrice",
+        "type": "Double?"
+      },
+      {
+        "name": "firstBuyBonus",
+        "type": "Long?"
+      },
+      {
+        "name": "firstBuyPromotion",
+        "type": "Boolean"
+      },
+      {
+        "name": "originalPrice",
+        "type": "Double?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:31:ProductsResponse",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 31,
+    "name": "ProductsResponse",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "products",
+        "type": "List<CoinProduct>)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:32:CurrencyResponse",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 32,
+    "name": "CurrencyResponse",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "balance",
+        "type": "Long)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:35:CoinTransaction",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 35,
+    "name": "CoinTransaction",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "id",
+        "type": "String"
+      },
+      {
+        "name": "type",
+        "type": "String"
+      },
+      {
+        "name": "amount",
+        "type": "Long"
+      },
+      {
+        "name": "description",
+        "type": "String?"
+      },
+      {
+        "name": "category",
+        "type": "String?"
+      },
+      {
+        "name": "createdAt",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:38:TransactionsResponse",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 38,
+    "name": "TransactionsResponse",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "transactions",
+        "type": "List<CoinTransaction>"
+      },
+      {
+        "name": "total",
+        "type": "Int"
+      },
+      {
+        "name": "page",
+        "type": "Int"
+      },
+      {
+        "name": "pageSize",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:40:CreateOrderRequest",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 40,
+    "name": "CreateOrderRequest",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "trigger",
+        "type": "String"
+      },
+      {
+        "name": "platform",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:42:CreatedOrder",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 42,
+    "name": "CreatedOrder",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "productId",
+        "type": "String"
+      },
+      {
+        "name": "status",
+        "type": "String)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:46:WalletApi",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 46,
+    "name": "WalletApi",
+    "kind": "interface",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:55:WalletConfiguration",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "line": 55,
+    "name": "WalletConfiguration",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "productType",
+        "type": "String"
+      },
+      {
+        "name": "location",
+        "type": "String"
+      },
+      {
+        "name": "pageSize",
+        "type": "Int)"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:14:WalletSnapshot",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
+    "line": 14,
+    "name": "WalletSnapshot",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "epoch",
+        "type": "String?"
+      },
+      {
+        "name": "balance",
+        "type": "Long?"
+      },
+      {
+        "name": "products",
+        "type": "List<CoinProduct>"
+      },
+      {
+        "name": "transactions",
+        "type": "List<CoinTransaction>"
+      },
+      {
+        "name": "nextPage",
+        "type": "Int"
+      },
+      {
+        "name": "hasMore",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:20:WalletRepository",
+    "source": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
+    "line": 20,
+    "name": "WalletRepository",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "api",
+        "type": "WalletApi"
+      },
+      {
+        "name": "sessions",
+        "type": "SessionCoordinator"
+      },
+      {
+        "name": "config",
+        "type": "WalletConfiguration)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt:21:AppsFlyerAnalytics",
+    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt",
+    "line": 21,
+    "name": "AppsFlyerAnalytics",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context"
+      },
+      {
+        "name": "config",
+        "type": "AppsFlyerConfig)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
+    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt",
+    "line": 3,
+    "name": "AppsFlyerConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "devKey",
+        "type": "String"
+      },
+      {
+        "name": "debugLogging",
+        "type": "Boolean"
+      },
+      {
+        "name": "enabled",
+        "type": "Boolean"
+      },
+      {
+        "name": "diagnosticLogging",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:6:ForegroundAttributionStart",
+    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "line": 6,
+    "name": "ForegroundAttributionStart",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "valid",
+        "type": "(T) -> Boolean"
+      },
+      {
+        "name": "start",
+        "type": "(T) -> Boolean"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:30:AttributionStartStage",
+    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "line": 30,
+    "name": "AttributionStartStage",
+    "kind": "enum",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
+    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "line": 32,
+    "name": "AttributionStartStatus",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "stage",
+        "type": "AttributionStartStage"
+      },
+      {
+        "name": "errorCode",
+        "type": "Int?"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  },
+  {
+    "id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt:14:ThinkingDataAnalytics",
+    "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
+    "line": 14,
+    "name": "ThinkingDataAnalytics",
+    "kind": "class",
+    "category": "excluded",
+    "reason": "异常/枚举/接口/单例或有行为的协调器，不作为值模型扩展",
+    "constructor_fields": [
+      {
+        "name": "context",
+        "type": "Context"
+      },
+      {
+        "name": "config",
+        "type": "ThinkingDataConfig"
+      },
+      {
+        "name": "policy",
+        "type": "com.vexora.core.analytics.AnalyticsPolicy)"
+      }
+    ],
+    "target": null,
+    "checks": []
+  },
+  {
+    "id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
+    "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt",
+    "line": 5,
+    "name": "ThinkingDataConfig",
+    "kind": "data",
+    "category": "model",
+    "reason": "自有值模型，目标项目需1–5字段",
+    "constructor_fields": [
+      {
+        "name": "appId",
+        "type": "String"
+      },
+      {
+        "name": "serverUrl",
+        "type": "String"
+      },
+      {
+        "name": "debugMode",
+        "type": "Boolean"
+      }
+    ],
+    "target": "由新项目确认前缀后填写",
+    "checks": [
+      "serializer/手写映射",
+      "equals/hashCode/copy",
+      "StateFlow/集合",
+      "旧存储/响应",
+      "敏感值/幂等"
+    ]
+  }
+]

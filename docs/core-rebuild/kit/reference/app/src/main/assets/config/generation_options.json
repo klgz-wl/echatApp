@@ -1,0 +1,7 @@
+{
+  "defaultQuality": "fast",
+  "qualities": [
+    {"id": "fast", "label": "quality_standard"},
+    {"id": "quality", "label": "quality_high"}
+  ]
+}

@@ -30,3 +30,19 @@ keystore.properties
 # Project documentation must override the user's global `*.md` ignore rule.
 !AGENTS.md
 !docs/**/*.md
+
+.DS_Store
+# Core脚手架的本机状态、日志、备份和签名
+.core-scaffold/transactions/
+.core-scaffold/prepared/
+.core-scaffold/lock
+.core-scaffold/installed.json
+.core-scaffold/verification.json
+.core-scaffold/verify.log
+*.local.json
+local.properties
+config/*.local.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
