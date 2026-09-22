@@ -17,7 +17,7 @@
 3. [x] 比较 prepared 与真实工程的 Gradle、模块、配置、生命周期、DI、网络/会话、归因/埋点、生成、支付和恢复职责，保存语义映射与冲突处理。
 4. [x] 在真实工程建立独立 `:core` 边界，将当前唯一生效的后端、会话、生成和支付网关连同测试迁入 Core；app 继续保留 UI/生命周期职责，并通过 typed config 显式传入身份和地址。
 5. [x] 完成真实目标的 Core/app JVM 测试、Core/app 模拟器测试、Debug 构建和 lint；`doctor` 已运行并停在缺少 config，独立环境检查另确认 JDK17 和 sharedDev 缺失，未运行 `verify`。
-6. [ ] 完成实际接入阶段的验证、中文提交并推送 `origin/core_v1`。
+6. [x] 完成实际 Core 边界接入阶段的验证、中文提交并推送 `origin/core_v1`；scaffold 全矩阵及平台验收继续按未验收项管理。
 
 ## 验收边界
 
