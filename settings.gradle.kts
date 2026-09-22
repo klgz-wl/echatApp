@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "echatApp"
 include(":app")
+include(":core")

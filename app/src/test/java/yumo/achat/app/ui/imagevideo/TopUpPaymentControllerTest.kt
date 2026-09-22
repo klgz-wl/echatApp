@@ -8,10 +8,10 @@ import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import yumo.achat.app.data.backend.PaymentInitialization
-import yumo.achat.app.data.backend.StoreOrder
-import yumo.achat.app.data.backend.StorePaymentGateway
-import yumo.achat.app.data.backend.PaymentOrderStatus
+import yumo.achat.core.backend.PaymentInitialization
+import yumo.achat.core.backend.StoreOrder
+import yumo.achat.core.backend.StorePaymentGateway
+import yumo.achat.core.backend.PaymentOrderStatus
 
 class TopUpPaymentControllerTest {
     @Test

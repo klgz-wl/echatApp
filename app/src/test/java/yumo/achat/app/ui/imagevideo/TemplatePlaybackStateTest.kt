@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.VisualTemplate
 import androidx.compose.ui.layout.ContentScale
 import coil.size.Scale
 

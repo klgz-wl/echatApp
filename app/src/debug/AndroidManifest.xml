@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="yumo.achat.app.ui.imagevideo.ImageToVideoTestActivity"
+            android:exported="false" />
+    </application>
+</manifest>

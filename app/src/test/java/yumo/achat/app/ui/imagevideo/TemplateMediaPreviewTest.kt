@@ -2,7 +2,7 @@ package yumo.achat.app.ui.imagevideo
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.VisualTemplate
 
 class TemplateMediaPreviewTest {
     @Test

@@ -4,8 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
-import yumo.achat.app.data.backend.TemplateLoadResult
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.TemplateLoadResult
+import yumo.achat.core.backend.VisualTemplate
 
 class TemplateRetryStateTest {
     @Test

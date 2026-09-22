@@ -12,9 +12,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import yumo.achat.app.R
-import yumo.achat.app.data.backend.AchatRepository
-import yumo.achat.app.data.backend.ProfileEditingGateway
-import yumo.achat.app.data.backend.UserProfile
+import yumo.achat.app.createAchatRepository
+import yumo.achat.core.backend.ProfileEditingGateway
+import yumo.achat.core.backend.UserProfile
 
 internal enum class ProfileEditOperation { Name, Avatar }
 
@@ -102,7 +102,7 @@ internal class ProfileEditingController(
 
 internal class ProfileEditingViewModel(application: Application) : AndroidViewModel(application) {
     val controller = ProfileEditingController(
-        gateway = AchatRepository(application),
+        gateway = createAchatRepository(application),
         scope = viewModelScope,
         fallbackError = { error ->
             apiEnvelopeUserMessage(

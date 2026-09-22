@@ -5,10 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import yumo.achat.app.data.backend.PaymentInitialization
-import yumo.achat.app.data.backend.PreparedStorePayment
-import yumo.achat.app.data.backend.StoreOrder
-import yumo.achat.app.data.backend.PaymentOrderStatus
+import yumo.achat.core.backend.PaymentInitialization
+import yumo.achat.core.backend.PreparedStorePayment
+import yumo.achat.core.backend.StoreOrder
+import yumo.achat.core.backend.PaymentOrderStatus
 
 class TopUpPaymentPreparationTest {
     @Test

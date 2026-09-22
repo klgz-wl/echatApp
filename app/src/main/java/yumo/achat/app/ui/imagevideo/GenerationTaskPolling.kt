@@ -1,7 +1,7 @@
 package yumo.achat.app.ui.imagevideo
 
 import kotlinx.coroutines.CancellationException
-import yumo.achat.app.data.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualGenerationTask
 
 internal fun shouldApplyGenerationCharge(taskId: String, chargedTaskIds: Set<String>): Boolean =
     taskId.isNotBlank() && taskId !in chargedTaskIds

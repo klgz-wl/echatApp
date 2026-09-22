@@ -148,6 +148,11 @@ internal fun HeroCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics {
+                    if (!showPlaybackControls) {
+                        contentDescription = playDescription
+                    }
+                }
                 .clickable(
                     interactionSource = controlInteractionSource,
                     indication = null,

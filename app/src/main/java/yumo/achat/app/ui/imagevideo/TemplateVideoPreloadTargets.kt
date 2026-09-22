@@ -1,6 +1,6 @@
 package yumo.achat.app.ui.imagevideo
 
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.VisualTemplate
 
 internal fun List<VisualTemplate>.nearbyVideoPreviewUrls(selectedIndex: Int): List<String> {
     if (isEmpty()) {

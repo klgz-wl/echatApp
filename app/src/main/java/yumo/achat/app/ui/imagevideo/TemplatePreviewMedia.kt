@@ -1,6 +1,6 @@
 package yumo.achat.app.ui.imagevideo
 
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.core.backend.VisualTemplate
 import androidx.compose.ui.layout.ContentScale
 import coil.size.Scale
 

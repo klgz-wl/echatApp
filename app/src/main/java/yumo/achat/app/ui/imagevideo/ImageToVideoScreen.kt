@@ -119,16 +119,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yumo.achat.app.R
-import yumo.achat.app.data.backend.AchatRepository
-import yumo.achat.app.data.backend.StoreProduct
-import yumo.achat.app.data.backend.StoreCatalog
-import yumo.achat.app.data.backend.PreparedStorePayment
-import yumo.achat.app.data.backend.PaymentOrderStatus
-import yumo.achat.app.data.backend.StoreUserInfo
-import yumo.achat.app.data.backend.TemplateLoadResult
-import yumo.achat.app.data.backend.VisualCategory
-import yumo.achat.app.data.backend.VisualGenerationTask
-import yumo.achat.app.data.backend.VisualTemplate
+import yumo.achat.app.createAchatRepository
+import yumo.achat.core.backend.AchatAppGateway
+import yumo.achat.core.backend.StoreProduct
+import yumo.achat.core.backend.StoreCatalog
+import yumo.achat.core.backend.PreparedStorePayment
+import yumo.achat.core.backend.PaymentOrderStatus
+import yumo.achat.core.backend.StoreUserInfo
+import yumo.achat.core.backend.TemplateLoadResult
+import yumo.achat.core.backend.VisualCategory
+import yumo.achat.core.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualTemplate
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
@@ -208,7 +209,7 @@ internal fun AchatBackendUiState.withTemplateLoadResult(
 }
 
 internal fun AchatBackendUiState.withLoadedProfile(
-    profile: yumo.achat.app.data.backend.UserProfile?,
+    profile: yumo.achat.core.backend.UserProfile?,
     fallbackId: String,
     preserveCurrent: Boolean,
 ): AchatBackendUiState = if (preserveCurrent) {
@@ -233,7 +234,7 @@ internal sealed interface TopUpPurchaseState {
     data class Preparing(val productId: String) : TopUpPurchaseState
     data class OfficialReady(
         val productId: String,
-        val order: yumo.achat.app.data.backend.StoreOrder,
+        val order: yumo.achat.core.backend.StoreOrder,
         val channelCode: String,
         val sdkProductId: String,
     ) : TopUpPurchaseState {
@@ -243,7 +244,7 @@ internal sealed interface TopUpPurchaseState {
     }
     data class ThirdPartyReady(
         val productId: String,
-        val order: yumo.achat.app.data.backend.StoreOrder,
+        val order: yumo.achat.core.backend.StoreOrder,
         val channelCode: String,
         val openMode: String,
         val paymentUrl: String,
@@ -256,7 +257,7 @@ internal sealed interface TopUpPurchaseState {
     data class Error(
         val productId: String,
         val message: String,
-        val order: yumo.achat.app.data.backend.StoreOrder? = null,
+        val order: yumo.achat.core.backend.StoreOrder? = null,
     ) : TopUpPurchaseState
 }
 
@@ -372,20 +373,26 @@ internal fun formatStoreMoney(amount: BigDecimal, currencyCode: String, locale: 
 }
 
 @Composable
-fun ImageToVideoScreen(modifier: Modifier = Modifier) {
+internal fun ImageToVideoScreen(
+    modifier: Modifier = Modifier,
+    repositoryFactory: (Context) -> AchatAppGateway = ::createAchatRepository,
+    topUpControllerOverride: TopUpPaymentController? = null,
+    profileControllerOverride: ProfileEditingController? = null,
+    launchOfficialOverride: ((Activity, TopUpPurchaseState.OfficialReady) -> Unit)? = null,
+) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
-    val repository = remember(context) { AchatRepository(context) }
+    val repository = remember(context, repositoryFactory) { repositoryFactory(context) }
     val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
-    val topUpPaymentViewModel: TopUpPaymentViewModel = viewModel()
-    val topUpPaymentController = topUpPaymentViewModel.controller
-    val profileEditingViewModel: ProfileEditingViewModel = viewModel()
-    val profileEditingController = profileEditingViewModel.controller
+    val topUpPaymentViewModel = if (topUpControllerOverride == null) viewModel<TopUpPaymentViewModel>() else null
+    val topUpPaymentController = topUpControllerOverride ?: requireNotNull(topUpPaymentViewModel).controller
+    val profileEditingViewModel = if (profileControllerOverride == null) viewModel<ProfileEditingViewModel>() else null
+    val profileEditingController = profileControllerOverride ?: requireNotNull(profileEditingViewModel).controller
     var topUpState by remember {
         mutableStateOf(
             TopUpUiState(
@@ -418,7 +425,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    fun applyProfile(profile: yumo.achat.app.data.backend.UserProfile) {
+    fun applyProfile(profile: yumo.achat.core.backend.UserProfile) {
         profileRevision += 1
         backendState = backendState.copy(
             profileName = profile.displayName,
@@ -656,7 +663,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             is TopUpPurchaseState.OfficialReady -> {
                 val activity = localContext as? Activity
                 if (activity == null) topUpPaymentController.onCheckoutLaunchError("Activity unavailable")
-                else topUpPaymentViewModel.launchOfficial(activity, route)
+                else if (launchOfficialOverride != null) launchOfficialOverride(activity, route)
+                else requireNotNull(topUpPaymentViewModel).launchOfficial(activity, route)
             }
             is TopUpPurchaseState.ThirdPartyReady -> {
                 if (route.openMode == "external_browser") {
@@ -770,6 +778,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
             ImageToVideoDestination.UploadPhoto -> {
                 UploadPhotoScreen(
+                    repository = repository,
                     selectedNavigation = selectedNavigation,
                     onBack = { destination = ImageToVideoDestination.Templates },
                     onNavigationSelect = ::navigateFromBottomNavigation,
@@ -2908,6 +2917,7 @@ private fun StartChatButton(label: String, enabled: Boolean, onClick: () -> Unit
 
 @Composable
 private fun UploadPhotoScreen(
+    repository: AchatAppGateway,
     selectedNavigation: Int,
     onBack: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
@@ -2918,8 +2928,6 @@ private fun UploadPhotoScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val appContext = context.applicationContext
-    val repository = remember(appContext) { AchatRepository(appContext) }
     val scope = rememberCoroutineScope()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }

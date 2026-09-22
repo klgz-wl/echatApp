@@ -4,8 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import yumo.achat.app.data.backend.VisualGenerationTask
-import yumo.achat.app.data.backend.VisualResource
+import yumo.achat.core.backend.VisualGenerationTask
+import yumo.achat.core.backend.VisualResource
 
 class TrackedGenerationTaskTest {
     @Test

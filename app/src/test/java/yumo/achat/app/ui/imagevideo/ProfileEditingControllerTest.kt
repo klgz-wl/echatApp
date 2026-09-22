@@ -9,8 +9,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
-import yumo.achat.app.data.backend.ProfileEditingGateway
-import yumo.achat.app.data.backend.UserProfile
+import yumo.achat.core.backend.ProfileEditingGateway
+import yumo.achat.core.backend.UserProfile
 
 class ProfileEditingControllerTest {
     @Test

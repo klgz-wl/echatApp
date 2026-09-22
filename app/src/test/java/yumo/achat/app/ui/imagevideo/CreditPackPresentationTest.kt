@@ -5,8 +5,8 @@ import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import yumo.achat.app.data.backend.StoreProduct
-import yumo.achat.app.data.backend.StoreUserInfo
+import yumo.achat.core.backend.StoreProduct
+import yumo.achat.core.backend.StoreUserInfo
 
 class CreditPackPresentationTest {
     @Test
