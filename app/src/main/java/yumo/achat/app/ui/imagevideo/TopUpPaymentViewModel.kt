@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import yumo.achat.app.BuildConfig
 import yumo.achat.app.R
 import yumo.achat.core.backend.PreparedStorePayment
 import yumo.achat.core.backend.StoreProduct
@@ -19,6 +20,7 @@ import yumo.achat.core.backend.StorePaymentGateway
 
 internal class TopUpPaymentController(
     private val gateway: StorePaymentGateway,
+    private val paymentFlow: TopUpPaymentFlow,
     private val scope: CoroutineScope,
     private val errorMessage: (Throwable) -> String,
 ) {
@@ -113,8 +115,13 @@ internal class TopUpPaymentController(
                     order = null
                     error("Payment order product mismatch")
                 }
-                val initialization = gateway.initializeStorePayment(order.id)
-                val preparedState = PreparedStorePayment(order, initialization).toTopUpPurchaseState(productId)
+                val preparedState = when (paymentFlow) {
+                    TopUpPaymentFlow.Legacy -> officialFallbackRoute(productId, order)
+                    TopUpPaymentFlow.Service -> {
+                        val initialization = gateway.initializeStorePayment(order.id)
+                        PreparedStorePayment(order, initialization).toTopUpPurchaseState(productId)
+                    }
+                }
                 if (requestSerial == serial && selectedProductId == productId) {
                     state = preparedState
                 }
@@ -320,6 +327,16 @@ internal class TopUpPaymentController(
     }
 }
 
+internal enum class TopUpPaymentFlow {
+    Service,
+    Legacy;
+
+    companion object {
+        fun fromConfig(value: String?): TopUpPaymentFlow =
+            if (value.equals("LEGACY", ignoreCase = true)) Legacy else Service
+    }
+}
+
 internal sealed interface TopUpCheckoutState {
     data object Idle : TopUpCheckoutState
     data object Launching : TopUpCheckoutState
@@ -335,6 +352,7 @@ internal class TopUpPaymentViewModel(application: Application) : AndroidViewMode
     private val billingManager = GooglePlayBillingManager.get(application)
     val controller = TopUpPaymentController(
         gateway = createAchatRepository(application),
+        paymentFlow = TopUpPaymentFlow.fromConfig(BuildConfig.PAYMENT_FLOW),
         scope = viewModelScope,
         errorMessage = { error ->
             topUpPaymentPrepareUserMessage(

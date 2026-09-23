@@ -33,7 +33,7 @@ class TopUpPaymentControllerTest {
     @Test
     fun `official payment uses initializer sdk sku`() {
         val gateway = FakeGateway()
-        val controller = controller(gateway)
+        val controller = controller(gateway, flow = TopUpPaymentFlow.Service)
 
         controller.retainAvailableProducts(listOf(product(id = "pack-100")))
         controller.prepare()
@@ -42,6 +42,41 @@ class TopUpPaymentControllerTest {
         assertEquals(1, gateway.initializeCount)
         val route = controller.state as TopUpPurchaseState.OfficialReady
         assertEquals("diamonds_100", route.sdkProductId)
+    }
+
+    @Test
+    fun `legacy payment creates order and uses catalog google sku without initializer`() {
+        val gateway = FakeGateway(
+            initialize = { error("legacy must not initialize payment-service") },
+        )
+        val controller = controller(gateway, flow = TopUpPaymentFlow.Legacy)
+
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", googleProductId = "play.pack.100")),
+        )
+        controller.prepare()
+
+        assertEquals(1, gateway.createCount)
+        assertEquals(0, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("google_play", route.channelCode)
+        assertEquals("play.pack.100", route.sdkProductId)
+        assertEquals("order-1", route.orderId)
+    }
+
+    @Test
+    fun `legacy payment falls back to product id when catalog google sku is blank`() {
+        val gateway = FakeGateway(
+            initialize = { error("legacy must not initialize payment-service") },
+        )
+        val controller = controller(gateway, flow = TopUpPaymentFlow.Legacy)
+
+        controller.retainAvailableProducts(listOf(product(id = "pack-100")))
+        controller.prepare()
+
+        assertEquals(0, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("pack-100", route.sdkProductId)
     }
 
     @Test
@@ -213,8 +248,12 @@ class TopUpPaymentControllerTest {
         assertEquals(1, gateway.createCount)
     }
 
-    private fun controller(gateway: FakeGateway) = TopUpPaymentController(
+    private fun controller(
+        gateway: FakeGateway,
+        flow: TopUpPaymentFlow = TopUpPaymentFlow.Service,
+    ) = TopUpPaymentController(
         gateway = gateway,
+        paymentFlow = flow,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         errorMessage = { it.message ?: "Payment failed" },
     )
