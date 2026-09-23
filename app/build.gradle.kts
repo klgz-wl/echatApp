@@ -15,7 +15,9 @@ fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\
 
 val common = rootProject.extra["appConfig"] as Properties
 val mode = common.getProperty("kit.prod.mode", "DEV_REUSE")
+check(mode in setOf("DEV_REUSE", "FORMAL")) { "kit.prod.mode must be DEV_REUSE or FORMAL" }
 val devProperties = readProperties("config/dev.properties")
+val prodProperties = readProperties("config/prod.properties")
 val signingProperties = readProperties("config/signing.local.properties")
 
 val flavorEndpoints = mapOf(
@@ -27,17 +29,22 @@ val flavorEndpoints = mapOf(
         "REGION_LOOKUP_URL" to "https://api.country.is/",
     ),
     "prod" to mapOf(
-        "CORE_BASE_URL" to "",
-        "PAYMENT_BASE_URL" to "",
-        "CORE_STREAM_URL" to "",
-        "CORE_CDN_URL" to "",
+        "CORE_BASE_URL" to "https://release.appjoly.com/api/v1/",
+        "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
+        "CORE_STREAM_URL" to "wss://release.appjoly.com",
+        "CORE_CDN_URL" to "https://cdn.appjoly.com",
         "REGION_LOOKUP_URL" to "",
     ),
 )
 
 val flavorApplicationIds = mapOf(
-    "dev" to "yumo.achat.app",
-    "prod" to if (mode == "DEV_REUSE") "yumo.achat.app" else "REPLACE_PROD_APPLICATION_ID",
+    "dev" to devProperties.getProperty("applicationId", "yumo.achat.app"),
+    "prod" to if (mode == "DEV_REUSE") {
+        devProperties.getProperty("applicationId", "yumo.achat.app")
+    } else {
+        prodProperties.getProperty("applicationId")
+            ?: error("config/prod.properties must define applicationId for FORMAL prod")
+    },
 )
 
 val flavorConfigurations = listOf("dev", "prod").associateWith { env ->
@@ -112,6 +119,7 @@ android {
                 dimension = "environment"
                 applicationId = config.getProperty("applicationId")
                 signingConfig = signingConfigs.getByName("sharedDev")
+                manifestPlaceholders["appLabel"] = config.getProperty("app.display.name", "Achat")
                 val baseUrl = config.getProperty("build.string.CORE_BASE_URL").removeSuffix("/api/v1/")
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
                 buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
