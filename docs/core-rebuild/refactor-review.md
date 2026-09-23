@@ -4,7 +4,9 @@
 
 本轮在 existing 模式下保留 echatApp 既有业务、Git 与远程，仅把可复用后端数据访问层从 `app` 迁入 `core`，由宿主通过 `AchatCoreBackendFactory` 注入 `AchatBackendConfiguration`。Core 不再读取宿主 `BuildConfig`，网络 baseUrl、applicationId、clientVersion 均由 app 边界传入；宿主 UI、Compose 页面、ViewModel 状态和业务流程保持原入口。
 
-基线装配已覆盖 `core`、`integration/analytics-appsflyer`、`integration/analytics-thinkingdata`、dev/prod flavor、sharedDev 签名、dev/prod Google resources、配置指纹与 APK 身份检查。`prod` 当前按已确认的 `DEV_REUSE` 策略复用 dev 身份，未伪造正式生产资料。
+基线装配已覆盖 `core`、`integration/analytics-appsflyer`、`integration/analytics-thinkingdata`、dev/prod flavor、sharedDev 签名、dev/prod Google resources、配置指纹与 APK 身份检查。`prod` 当前为 FORMAL 运行配置：包名 `com.zorv.app`、显示名 `zorv`、运行时 REST/WebSocket 指向 release 环境，Top Up 默认使用 Core payment-service `SERVICE` 路由。当前 release 仍使用 sharedDev 签名用于本地验证，不把它冒充为 Google Play 正式上传签名验收。
+
+`.core-scaffold/project.json` 中的 `prod_mode=DEV_REUSE` 是初始化阶段的锁定问答元信息，脚手架 `doctor` 会按该值校验历史接入参数；正式运行模式以后续 `config/app.properties` 的 `kit.prod.mode=FORMAL` 与生成的 `BuildConfig` 为准。不要为了让 project 元信息看起来与正式运行配置一致而改写该字段，否则会破坏脚手架校验。
 
 ## Model台账与兼容策略
 
@@ -14,4 +16,4 @@
 
 ## 宿主接入与验证边界
 
-已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。真实平台验收仍需外部条件：后端 dev 服务联通、Google Play Billing 测试账号、AppsFlyer/Firebase/ThinkingData 控台事件回看、上传/生成/支付的真实沙箱数据。本报告不把本地构建通过等同于这些平台验收。
+已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。脚手架官方 verify 任务列表仍按锁定工具执行；此外，本工程额外提供并已运行 `:app:verifyProdReleaseRuntimeConfig`，用于可重复检查 prod/release 运行地址、支付路由和 Firebase 开关。真实平台验收仍需外部条件：后端 dev/release 服务联通、Google Play Billing 测试账号、AppsFlyer/ThinkingData/后端事件控台回看、上传/生成/支付的真实沙箱数据。Firebase SDK/sink 尚未接入，prod 相关开关保持关闭；dev 仍保留交接包固定基线开关但不作为 Firebase 平台验收证据。本报告不把本地构建通过等同于这些平台验收。

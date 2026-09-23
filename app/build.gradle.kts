@@ -97,14 +97,10 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("sharedDev")
-            buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
-            buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
         }
         release {
             signingConfig = signingConfigs.getByName("sharedDev")
             isMinifyEnabled = false
-            buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
-            buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -190,4 +186,36 @@ dependencies {
 
 tasks.register("testDevReleaseUnitTest") {
     dependsOn("testDevDebugUnitTest")
+}
+
+tasks.register("verifyProdReleaseRuntimeConfig") {
+    dependsOn("generateProdReleaseBuildConfig")
+    val buildConfig = layout.buildDirectory.file(
+        "generated/source/buildConfig/prod/release/yumo/achat/app/BuildConfig.java",
+    )
+    inputs.file(buildConfig)
+    doLast {
+        val text = buildConfig.get().asFile.readText()
+        val expected = mapOf(
+            "APPLICATION_ID" to "com.zorv.app",
+            "ACHAT_API_BASE_URL" to "https://release.appjoly.com",
+            "ACHAT_WS_URL" to "wss://release.appjoly.com/connection/websocket",
+            "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
+            "PAYMENT_FLOW" to "SERVICE",
+        )
+        expected.forEach { (field, value) ->
+            check("""$field = "$value""" in text) {
+                "prodRelease BuildConfig $field must be $value"
+            }
+        }
+        listOf(
+            "ENABLE_FIREBASE_ANALYTICS",
+            "ENABLE_FIREBASE_CRASHLYTICS",
+            "ENABLE_FIREBASE_MESSAGING",
+        ).forEach { field ->
+            check("""$field = false""" in text) {
+                "prodRelease BuildConfig $field must stay false until the Firebase SDK/sink is wired"
+            }
+        }
+    }
 }

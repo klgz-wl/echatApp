@@ -10,6 +10,6 @@
   "developer_confirmed": true,
   "project_mode": "existing",
   "schema": 1,
-  "phase": "BASELINE_PENDING_REFACTOR",
+  "phase": "REFACTORED",
   "kit_baseline": "273835ab7d6d9ef772bb3dd8c219da5389e60d6b"
 }
