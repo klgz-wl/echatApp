@@ -31,7 +31,7 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
-    fun `official payment falls back to product id when catalog google sku is absent`() {
+    fun `official payment uses initializer sdk sku`() {
         val gateway = FakeGateway()
         val controller = controller(gateway)
 
@@ -39,13 +39,13 @@ class TopUpPaymentControllerTest {
         controller.prepare()
 
         assertEquals(1, gateway.createCount)
-        assertEquals(0, gateway.initializeCount)
+        assertEquals(1, gateway.initializeCount)
         val route = controller.state as TopUpPurchaseState.OfficialReady
-        assertEquals("pack-100", route.sdkProductId)
+        assertEquals("diamonds_100", route.sdkProductId)
     }
 
     @Test
-    fun `official payment directly uses catalog google sku without payment initialization`() {
+    fun `catalog google sku does not override initializer route`() {
         val gateway = FakeGateway()
         val controller = controller(gateway)
 
@@ -55,10 +55,39 @@ class TopUpPaymentControllerTest {
         controller.prepare()
 
         assertEquals(1, gateway.createCount)
-        assertEquals(0, gateway.initializeCount)
+        assertEquals(1, gateway.initializeCount)
         val route = controller.state as TopUpPurchaseState.OfficialReady
-        assertEquals("play.pack.100", route.sdkProductId)
+        assertEquals("diamonds_100", route.sdkProductId)
         assertEquals("google_play", route.channelCode)
+    }
+
+    @Test
+    fun `third party initializer route opens checkout payload`() {
+        val gateway = FakeGateway(
+            initialize = {
+                PaymentInitialization(
+                    orderId = "order-1",
+                    channelType = "third_party",
+                    channelCode = "payu_web_us",
+                    openMode = "webview",
+                    paymentUrl = "https://checkout.example/pay/1",
+                    expiresAt = "2026-09-23T08:10:00Z",
+                    queryIntervalSeconds = 10,
+                    maxQuerySeconds = 600,
+                    sdkProductId = "",
+                )
+            },
+        )
+        val controller = controller(gateway)
+        controller.selectProduct("pack-100")
+
+        controller.prepare()
+
+        assertEquals(1, gateway.createCount)
+        assertEquals(1, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.ThirdPartyReady
+        assertEquals("payu_web_us", route.channelCode)
+        assertEquals("https://checkout.example/pay/1", route.paymentUrl)
     }
 
     @Test
@@ -106,6 +135,29 @@ class TopUpPaymentControllerTest {
 
         assertEquals(TopUpCheckoutState.Idle, controller.checkoutState)
         assertEquals(1, gateway.createCount)
+        assertEquals(1, gateway.initializeCount)
+    }
+
+    @Test
+    fun `initialize failure retry reuses created order`() {
+        var initializeAttempts = 0
+        val gateway = FakeGateway(
+            initialize = {
+                initializeAttempts += 1
+                if (initializeAttempts == 1) error("route unavailable")
+                officialInitialization()
+            },
+        )
+        val controller = controller(gateway)
+        controller.selectProduct("pack-100")
+
+        controller.prepare()
+        assertTrue(controller.state is TopUpPurchaseState.Error)
+        controller.prepare()
+
+        assertEquals(1, gateway.createCount)
+        assertEquals(2, gateway.initializeCount)
+        assertTrue(controller.state is TopUpPurchaseState.OfficialReady)
     }
 
     @Test
