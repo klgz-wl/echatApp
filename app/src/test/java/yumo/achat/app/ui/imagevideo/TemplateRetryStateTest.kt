@@ -10,6 +10,32 @@ import yumo.achat.core.backend.VisualTemplate
 
 class TemplateRetryStateTest {
     @Test
+    fun `template retry escalates to startup retry when initial home load failed`() {
+        val state = AchatBackendUiState(
+            isLoading = false,
+            errorMessage = "Backend unavailable",
+            videoTemplates = emptyList(),
+            videoTemplatesLoading = false,
+            videoTemplateErrorMessage = "Unable to load video templates",
+        )
+
+        assertEquals(TemplateRetryAction.Startup, templateRetryAction(state, TemplateSection.Video))
+    }
+
+    @Test
+    fun `template retry stays scoped after home load succeeded`() {
+        val state = AchatBackendUiState(
+            isLoading = false,
+            errorMessage = null,
+            videoTemplates = emptyList(),
+            videoTemplatesLoading = false,
+            videoTemplateErrorMessage = "Unable to load video templates",
+        )
+
+        assertEquals(TemplateRetryAction.Section, templateRetryAction(state, TemplateSection.Video))
+    }
+
+    @Test
     fun `failed video retry preserves both successful modality lists`() {
         val oldVideo = template("video-old")
         val oldImage = template("image-old")

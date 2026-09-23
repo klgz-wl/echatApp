@@ -156,6 +156,7 @@ object AchatBackendParsers {
             name = data.optNullableString("name"),
             avatarUrl = data.optNullableString("avatar"),
             largeAvatarUrl = data.optNullableString("avatar_large"),
+            isNew = if (data.has("is_new") && !data.isNull("is_new")) data.optBoolean("is_new") else null,
         )
     }
 

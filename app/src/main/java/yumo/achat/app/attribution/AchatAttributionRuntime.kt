@@ -17,6 +17,7 @@ import yumo.achat.core.attribution.AttributionCoordinator
 import yumo.achat.core.attribution.AttributionStorage
 import yumo.achat.core.attribution.LoginAttribution
 import yumo.achat.core.attribution.deviceAttributionReport
+import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.auth.Session
 import yumo.achat.core.auth.SessionStorage
 import yumo.achat.core.backend.AchatBackendClient
@@ -95,6 +96,8 @@ internal class AppsFlyerBackendAttribution(
         coordinator.forLogin()
 
     override fun currentId(): String = source.currentId()
+
+    fun analyticsSink(): AnalyticsSink = source
 
     override suspend fun report(session: AuthSession) {
         activeSession = session

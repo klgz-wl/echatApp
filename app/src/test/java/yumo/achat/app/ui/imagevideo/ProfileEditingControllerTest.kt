@@ -81,6 +81,7 @@ class ProfileEditingControllerTest {
         name = null,
         avatarUrl = null,
         largeAvatarUrl = null,
+        isNew = null,
     )
 
     private class FakeProfileGateway(

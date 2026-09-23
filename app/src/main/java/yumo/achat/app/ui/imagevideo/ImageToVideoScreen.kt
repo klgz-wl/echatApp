@@ -126,6 +126,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yumo.achat.app.R
+import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
 import yumo.achat.core.backend.PreparedStorePayment
@@ -165,6 +166,14 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
     )
 }
 
+internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
+    0 -> "video"
+    1 -> "image"
+    2 -> "top_up"
+    3 -> "me"
+    else -> "unknown"
+}
+
 internal fun shouldRefreshTopUp(currentNavigation: Int, selectedNavigation: Int): Boolean =
     currentNavigation == 2 && selectedNavigation == 2
 
@@ -174,9 +183,14 @@ internal fun balanceAfterGenerationTaskCreated(currentBalance: Int, diamondCost:
 internal fun shouldRefreshBalanceForTaskStatus(status: String): Boolean =
     status == "succeeded" || status == "failed"
 
-private enum class TemplateSection {
+internal enum class TemplateSection {
     Video,
     Image,
+}
+
+internal enum class TemplateRetryAction {
+    Startup,
+    Section,
 }
 
 internal data class AchatBackendUiState(
@@ -185,6 +199,7 @@ internal data class AchatBackendUiState(
     val profileName: String = "Quiet wanderer",
     val profileId: String = "3095609813",
     val profileAvatarUrl: String? = null,
+    val isNewProfile: Boolean? = null,
     val diamondBalance: Int = 0,
     val videoTemplates: List<VisualTemplate> = emptyList(),
     val imageTemplates: List<VisualTemplate> = emptyList(),
@@ -218,12 +233,13 @@ internal fun AchatBackendUiState.withLoadedProfile(
     fallbackId: String,
     preserveCurrent: Boolean,
 ): AchatBackendUiState = if (preserveCurrent) {
-    this
+    copy(isNewProfile = profile?.isNew ?: isNewProfile)
 } else {
     copy(
         profileName = profile?.displayName ?: profileName,
         profileId = profile?.id ?: fallbackId,
         profileAvatarUrl = profile?.largeAvatarUrl ?: profile?.avatarUrl,
+        isNewProfile = profile?.isNew ?: isNewProfile,
     )
 }
 
@@ -232,6 +248,14 @@ internal fun shouldShowLocalTemplateFallback(
     isLoading: Boolean,
     errorMessage: String?,
 ): Boolean = templates.isEmpty() && !isLoading && errorMessage != null
+
+internal fun templateRetryAction(state: AchatBackendUiState, section: TemplateSection): TemplateRetryAction {
+    val sectionHasNoLiveData = when (section) {
+        TemplateSection.Video -> state.videoTemplates.isEmpty()
+        TemplateSection.Image -> state.imageTemplates.isEmpty()
+    }
+    return if (state.errorMessage != null && sectionHasNoLiveData) TemplateRetryAction.Startup else TemplateRetryAction.Section
+}
 
 internal fun visibleTemplatePrice(template: VisualTemplate?): Int? = template?.displayPrice
 
@@ -404,12 +428,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { createAchatRepository(context) }
+    val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
     val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
+    var startupReloadSerial by remember { mutableIntStateOf(0) }
     val topUpPaymentViewModel: TopUpPaymentViewModel = viewModel()
     val topUpPaymentController = topUpPaymentViewModel.controller
     val profileEditingViewModel: ProfileEditingViewModel = viewModel()
@@ -482,6 +508,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
 
     fun retryTemplates(section: TemplateSection) {
+        if (templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
+            startupReloadSerial += 1
+            return
+        }
         val modality = if (section == TemplateSection.Video) "video" else "image"
         backendState = when (section) {
             TemplateSection.Video -> backendState.copy(videoTemplatesLoading = true)
@@ -585,6 +615,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     fun navigateFromBottomNavigation(navigationIndex: Int) {
         val route = routeFromBottomNavigation(navigationIndex)
+        analytics.track(
+            name = "tab_click",
+            parameters = mapOf(
+                "tab_index" to navigationIndex,
+                "tab_name" to bottomNavigationAnalyticsName(navigationIndex),
+            ),
+            userId = backendState.profileId,
+        )
         if (shouldRefreshTopUp(selectedNavigation, navigationIndex)) {
             topUpRefreshSerial += 1
         } else if (navigationIndex == 2) {
@@ -601,12 +639,33 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         destination = route.destination
     }
 
-    LaunchedEffect(context) {
+    LaunchedEffect(analytics) {
+        analytics.initialize()
+    }
+
+    LaunchedEffect(context, startupReloadSerial) {
         val profileRevisionAtStart = profileRevision
-        backendState = backendState.copy(isLoading = true, errorMessage = null)
+        backendState = backendState.copy(
+            isLoading = true,
+            errorMessage = null,
+            videoTemplatesLoading = true,
+            imageTemplatesLoading = true,
+            videoTemplateErrorMessage = null,
+            imageTemplateErrorMessage = null,
+        )
         runCatching {
             repository.loadHomeData()
         }.onSuccess { homeData ->
+            analytics.identify(homeData.session.userId)
+            analytics.track(
+                name = "app_launch",
+                parameters = mapOf(
+                    "is_new" to (homeData.profile?.isNew == true),
+                    "has_profile" to (homeData.profile != null),
+                ),
+                userId = homeData.session.userId,
+                onceKey = "app_launch:${homeData.session.userId}",
+            )
             backendState = backendState.withLoadedProfile(
                 profile = homeData.profile,
                 fallbackId = homeData.session.userId,
@@ -767,6 +826,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         selectedTab = it
                         currentTemplate = 1
                         templateEdgeHintRes = null
+                        analytics.track(
+                            name = "template_category_tab_click",
+                            parameters = mapOf(
+                                "modality" to if (it == 0) "video" else "image",
+                                "tab_index" to it,
+                            ),
+                            userId = backendState.profileId,
+                        )
                     },
                     onPlayToggle = { isPlaying = !isPlaying },
                     onMoveTemplate = ::moveTemplate,
@@ -775,6 +842,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         templateEdgeHintRes = null
                     },
                     onUseTemplate = { template ->
+                        if (template != null) {
+                            analytics.track(
+                                name = "template_use_click",
+                                parameters = mapOf(
+                                    "template_id" to template.templateId,
+                                    "modality" to template.modality.lowercase(Locale.ROOT),
+                                    "quality" to template.quality,
+                                ),
+                                userId = backendState.profileId,
+                            )
+                        }
                         selectedGenerationTemplate = template
                         destination = ImageToVideoDestination.UploadPhoto
                     },

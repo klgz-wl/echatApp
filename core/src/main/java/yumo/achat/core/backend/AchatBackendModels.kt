@@ -18,6 +18,7 @@ data class UserProfile(
     val name: String?,
     val avatarUrl: String?,
     val largeAvatarUrl: String?,
+    val isNew: Boolean?,
 ) {
     val displayName: String
         get() = nickname?.takeIf { it.isNotBlank() }

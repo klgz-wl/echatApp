@@ -7,6 +7,26 @@ import org.junit.Test
 
 class AchatBackendParsersTest {
     @Test
+    fun `parse profile preserves startup mode flag`() {
+        val profile = AchatBackendParsers.parseUserProfile(
+            """
+            {
+              "code": 0,
+              "data": {
+                "id": "user-1",
+                "username": "anonymous_user",
+                "nickname": "Nova",
+                "avatar": "https://cdn.example/avatar.webp",
+                "is_new": true
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(true, profile.isNew)
+    }
+
+    @Test
     fun `template response requires items array`() {
         assertThrows(IllegalStateException::class.java) {
             AchatBackendParsers.parseTemplates("""{"code":0,"data":{"page":1,"total":0}}""")
