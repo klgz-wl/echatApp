@@ -28,6 +28,29 @@ internal fun apiEnvelopeUserMessage(rawMessage: String?, fallback: String): Stri
     }.getOrDefault(fallback)
 }
 
+internal fun topUpPaymentPrepareUserMessage(
+    rawMessage: String?,
+    fallback: String,
+    channelUnavailable: String,
+): String {
+    val message = apiEnvelopeUserMessage(rawMessage, fallback)
+    return if (
+        isPaymentChannelUnavailableMessage(rawMessage) ||
+        isPaymentChannelUnavailableMessage(message)
+    ) {
+        channelUnavailable
+    } else {
+        message
+    }
+}
+
+internal fun isPaymentChannelUnavailableMessage(rawMessage: String?): Boolean {
+    val message = rawMessage?.trim().orEmpty()
+    if (message.isBlank()) return false
+    return message.contains("PAYMENT_CHANNEL_UNAVAILABLE", ignoreCase = true) ||
+        message.contains("payment_channel_unavailable", ignoreCase = true)
+}
+
 internal fun googleBillingUserMessage(rawMessage: String?, fallback: String): String {
     val message = rawMessage?.trim().orEmpty()
     if (message.isBlank()) return fallback

@@ -91,6 +91,26 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
+    fun `payment channel unavailable falls back to official google route`() {
+        val gateway = FakeGateway(
+            initialize = { error("PAYMENT_CHANNEL_UNAVAILABLE") },
+        )
+        val controller = controller(gateway)
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", googleProductId = "play.pack.100")),
+        )
+
+        controller.prepare()
+
+        assertEquals(1, gateway.createCount)
+        assertEquals(1, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("google_play", route.channelCode)
+        assertEquals("play.pack.100", route.sdkProductId)
+        assertEquals("order-1", route.orderId)
+    }
+
+    @Test
     fun `mismatched created order is rejected before payment initialization`() {
         val gateway = FakeGateway(createOrder = { order("different-product") })
         val controller = controller(gateway)

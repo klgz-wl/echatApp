@@ -24,6 +24,37 @@ class UploadUserMessageTest {
     }
 
     @Test
+    fun `payment channel unavailable code is sanitized for top up`() {
+        val fallback = "Unable to prepare payment"
+        val unavailable = "Payment is temporarily unavailable. Please try again later."
+
+        assertEquals(
+            unavailable,
+            topUpPaymentPrepareUserMessage(
+                "PAYMENT_CHANNEL_UNAVAILABLE",
+                fallback,
+                unavailable,
+            ),
+        )
+        assertEquals(
+            unavailable,
+            topUpPaymentPrepareUserMessage(
+                """{"error":"PAYMENT_CHANNEL_UNAVAILABLE"}""",
+                fallback,
+                unavailable,
+            ),
+        )
+        assertEquals(
+            "payment initialization failed",
+            topUpPaymentPrepareUserMessage(
+                "payment initialization failed",
+                fallback,
+                unavailable,
+            ),
+        )
+    }
+
+    @Test
     fun `uses backend json message as user message`() {
         val rawError = """
             {"code":400101,"message":"Insufficient diamond balance","trace":"e322e655be2f55954a0b70bd550d592a","type":""}

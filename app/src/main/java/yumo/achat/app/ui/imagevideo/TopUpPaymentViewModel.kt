@@ -42,6 +42,7 @@ internal class TopUpPaymentController(
     private var refreshJob: Job? = null
     private var requestSerial = 0L
     private val successfulOrderIds = mutableSetOf<String>()
+    private var officialProductIds: Map<String, String> = emptyMap()
 
     fun beginReconciliationLookup() {
         reconciliationCount += 1
@@ -65,6 +66,7 @@ internal class TopUpPaymentController(
     }
 
     fun retainAvailableProducts(products: List<StoreProduct>) {
+        officialProductIds = products.associate { product -> product.id to product.officialProductId }
         val productIds = products.map { it.id }
         val retained = selectedProductId?.takeIf { it in productIds }
         selectProduct(retained ?: productIds.firstOrNull())
@@ -120,6 +122,10 @@ internal class TopUpPaymentController(
                 throw error
             } catch (error: Throwable) {
                 if (requestSerial == serial && selectedProductId == productId) {
+                    if (order != null && isPaymentChannelUnavailableMessage(error.message)) {
+                        state = officialFallbackRoute(productId, order)
+                        return@launch
+                    }
                     state = TopUpPurchaseState.Error(
                         productId = productId,
                         message = errorMessage(error),
@@ -129,6 +135,14 @@ internal class TopUpPaymentController(
             }
         }
     }
+
+    private fun officialFallbackRoute(productId: String, order: StoreOrder): TopUpPurchaseState.OfficialReady =
+        TopUpPurchaseState.OfficialReady(
+            productId = productId,
+            order = order,
+            channelCode = "google_play",
+            sdkProductId = officialProductIds[productId].orEmpty().ifBlank { productId },
+        )
 
     fun beginOfficialCheckout(route: TopUpPurchaseState.OfficialReady) {
         if (state != route || checkoutState != TopUpCheckoutState.Idle) return
@@ -323,9 +337,10 @@ internal class TopUpPaymentViewModel(application: Application) : AndroidViewMode
         gateway = createAchatRepository(application),
         scope = viewModelScope,
         errorMessage = { error ->
-            apiEnvelopeUserMessage(
+            topUpPaymentPrepareUserMessage(
                 error.message,
                 application.getString(R.string.top_up_prepare_error),
+                application.getString(R.string.top_up_payment_channel_unavailable),
             )
         },
     )
