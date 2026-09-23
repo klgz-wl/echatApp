@@ -64,6 +64,7 @@
     <string name="top_up_payment_success">Payment successful</string>
     <string name="top_up_payment_cancelled">Payment cancelled</string>
     <string name="top_up_payment_timeout">Payment confirmation timed out</string>
+    <string name="top_up_google_play_unavailable">Google Play is temporarily unavailable. Please try again.</string>
     <string name="top_up_close_checkout">Close checkout</string>
     <string name="choose_pack">CHOOSE A PACK</string>
     <string name="credit_pack_validity">VALID FOR %1$d DAYS</string>

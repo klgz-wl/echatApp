@@ -75,8 +75,12 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
         ) { result, purchases ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                deliver(GooglePurchaseResult.Error(result.debugMessage))
+                return@queryPurchasesAsync
+            }
             val existing = purchases.firstOrNull { purchase -> matchesRoute(purchase, route) }
-            if (result.responseCode == BillingClient.BillingResponseCode.OK && existing != null) {
+            if (existing != null) {
                 val recoveredOrderId = existing.accountIdentifiers?.obfuscatedProfileId
                 deliver(if (existing.purchaseState == Purchase.PurchaseState.PURCHASED) {
                     GooglePurchaseResult.Purchased(recoveredOrderId)
@@ -103,10 +107,11 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
                 connecting = false
                 val waiters = connectionWaiters.toList()
                 connectionWaiters.clear()
-                waiters.forEach { it() }
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                     deliver(GooglePurchaseResult.Error(result.debugMessage))
+                    return
                 }
+                waiters.forEach { it() }
             }
 
             override fun onBillingServiceDisconnected() = Unit

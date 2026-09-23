@@ -358,7 +358,12 @@ internal class TopUpPaymentViewModel(application: Application) : AndroidViewMode
                     } else controller.onGooglePurchaseAccepted(route, pending = true)
                 }
                 GooglePurchaseResult.Cancelled -> controller.onGooglePurchaseCancelled(route)
-                is GooglePurchaseResult.Error -> controller.onCheckoutLaunchError(result.message)
+                is GooglePurchaseResult.Error -> controller.onCheckoutLaunchError(
+                    googleBillingUserMessage(
+                        result.message,
+                        getApplication<Application>().getString(R.string.top_up_google_play_unavailable),
+                    ),
+                )
             }
         }
     }

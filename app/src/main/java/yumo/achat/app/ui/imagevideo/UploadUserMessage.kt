@@ -28,6 +28,22 @@ internal fun apiEnvelopeUserMessage(rawMessage: String?, fallback: String): Stri
     }.getOrDefault(fallback)
 }
 
+internal fun googleBillingUserMessage(rawMessage: String?, fallback: String): String {
+    val message = rawMessage?.trim().orEmpty()
+    if (message.isBlank()) return fallback
+    val normalized = message.lowercase()
+    return if (
+        normalized.contains("service connection") ||
+        normalized.contains("disconnected") ||
+        normalized.contains("billing service") ||
+        normalized.contains("service unavailable")
+    ) {
+        fallback
+    } else {
+        message
+    }
+}
+
 private fun parseBackendErrorMessage(rawMessage: String): String? =
     runCatching {
         val root = JSONObject(rawMessage)

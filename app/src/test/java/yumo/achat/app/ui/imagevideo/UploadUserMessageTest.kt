@@ -35,4 +35,22 @@ class UploadUserMessageTest {
         assertFalse(message.contains("\"code\""))
         assertFalse(message.contains("trace"))
     }
+
+    @Test
+    fun `google billing disconnected message is sanitized for top up`() {
+        val fallback = "Google Play is temporarily unavailable. Please try again."
+
+        assertEquals(
+            fallback,
+            googleBillingUserMessage("Service connection is disconnected.", fallback),
+        )
+        assertEquals(
+            fallback,
+            googleBillingUserMessage("", fallback),
+        )
+        assertEquals(
+            "Product unavailable",
+            googleBillingUserMessage("Product unavailable", fallback),
+        )
+    }
 }
