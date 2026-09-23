@@ -113,6 +113,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Currency
@@ -433,6 +435,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var profileMessage by remember { mutableStateOf<TransientMessage?>(null) }
     var profileMessageSerial by remember { mutableStateOf(0L) }
     var profileRevision by remember { mutableStateOf(0L) }
+    var localProfileAvatarUri by remember { mutableStateOf<Uri?>(null) }
     var chargedGenerationTaskIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var diamondBalanceRefreshSerial by remember { mutableStateOf(0L) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
@@ -465,6 +468,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val imageTemplatesFallback = stringResource(R.string.image_templates_error)
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
+        localProfileAvatarUri = uri
         profileEditingController.saveAvatar(uri)
     }
 
@@ -537,10 +541,15 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 destination = ImageToVideoDestination.Templates
                 showProfileMessage(nameUpdatedMessage, TransientMessageTone.Success)
             }
-            ProfileEditOperation.Avatar -> showProfileMessage(
-                if (error == null) avatarUpdatedMessage else apiEnvelopeUserMessage(error, avatarUpdateFailedMessage),
-                if (error == null) TransientMessageTone.Success else TransientMessageTone.Error,
-            )
+            ProfileEditOperation.Avatar -> {
+                if (error != null) {
+                    localProfileAvatarUri = null
+                }
+                showProfileMessage(
+                    if (error == null) avatarUpdatedMessage else apiEnvelopeUserMessage(error, avatarUpdateFailedMessage),
+                    if (error == null) TransientMessageTone.Success else TransientMessageTone.Error,
+                )
+            }
         }
         profileEditingController.acknowledgeCompletion()
     }
@@ -774,6 +783,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onEditName = { destination = ImageToVideoDestination.EditName },
                     onEditAvatar = ::openAvatarPicker,
                     isAvatarSaving = profileEditingController.avatarSaving,
+                    localProfileAvatarUri = localProfileAvatarUri,
                     onTemplateRetry = ::retryTemplates,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
@@ -853,6 +863,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                             profileName = backendState.profileName,
                             profileId = backendState.profileId,
                             profileAvatarUrl = backendState.profileAvatarUrl,
+                            localProfileAvatarUri = localProfileAvatarUri,
                             diamondBalance = backendState.diamondBalance,
                             onNavigationSelect = ::navigateFromBottomNavigation,
                         )
@@ -931,6 +942,7 @@ private fun TemplateBrowserScreen(
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     isAvatarSaving: Boolean,
+    localProfileAvatarUri: Uri?,
     onTemplateRetry: (TemplateSection) -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onProductSelect: (String) -> Unit,
@@ -971,6 +983,7 @@ private fun TemplateBrowserScreen(
             profileName = backendState.profileName,
             profileId = backendState.profileId,
             profileAvatarUrl = backendState.profileAvatarUrl,
+            localProfileAvatarUri = localProfileAvatarUri,
             diamondBalance = backendState.diamondBalance,
             onNavigationSelect = {
                 onNavigationSelect(it)
@@ -1273,6 +1286,7 @@ private fun MeScreen(
     profileName: String,
     profileId: String,
     profileAvatarUrl: String?,
+    localProfileAvatarUri: Uri?,
     diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
 ) {
@@ -1294,6 +1308,7 @@ private fun MeScreen(
             profileName = profileName,
             profileId = profileId,
             avatarUrl = profileAvatarUrl,
+            localAvatarUri = localProfileAvatarUri,
             onEditName = onEditName,
             onEditAvatar = onEditAvatar,
             onCopyId = {
@@ -1389,16 +1404,34 @@ internal fun ProfileCard(
     profileName: String,
     profileId: String,
     avatarUrl: String?,
+    localAvatarUri: Uri? = null,
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     onCopyId: () -> Unit,
     nameEditEnabled: Boolean = true,
     avatarEditEnabled: Boolean = true,
 ) {
+    val context = LocalContext.current
     val avatarDescription = stringResource(R.string.profile_avatar_description)
     val avatarEditDescription = stringResource(R.string.profile_avatar_edit_description)
     val editDescription = stringResource(R.string.profile_edit_description)
     val copyIdDescription = stringResource(R.string.profile_copy_id_description)
+    val avatarModel = profileAvatarModel(
+        localAvatarUri = localAvatarUri,
+        remoteAvatarUrl = avatarUrl,
+        fallbackModel = R.drawable.hero_portrait,
+    )
+    val avatarImageModel = remember(avatarModel) {
+        if (avatarModel is String) {
+            ImageRequest.Builder(context)
+                .data(avatarModel)
+                .memoryCachePolicy(CachePolicy.DISABLED)
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build()
+        } else {
+            avatarModel
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1495,7 +1528,7 @@ internal fun ProfileCard(
                     .padding(3.dp),
             ) {
                 AsyncImage(
-                    model = avatarUrl ?: R.drawable.hero_portrait,
+                    model = avatarImageModel,
                     contentDescription = avatarDescription,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
