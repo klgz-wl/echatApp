@@ -6,10 +6,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import yumo.achat.core.attribution.LoginAttribution
 
 class AchatSessionManagerTest {
     @Test
@@ -103,7 +105,8 @@ class AchatSessionManagerTest {
         val replacement = session("access", "refresh")
         val store = FakeSessionStore(null)
         val api = FakeAuthApi(loginResult = Result.success(replacement))
-        val manager = AchatSessionManager(store, api)
+        val attribution = FakeAttribution()
+        val manager = AchatSessionManager(store, api, attribution = attribution)
 
         val calls = List(2) {
             async(Dispatchers.Default) { manager.authenticated { token -> token } }
@@ -111,6 +114,23 @@ class AchatSessionManagerTest {
 
         assertEquals(listOf("access", "access"), calls.map { it.await() })
         assertEquals(1, api.loginCount.get())
+        assertEquals(listOf("stable-device"), attribution.loginDeviceIds)
+        assertEquals(loginAttribution(), api.lastLoginAttribution)
+        assertEquals(listOf(replacement), attribution.reportedSessions)
+    }
+
+    @Test
+    fun `existing stored session is shared with attribution reporter`() = runBlocking {
+        val existing = session("access", "refresh")
+        val store = FakeSessionStore(existing)
+        val api = FakeAuthApi()
+        val attribution = FakeAttribution()
+        val manager = AchatSessionManager(store, api, attribution = attribution)
+
+        assertEquals(existing, manager.session())
+
+        assertEquals(0, api.loginCount.get())
+        assertEquals(listOf(existing), attribution.reportedSessions)
     }
 
     @Test
@@ -261,16 +281,52 @@ class AchatSessionManagerTest {
         val refreshCount = AtomicInteger()
         val loginCount = AtomicInteger()
         var lastLoginDeviceId: String? = null
+        var lastLoginAttribution: LoginAttribution? = null
 
         override fun refreshAccessToken(refreshToken: String): String {
             refreshCount.incrementAndGet()
             return refreshResult.getOrThrow()
         }
 
-        override fun loginAnonymously(deviceId: String): AuthSession {
+        override fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession {
             loginCount.incrementAndGet()
             lastLoginDeviceId = deviceId
+            lastLoginAttribution = attribution
             return loginResult.getOrThrow()
         }
+    }
+
+    private class FakeAttribution : BackendAttribution {
+        val loginDeviceIds = mutableListOf<String>()
+        val reportedSessions = mutableListOf<AuthSession>()
+        override suspend fun forLogin(installDeviceId: String): LoginAttribution {
+            loginDeviceIds += installDeviceId
+            return loginAttribution()
+        }
+        override fun currentId(): String = "af-test-id"
+        override suspend fun report(session: AuthSession) {
+            reportedSessions += session
+        }
+    }
+
+    private companion object {
+        fun loginAttribution() = LoginAttribution(
+            attributionSource = "appsflyer",
+            deviceId = "gaid-or-install",
+            afUid = "af-test-id",
+            network = "network-1",
+            campaign = null,
+            campaignId = null,
+            adgroup = null,
+            adgroupId = null,
+            creative = null,
+            creativeId = null,
+            channel = null,
+            country = null,
+            platform = "android",
+            appVersion = "1",
+            packageName = "test.package",
+            extraData = JsonObject(emptyMap()),
+        )
     }
 }

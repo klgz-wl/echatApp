@@ -4,9 +4,10 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
+import yumo.achat.core.attribution.LoginAttribution
 
 internal interface AchatAuthApi {
-    fun loginAnonymously(deviceId: String): AuthSession
+    fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession
     fun refreshAccessToken(refreshToken: String): String
 }
 
@@ -27,12 +28,14 @@ class AchatBackendClient(
         packageName: String = this.packageName,
         platform: String = "android",
         version: String = clientVersion,
+        attribution: LoginAttribution = noOpLoginAttribution(deviceId, packageName, version),
     ): AuthSession {
         val body = JSONObject()
             .put("device_id", deviceId)
             .put("package_name", packageName)
             .put("platform", platform)
             .put("version", version)
+            .put("attribution", attribution.toJsonObject())
 
         return AchatBackendParsers.parseAuthSession(
             request(
@@ -42,6 +45,7 @@ class AchatBackendClient(
                 headers = mapOf(
                     "Content-Type" to "application/json",
                     "X-Device-ID" to deviceId,
+                    "X-AF-UID" to attribution.afUid,
                 ),
             ),
         )
@@ -49,7 +53,8 @@ class AchatBackendClient(
 
     constructor(baseUrl: String) : this(AchatBackendConfiguration.Default.copy(apiBaseUrl = baseUrl))
 
-    override fun loginAnonymously(deviceId: String): AuthSession = anonymousLogin(deviceId)
+    override fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession =
+        anonymousLogin(deviceId = deviceId, attribution = attribution)
 
     override fun refreshAccessToken(refreshToken: String): String {
         val body = JSONObject().put("refresh_token", refreshToken)
@@ -60,6 +65,15 @@ class AchatBackendClient(
                 body = body.toString(),
                 headers = mapOf("Content-Type" to "application/json"),
             ),
+        )
+    }
+
+    fun reportAttribution(payload: JSONObject) {
+        request(
+            path = "/api/v1/attribution/report",
+            method = "POST",
+            body = payload.toString(),
+            headers = mapOf("Content-Type" to "application/json"),
         )
     }
 
@@ -299,3 +313,45 @@ class AchatBackendClient(
         }
     }
 }
+
+private fun LoginAttribution.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("attribution_source", attributionSource)
+        .put("device_id", deviceId)
+        .put("af_uid", afUid)
+        .putIfNotNull("network", network)
+        .putIfNotNull("campaign", campaign)
+        .putIfNotNull("campaign_id", campaignId)
+        .putIfNotNull("adgroup", adgroup)
+        .putIfNotNull("adgroup_id", adgroupId)
+        .putIfNotNull("creative", creative)
+        .putIfNotNull("creative_id", creativeId)
+        .putIfNotNull("channel", channel)
+        .putIfNotNull("country", country)
+        .put("platform", platform)
+        .put("app_version", appVersion)
+        .put("package_name", packageName)
+        .put("extra_data", JSONObject(extraData.toString()))
+
+private fun JSONObject.putIfNotNull(name: String, value: String?): JSONObject =
+    if (value == null) this else put(name, value)
+
+private fun noOpLoginAttribution(deviceId: String, packageName: String, version: String): LoginAttribution =
+    LoginAttribution(
+        attributionSource = "appsflyer",
+        deviceId = deviceId,
+        afUid = "",
+        network = null,
+        campaign = null,
+        campaignId = null,
+        adgroup = null,
+        adgroupId = null,
+        creative = null,
+        creativeId = null,
+        channel = null,
+        country = null,
+        platform = "android",
+        appVersion = version,
+        packageName = packageName,
+        extraData = kotlinx.serialization.json.JsonObject(emptyMap()),
+    )

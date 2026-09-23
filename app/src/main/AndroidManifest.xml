@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -7,7 +8,9 @@
         android:allowBackup="false"
         android:label="${appLabel}"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Achat">
+        android:theme="@style/Theme.Achat"
+        tools:replace="android:allowBackup"
+        tools:remove="android:dataExtractionRules,android:fullBackupContent">
         <meta-data
             android:name="kit.configuration.fingerprint"
             android:value="@string/kit_configuration_fingerprint" />

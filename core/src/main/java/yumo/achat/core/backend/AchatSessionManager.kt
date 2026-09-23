@@ -16,11 +16,14 @@ private data class TimedAuthFailure(
 internal class AchatSessionManager(
     private val store: AuthSessionStore,
     private val authApi: AchatAuthApi,
+    private val attribution: BackendAttribution = NoOpBackendAttribution(AchatBackendConfiguration.Default),
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
     private val sessionMutex = Mutex()
+    private val attributionReportGuard = Any()
     private var loginFailure: TimedAuthFailure? = null
     private var recoveryFailure: TimedAuthFailure? = null
+    private var lastAttributionReportToken: String? = null
 
     suspend fun session(): AuthSession = ensureSession()
 
@@ -37,13 +40,20 @@ internal class AchatSessionManager(
     }
 
     private suspend fun ensureSession(): AuthSession {
-        store.readSession()?.let { return it }
+        store.readSession()?.let {
+            reportAttribution(it)
+            return it
+        }
         return sessionMutex.withLock {
-            store.readSession()?.let { return@withLock it }
+            store.readSession()?.let {
+                reportAttribution(it)
+                return@withLock it
+            }
             recentFailure(loginFailure, token = null)?.let { throw it }
             try {
-                authApi.loginAnonymously(store.deviceId()).also { session ->
+                loginAnonymously().also { session ->
                     store.saveSession(session)
+                    reportAttribution(session)
                     loginFailure = null
                 }
             } catch (error: CancellationException) {
@@ -70,10 +80,11 @@ internal class AchatSessionManager(
                     sessionToRecover.copy(token = newAccessToken)
                 } catch (error: AchatBackendHttpException) {
                     if (error.statusCode != 400 && error.statusCode != 401) throw error
-                    authApi.loginAnonymously(store.deviceId())
+                    loginAnonymously()
                 }
                 recovered.also { session ->
                     store.saveSession(session)
+                    reportAttribution(session)
                     recoveryFailure = null
                 }
             } catch (error: CancellationException) {
@@ -88,12 +99,37 @@ internal class AchatSessionManager(
         ?.takeIf { it.token == token && nowMillis() - it.timestampMillis < AuthFailureCooldownMillis }
         ?.error
 
+    private suspend fun loginAnonymously(): AuthSession {
+        val installDeviceId = store.deviceId()
+        return authApi.loginAnonymously(installDeviceId, attribution.forLogin(installDeviceId))
+    }
+
+    private suspend fun reportAttribution(session: AuthSession) {
+        val shouldReport = synchronized(attributionReportGuard) {
+            if (lastAttributionReportToken == session.token) false
+            else {
+                lastAttributionReportToken = session.token
+                true
+            }
+        }
+        if (!shouldReport) return
+        try {
+            attribution.report(session)
+        } catch (_: Exception) {
+            synchronized(attributionReportGuard) {
+                if (lastAttributionReportToken == session.token) lastAttributionReportToken = null
+            }
+            // Attribution is telemetry; a report retry/failure must not break authentication.
+        }
+    }
+
     companion object {
         @Volatile private var applicationInstance: AchatSessionManager? = null
 
         fun application(
             context: Context,
             configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
+            attribution: BackendAttribution = NoOpBackendAttribution(configuration),
         ): AchatSessionManager =
             applicationInstance ?: synchronized(this) {
                 applicationInstance ?: run {
@@ -101,6 +137,7 @@ internal class AchatSessionManager(
                     AchatSessionManager(
                         store = AchatSessionStore(appContext),
                         authApi = AchatBackendClient(configuration),
+                        attribution = attribution,
                     ).also { applicationInstance = it }
                 }
             }

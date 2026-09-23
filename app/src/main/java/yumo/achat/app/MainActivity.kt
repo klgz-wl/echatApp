@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.ui.imagevideo.ImageToVideoScreen
 import yumo.achat.app.ui.theme.AchatTheme
 
@@ -20,5 +21,15 @@ class MainActivity : ComponentActivity() {
                 ImageToVideoScreen()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AchatAttributionRuntime.get(this).onActivityResumed(this)
+    }
+
+    override fun onPause() {
+        AchatAttributionRuntime.get(this).onActivityPaused(this)
+        super.onPause()
     }
 }

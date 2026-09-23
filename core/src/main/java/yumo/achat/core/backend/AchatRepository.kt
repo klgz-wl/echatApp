@@ -32,10 +32,11 @@ interface ProfileEditingGateway {
 class AchatRepository(
     context: Context,
     configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
+    attribution: BackendAttribution = NoOpBackendAttribution(configuration),
 ) : StorePaymentGateway, ProfileEditingGateway {
     private val appContext = context.applicationContext
     private val client = AchatBackendClient(configuration)
-    private val sessionManager = AchatSessionManager.application(context, configuration)
+    private val sessionManager = AchatSessionManager.application(context, configuration, attribution)
 
     suspend fun loadHomeData(): AchatHomeData = withContext(Dispatchers.IO) {
         sessionManager.session()
