@@ -26,6 +26,7 @@ artifacts/
 .core-scaffold/installed.json
 .core-scaffold/verification.json
 .core-scaffold/verify.log
+.core-scaffold/platform-evidence.json
 *.local.json
 
 # Signing material and credentials

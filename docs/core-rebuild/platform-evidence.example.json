@@ -1,0 +1,24 @@
+{
+  "device_platform_verified": false,
+  "play_billing_verified": false,
+  "payment_fulfillment_verified": false,
+  "generation_verified": false,
+  "backend_api_smoke_verified": false,
+  "wallet_reconciliation_verified": false,
+  "attribution_verified": false,
+  "analytics_console_verified": false,
+  "package_name": "com.zorv.app",
+  "distribution": "play_internal_testing",
+  "device": "",
+  "tester_account": "",
+  "play_product_ids": [],
+  "verified_order_ids": [],
+  "verified_generation_task_ids": [],
+  "wallet_transaction_ids": [],
+  "backend_environment": "release",
+  "evidence_notes": [
+    "Copy this file to .core-scaffold/platform-evidence.json after real device/platform verification.",
+    "Set each boolean to true only after the corresponding Play, backend, generation, attribution, or analytics console evidence is captured.",
+    "Do not commit .core-scaffold/platform-evidence.json if it contains tester accounts, order IDs, or platform-private evidence."
+  ]
+}

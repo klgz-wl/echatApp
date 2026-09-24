@@ -41,6 +41,15 @@ data class UserCurrency(
     val diamondSpent: Int,
 )
 
+data class WalletTransaction(
+    val id: String,
+    val type: String,
+    val amount: Int,
+    val description: String?,
+    val category: String?,
+    val createdAt: String,
+)
+
 data class StorePaymentProvider(
     val priority: Int,
     val code: String,

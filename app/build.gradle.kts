@@ -1,5 +1,7 @@
 import java.security.MessageDigest
+import java.security.KeyStore
 import java.util.Properties
+import groovy.json.JsonSlurper
 
 plugins {
     id("com.android.application")
@@ -19,6 +21,8 @@ check(mode in setOf("DEV_REUSE", "FORMAL")) { "kit.prod.mode must be DEV_REUSE o
 val devProperties = readProperties("config/dev.properties")
 val prodProperties = readProperties("config/prod.properties")
 val signingProperties = readProperties("config/signing.local.properties")
+val formalSigningProperties = readProperties("config/signing-release.local.properties")
+val prodConfirmationProperties = readProperties("config/prod-confirmation.local.properties")
 
 val flavorEndpoints = mapOf(
     "dev" to mapOf(
@@ -92,6 +96,12 @@ android {
             keyAlias = signingProperties.getProperty("keyAlias")
             keyPassword = signingProperties.getProperty("keyPassword")
         }
+        create("formal") {
+            storeFile = formalSigningProperties.getProperty("storeFile")?.let { rootProject.file(it) }
+            storePassword = formalSigningProperties.getProperty("storePassword")
+            keyAlias = formalSigningProperties.getProperty("keyAlias")
+            keyPassword = formalSigningProperties.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -99,7 +109,6 @@ android {
             signingConfig = signingConfigs.getByName("sharedDev")
         }
         release {
-            signingConfig = signingConfigs.getByName("sharedDev")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -114,7 +123,9 @@ android {
             create(env) {
                 dimension = "environment"
                 applicationId = config.getProperty("applicationId")
-                signingConfig = signingConfigs.getByName("sharedDev")
+                signingConfig = signingConfigs.getByName(
+                    if (env == "prod" && mode == "FORMAL") "formal" else "sharedDev",
+                )
                 manifestPlaceholders["appLabel"] = config.getProperty("app.display.name", "Achat")
                 val baseUrl = config.getProperty("build.string.CORE_BASE_URL").removeSuffix("/api/v1/")
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
@@ -186,6 +197,109 @@ dependencies {
 
 tasks.register("testDevReleaseUnitTest") {
     dependsOn("testDevDebugUnitTest")
+}
+
+fun requireSigning(properties: Properties, label: String) {
+    listOf("storeFile", "storePassword", "keyAlias", "keyPassword").forEach { key ->
+        check(!properties.getProperty(key).isNullOrBlank()) {
+            "$label signing config is missing $key"
+        }
+    }
+    check(rootProject.file(properties.getProperty("storeFile")).isFile) {
+        "$label signing store file does not exist"
+    }
+}
+
+fun certificateBytes(properties: Properties): ByteArray {
+    val keyStoreFile = rootProject.file(properties.getProperty("storeFile"))
+    val keyStore = KeyStore.getInstance(keyStoreFile, properties.getProperty("storePassword").toCharArray())
+    return keyStore.getCertificate(properties.getProperty("keyAlias")).encoded
+}
+
+fun sha1(bytes: ByteArray): String =
+    MessageDigest.getInstance("SHA-1")
+        .digest(bytes)
+        .joinToString("") { "%02x".format(it) }
+
+tasks.register("verifyFormalRelease") {
+    notCompatibleWithConfigurationCache("Reads local formal signing and confirmation files during execution.")
+    doLast {
+        check(mode == "FORMAL") { "DEV_REUSE临时状态禁止正式发布" }
+        check(prodConfirmationProperties.getProperty("confirmed") == "true") {
+            "请填写正式配置确认清单：config/prod-confirmation.local.properties"
+        }
+        check(flavorApplicationIds.getValue("prod") == "com.zorv.app") {
+            "必须确认正式包名 com.zorv.app"
+        }
+        requireSigning(formalSigningProperties, "formal release")
+        val devCertificate = rootProject.file("config/dev-certificate.der")
+        check(devCertificate.isFile) { "缺少sharedDev证书指纹文件" }
+        val formalCertificate = certificateBytes(formalSigningProperties)
+        check(!devCertificate.readBytes().contentEquals(formalCertificate)) {
+            "正式签名不能使用sharedDev证书"
+        }
+        val googleServices = rootProject.file("app/src/prod/google-services.json")
+        check(googleServices.isFile) { "缺少prod google-services.json" }
+        val formalSha1 = sha1(formalCertificate)
+        @Suppress("UNCHECKED_CAST")
+        val googleJson = JsonSlurper().parse(googleServices) as Map<String, Any?>
+        val clients = googleJson["client"] as? List<*> ?: emptyList<Any>()
+        val matchingClient = clients.filterIsInstance<Map<String, Any?>>().firstOrNull { client ->
+            val clientInfo = client["client_info"] as? Map<*, *>
+            val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
+            androidInfo?.get("package_name") == "com.zorv.app"
+        } ?: error("Firebase与当前包名不匹配")
+        val oauthClients = matchingClient["oauth_client"] as? List<*> ?: emptyList<Any>()
+        val hasMatchingCertificate = oauthClients.filterIsInstance<Map<String, Any?>>().any { oauth ->
+            val androidInfo = oauth["android_info"] as? Map<*, *>
+            androidInfo?.get("package_name") == "com.zorv.app" &&
+                androidInfo["certificate_hash"]?.toString()?.lowercase() == formalSha1
+        }
+        check(hasMatchingCertificate) {
+            "Firebase/OAuth证书指纹与正式签名不匹配"
+        }
+    }
+}
+
+tasks.configureEach {
+    if (mode == "FORMAL" && name in setOf("assembleProdRelease", "bundleProdRelease")) {
+        dependsOn("verifyProdReleaseRuntimeConfig", "verifyFormalRelease", "verifyCoreFullChainEvidence")
+    }
+}
+
+tasks.register("verifyCoreFullChainEvidence") {
+    notCompatibleWithConfigurationCache("Reads local platform-evidence.json during execution.")
+    doLast {
+        val evidence = rootProject.file(".core-scaffold/platform-evidence.json")
+        check(evidence.isFile) {
+            "缺少真实平台验收证据：.core-scaffold/platform-evidence.json"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val value = JsonSlurper().parse(evidence) as Map<String, Any?>
+        check(value["package_name"] == "com.zorv.app") { "真实平台验收证据包名不匹配" }
+        check(value["backend_environment"] == "release") { "真实平台验收证据后端环境不匹配" }
+        check((value["distribution"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少distribution" }
+        check((value["device"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少device" }
+        check((value["tester_account"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少tester_account" }
+        check((value["play_product_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少play_product_ids" }
+        check((value["verified_order_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少verified_order_ids" }
+        check((value["verified_generation_task_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少verified_generation_task_ids" }
+        check((value["wallet_transaction_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少wallet_transaction_ids" }
+        listOf(
+            "device_platform_verified",
+            "play_billing_verified",
+            "payment_fulfillment_verified",
+            "generation_verified",
+            "backend_api_smoke_verified",
+            "wallet_reconciliation_verified",
+            "attribution_verified",
+            "analytics_console_verified",
+        ).forEach { key ->
+            check(value[key] == true) {
+                "真实平台验收证据缺少或未通过：$key"
+            }
+        }
+    }
 }
 
 tasks.register("verifyProdReleaseRuntimeConfig") {

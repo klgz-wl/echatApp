@@ -229,15 +229,20 @@ class AchatBackendClient(
         )
     }
 
+    fun walletTransactions(token: String, page: Int = 1, pageSize: Int = 20): List<WalletTransaction> =
+        AchatBackendParsers.parseWalletTransactions(
+            get("/api/v1/wallet/transactions?page=$page&page_size=$pageSize", token),
+        )
+
     fun createVisualGenerationTask(
         token: String,
         modality: String,
         templateId: String,
         quality: String,
         resourceId: String,
+        idempotencyKey: String,
     ): VisualGenerationTask {
         val boundary = "achat-${UUID.randomUUID()}"
-        val idempotencyKey = UUID.randomUUID().toString()
         val response = request(
             path = "/api/v1/visual-generation/$modality/tasks",
             method = "POST",

@@ -30,6 +30,25 @@ class FormalProdConfigurationTest {
             prod.getProperty("build.string.APPSFLYER_DEV_KEY"),
         )
     }
+
+    @Test
+    fun `formal prod release requires formal signing and confirmation gate`() {
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assert(gradle.contains("config/signing-release.local.properties")) {
+            "prod release must read independent formal signing config"
+        }
+        assert(gradle.contains("config/prod-confirmation.local.properties")) {
+            "prod release must require explicit local formal confirmation"
+        }
+        assert(gradle.contains("verifyFormalRelease")) {
+            "prod release must expose a formal release verification task"
+        }
+        assert(gradle.contains("正式签名不能使用sharedDev证书")) {
+            "formal release gate must reject sharedDev as formal signing"
+        }
+    }
+
 }
 
 private fun File.readProperties(): Properties =

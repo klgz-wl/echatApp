@@ -16,4 +16,4 @@
 
 ## 宿主接入与验证边界
 
-已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。脚手架官方 verify 任务列表仍按锁定工具执行；此外，本工程额外提供并已运行 `:app:verifyProdReleaseRuntimeConfig`，用于可重复检查 prod/release 运行地址、支付路由和 Firebase 开关。真实平台验收仍需外部条件：后端 dev/release 服务联通、Google Play Billing 测试账号、AppsFlyer/ThinkingData/后端事件控台回看、上传/生成/支付的真实沙箱数据。Firebase SDK/sink 尚未接入，prod 相关开关保持关闭；dev 仍保留交接包固定基线开关但不作为 Firebase 平台验收证据。本报告不把本地构建通过等同于这些平台验收。
+已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。脚手架官方 verify 任务列表仍按锁定工具执行；此外，本工程额外提供 `:app:verifyProdReleaseRuntimeConfig`、`:app:verifyFormalRelease` 和 `:app:verifyCoreFullChainEvidence`，分别用于可重复检查 prod/release 运行地址、支付路由、Firebase 开关、正式签名/确认门禁，以及在缺少本机平台验收 evidence 文件时阻止误称“全链路完整”。真实平台验收仍需外部条件：后端 dev/release 服务联通、Google Play Billing 测试账号、AppsFlyer/ThinkingData/后端事件控台回看、上传/生成/支付的真实沙箱数据。dev 保留交接包固定 Firebase 基线开关，但当前不接入 Firebase SDK，避免 FirebaseInitProvider 提前自动初始化；prod Firebase 相关开关仍保持关闭，直到正式 Firebase/Crashlytics/Messaging 平台验收完成。本报告不把本地构建通过等同于这些平台验收。

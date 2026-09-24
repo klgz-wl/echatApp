@@ -483,6 +483,39 @@ class AchatBackendParsersTest {
     }
 
     @Test
+    fun `parse wallet transaction history`() {
+        val transactions = AchatBackendParsers.parseWalletTransactions(
+            """
+            {
+              "code": 0,
+              "message": "ok",
+              "data": {
+                "transactions": [
+                  {
+                    "id": "tx-1",
+                    "type": "top_up",
+                    "amount": 100,
+                    "description": "Recharge",
+                    "category": "diamond",
+                    "created_at": "2026-09-24T10:00:00Z"
+                  }
+                ],
+                "total": 1,
+                "page": 1,
+                "page_size": 20
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("tx-1", transactions.single().id)
+        assertEquals("top_up", transactions.single().type)
+        assertEquals(100, transactions.single().amount)
+        assertEquals("Recharge", transactions.single().description)
+        assertEquals("2026-09-24T10:00:00Z", transactions.single().createdAt)
+    }
+
+    @Test
     fun `parse visual generation task`() {
         val task = AchatBackendParsers.parseVisualGenerationTask(
             """

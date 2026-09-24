@@ -137,9 +137,11 @@ class AchatRepository(
         templateId: String,
         quality: String,
         resourceId: String,
+        idempotencyKey: String,
     ): VisualGenerationTask = withContext(Dispatchers.IO) {
         require(templateId.isNotBlank()) { "Live template is required" }
         require(resourceId.isNotBlank()) { "Uploaded photo is required" }
+        require(idempotencyKey.isNotBlank()) { "Generation idempotency key is required" }
         sessionManager.authenticated { token ->
             client.createVisualGenerationTask(
                 token = token,
@@ -147,6 +149,7 @@ class AchatRepository(
                 templateId = templateId,
                 quality = quality,
                 resourceId = resourceId,
+                idempotencyKey = idempotencyKey,
             )
         }
     }
@@ -202,6 +205,12 @@ class AchatRepository(
                 pageSize = pageSize,
                 resourceType = "generated",
             )
+        }
+    }
+
+    suspend fun walletTransactions(page: Int = 1, pageSize: Int = 5): List<WalletTransaction> = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { token ->
+            client.walletTransactions(token = token, page = page, pageSize = pageSize)
         }
     }
 

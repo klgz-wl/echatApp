@@ -35,6 +35,34 @@ class GenerationBalanceTest {
     }
 
     @Test
+    fun `generation idempotency key is retained for same uploaded resource retry`() {
+        val first = nextGenerationSubmissionKey(
+            previous = null,
+            templateId = "template-1",
+            quality = "fast",
+            resourceId = "resource-1",
+            newKey = { "key-1" },
+        )
+        val retry = nextGenerationSubmissionKey(
+            previous = first,
+            templateId = "template-1",
+            quality = "fast",
+            resourceId = "resource-1",
+            newKey = { "key-2" },
+        )
+        val changedPhoto = nextGenerationSubmissionKey(
+            previous = retry,
+            templateId = "template-1",
+            quality = "fast",
+            resourceId = "resource-2",
+            newKey = { "key-3" },
+        )
+
+        assertEquals("key-1", retry.idempotencyKey)
+        assertEquals("key-3", changedPhoto.idempotencyKey)
+    }
+
+    @Test
     fun `polling continues through unchanged status and transient failure`() = runBlocking {
         val responses = ArrayDeque<Result<VisualGenerationTask>>().apply {
             add(Result.success(task("processing")))

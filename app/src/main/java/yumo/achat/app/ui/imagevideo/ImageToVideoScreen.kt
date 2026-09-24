@@ -136,6 +136,7 @@ import yumo.achat.core.backend.TemplateLoadResult
 import yumo.achat.core.backend.VisualCategory
 import yumo.achat.core.backend.VisualGenerationTask
 import yumo.achat.core.backend.VisualTemplate
+import yumo.achat.core.backend.WalletTransaction
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
@@ -276,6 +277,7 @@ internal fun feedbackAttachmentPreviewContentScale(): ContentScale = ContentScal
 internal data class TopUpUiState(
     val isLoading: Boolean = false,
     val catalog: StoreCatalog? = null,
+    val transactions: List<WalletTransaction> = emptyList(),
     val errorMessage: String? = null,
     val diamondBalance: Int = 0,
 )
@@ -719,6 +721,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(destination, selectedNavigation, topUpRefreshSerial) {
         if (destination != ImageToVideoDestination.Templates || selectedNavigation != 2) return@LaunchedEffect
+        val refreshSerial = topUpRefreshSerial
         refreshDiamondBalance()
         topUpState = TopUpUiState(
             isLoading = true,
@@ -731,6 +734,18 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 diamondBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance,
             )
             topUpPaymentController.retainAvailableProducts(catalog.products)
+            screenScope.launch {
+                val transactions = try {
+                    repository.walletTransactions()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (refreshSerial == topUpRefreshSerial) {
+                    topUpState = topUpState.copy(transactions = transactions)
+                }
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -2892,6 +2907,7 @@ internal fun TopUpScreen(
                         )
                         Spacer(Modifier.height(2.dp))
                     }
+                    WalletTransactionHistory(state.transactions)
                 }
             }
         }
@@ -2940,6 +2956,62 @@ private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpC
         )
     }
 }
+
+@Composable
+private fun WalletTransactionHistory(transactions: List<WalletTransaction>) {
+    if (transactions.isEmpty()) return
+    Spacer(Modifier.height(10.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x66101524))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Text(
+            text = "RECENT WALLET ACTIVITY",
+            color = AchatCyan,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        transactions.take(5).forEach { transaction ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = transaction.description ?: transaction.type.ifBlank {
+                            transaction.category ?: "Wallet transaction"
+                        },
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = transaction.createdAt.take(10),
+                        color = AchatMuted,
+                        fontSize = 9.sp,
+                    )
+                }
+                Text(
+                    text = formatWalletTransactionAmount(transaction.amount),
+                    color = if (transaction.amount >= 0) AchatCyan else AchatPink,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+internal fun formatWalletTransactionAmount(amount: Int): String =
+    (if (amount >= 0) "+" else "") + amount.toString()
 
 @Composable
 private fun TopUpInlineStatus(text: String, color: Color) {
@@ -3315,6 +3387,7 @@ private fun UploadPhotoScreen(
     val scope = rememberCoroutineScope()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }
+    var generationSubmissionKey by rememberSaveable { mutableStateOf<GenerationSubmissionKey?>(null) }
     var currentTask by remember { mutableStateOf<VisualGenerationTask?>(null) }
     var uploadInProgress by remember { mutableStateOf(false) }
     var uploadMessage by remember { mutableStateOf<TransientMessage?>(null) }
@@ -3367,6 +3440,7 @@ private fun UploadPhotoScreen(
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
         selectedImageUri = uri
         uploadedResourceId = null
+        generationSubmissionKey = null
         currentTask = null
         uploadSelectedPhoto(uri)
     }
@@ -3463,6 +3537,13 @@ private fun UploadPhotoScreen(
                 }
                 uploadInProgress = true
                 uploadMessage = null
+                val submissionKey = nextGenerationSubmissionKey(
+                    previous = generationSubmissionKey,
+                    templateId = template.templateId,
+                    quality = template.quality,
+                    resourceId = resourceId,
+                )
+                generationSubmissionKey = submissionKey
                 scope.launch {
                     runCatching {
                         repository.createVisualGenerationTask(
@@ -3470,6 +3551,7 @@ private fun UploadPhotoScreen(
                             templateId = template.templateId,
                             quality = template.quality,
                             resourceId = resourceId,
+                            idempotencyKey = submissionKey.idempotencyKey,
                         )
                     }.onSuccess { task ->
                         currentTask = task

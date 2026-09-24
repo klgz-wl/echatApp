@@ -239,6 +239,26 @@ object AchatBackendParsers {
         }
     }
 
+    fun parseWalletTransactions(json: String): List<WalletTransaction> {
+        val data = dataObject(json)
+        val items = data.optJSONArray("transactions") ?: data.optJSONArray("items") ?: return emptyList()
+        return buildList {
+            for (index in 0 until items.length()) {
+                val item = items.getJSONObject(index)
+                add(
+                    WalletTransaction(
+                        id = item.getString("id"),
+                        type = item.optNullableString("type") ?: "",
+                        amount = item.optInt("amount", 0),
+                        description = item.optNullableString("description"),
+                        category = item.optNullableString("category"),
+                        createdAt = item.optNullableString("created_at") ?: "",
+                    ),
+                )
+            }
+        }
+    }
+
     fun parseVisualGenerationTask(json: String): VisualGenerationTask {
         val data = dataObject(json)
         return VisualGenerationTask(
