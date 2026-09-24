@@ -55,7 +55,7 @@ internal suspend fun pollGenerationTaskUntilFinished(
         } catch (_: Exception) {
             continue
         }
-        latest = response.toTrackedGenerationTask(latest.title)
+        latest = response.toTrackedGenerationTask(latest.title, previous = latest)
         onUpdate(latest)
     }
     return latest

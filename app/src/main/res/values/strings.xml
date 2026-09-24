@@ -1,4 +1,10 @@
 <resources>
+    <string name="region_checking">Checking availability…</string>
+    <string name="region_unavailable">This service is unavailable in your current region or network.</string>
+    <string name="region_restricted">This service is not available in your region.</string>
+    <string name="analytics_consent_message">Allow analytics and attribution to improve the app and measure campaign performance.</string>
+    <string name="analytics_consent_accept">ALLOW AND CONTINUE</string>
+    <string name="analytics_consent_decline">DECLINE</string>
     <string name="app_name">Achat</string>
     <string name="image_to_video_title">Image To Video</string>
     <string name="image_to_image_title">IMAGE TO IMAGE</string>

@@ -11,7 +11,7 @@ internal interface AchatAuthApi {
     fun refreshAccessToken(refreshToken: String): String
 }
 
-internal class AchatBackendHttpException(
+class AchatBackendHttpException(
     val statusCode: Int,
     val responseBody: String,
 ) : IllegalStateException(responseBody.ifBlank { "HTTP $statusCode" })
@@ -69,12 +69,16 @@ class AchatBackendClient(
     }
 
     fun reportAttribution(payload: JSONObject) {
-        request(
+        val response = request(
             path = "/api/v1/attribution/report",
             method = "POST",
             body = payload.toString(),
             headers = mapOf("Content-Type" to "application/json"),
         )
+        val envelope = JSONObject(response)
+        check(envelope.optInt("code", -1) == 0) {
+            envelope.optString("message").takeIf(String::isNotBlank) ?: "Attribution report rejected"
+        }
     }
 
     fun userProfile(token: String): UserProfile =

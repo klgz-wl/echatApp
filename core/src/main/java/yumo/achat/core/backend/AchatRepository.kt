@@ -33,16 +33,19 @@ class AchatRepository(
     context: Context,
     configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
     attribution: BackendAttribution = NoOpBackendAttribution(configuration),
+    onLoginResult: (Boolean, String?, String?) -> Unit = { _, _, _ -> },
 ) : StorePaymentGateway, ProfileEditingGateway {
     private val appContext = context.applicationContext
     private val client = AchatBackendClient(configuration)
-    private val sessionManager = AchatSessionManager.application(context, configuration, attribution)
+    private val sessionManager = AchatSessionManager.application(context, configuration, attribution, onLoginResult)
 
     suspend fun loadHomeData(): AchatHomeData = withContext(Dispatchers.IO) {
-        sessionManager.session()
+        val startupSession = sessionManager.startupSession()
         coroutineScope {
             val profile = async {
-                optionalBackendValue { sessionManager.authenticated(client::userProfile) }
+                sessionManager.authenticated(client::userProfile).also {
+                    check(it.isNew != null) { "Profile is missing is_new" }
+                }
             }
             val currency = async {
                 optionalBackendValue { sessionManager.authenticated(client::userCurrency) }
@@ -71,7 +74,7 @@ class AchatRepository(
             val loadedImageTemplates = imageTemplates.await()
 
             AchatHomeData(
-                session = sessionManager.session(),
+                session = startupSession,
                 profile = profile.await(),
                 currency = currency.await(),
                 videoTemplates = loadedVideoTemplates.templates,
@@ -165,6 +168,12 @@ class AchatRepository(
 
     suspend fun userCurrencySnapshot(): UserCurrency = withContext(Dispatchers.IO) {
         sessionManager.authenticated(client::userCurrency)
+    }
+
+    suspend fun userProfileSnapshot(): UserProfile = withContext(Dispatchers.IO) {
+        sessionManager.authenticated(client::userProfile).also {
+            check(it.isNew != null) { "Profile is missing is_new" }
+        }
     }
 
     override suspend fun createStoreOrder(productId: String): StoreOrder = withContext(Dispatchers.IO) {

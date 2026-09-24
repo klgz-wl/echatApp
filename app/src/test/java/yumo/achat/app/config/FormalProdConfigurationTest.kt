@@ -49,6 +49,15 @@ class FormalProdConfigurationTest {
         }
     }
 
+    @Test
+    fun `formal prod region restriction has a real lookup endpoint`() {
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assertEquals("true", prod.getProperty("build.boolean.ENABLE_REGION_RESTRICTION"))
+        assertEquals(2, Regex("REGION_LOOKUP_URL\\\" to \\\"https://api\\.country\\.is/").findAll(gradle).count())
+    }
+
 }
 
 private fun File.readProperties(): Properties =

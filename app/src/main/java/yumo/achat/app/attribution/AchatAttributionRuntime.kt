@@ -6,7 +6,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
@@ -71,15 +74,28 @@ internal class AppsFlyerBackendAttribution(
     )
     private val client = AchatBackendClient(backendConfiguration)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    @Volatile private var activeSession: AuthSession? = null
-    @Volatile private var latestAttribution: JsonObject? = null
-    @Volatile private var lastReportedKey: String? = null
+    private val mutableSuccessfulReports = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val successfulReports = mutableSuccessfulReports.asSharedFlow()
+    private val reporter = AttributionReportDispatcher(
+        attempts = BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1),
+        scope = scope,
+        retryDelay = { delay(BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong()) },
+        report = { session, data ->
+            val payload = deviceAttributionReport(
+                data = data,
+                identity = identity,
+                deviceId = storage.deviceIdBlocking(),
+                userId = session.userId,
+            )
+            client.reportAttribution(JSONObject(payload.toString()))
+        },
+        onReported = { session -> mutableSuccessfulReports.tryEmit(session.userId) },
+    )
 
     init {
         scope.launch {
             coordinator.snapshots.filterNotNull().collect { data ->
-                latestAttribution = data
-                reportLatest()
+                reporter.updateSnapshot(data)
             }
         }
     }
@@ -100,25 +116,7 @@ internal class AppsFlyerBackendAttribution(
     fun analyticsSink(): AnalyticsSink = source
 
     override suspend fun report(session: AuthSession) {
-        activeSession = session
-        reportLatest()
-    }
-
-    private fun reportLatest() {
-        val data = latestAttribution ?: return
-        val session = activeSession
-        val reportKey = "${session?.userId.orEmpty()}:${data}"
-        if (lastReportedKey == reportKey) return
-        runCatching {
-            val payload = deviceAttributionReport(
-                data = data,
-                identity = identity,
-                deviceId = storage.deviceIdBlocking(),
-                userId = session?.userId,
-            )
-            client.reportAttribution(JSONObject(payload.toString()))
-            lastReportedKey = reportKey
-        }
+        reporter.updateSession(session)
     }
 }
 

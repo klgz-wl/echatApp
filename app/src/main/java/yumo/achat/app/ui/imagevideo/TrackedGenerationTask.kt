@@ -14,6 +14,12 @@ internal data class TrackedGenerationTask(
     val mimeType: String,
     val errorMessage: String?,
     val pollIntervalSeconds: Int = 3,
+    val requestId: String = "",
+    val templateId: String = "",
+    val categoryId: String = "",
+    val quality: String = "",
+    val diamondCost: Int = 0,
+    val source: String = "",
 ) {
     val isFinished: Boolean
         get() = isVisualGenerationFinished(status)
@@ -25,7 +31,10 @@ internal data class TrackedGenerationTask(
         get() = canOpenResult && (mimeType.startsWith("image/") || modality == "image")
 }
 
-internal fun VisualGenerationTask.toTrackedGenerationTask(title: String): TrackedGenerationTask =
+internal fun VisualGenerationTask.toTrackedGenerationTask(
+    title: String,
+    previous: TrackedGenerationTask? = null,
+): TrackedGenerationTask =
     TrackedGenerationTask(
         taskId = taskId,
         title = title,
@@ -35,6 +44,12 @@ internal fun VisualGenerationTask.toTrackedGenerationTask(title: String): Tracke
         mimeType = resource?.mimeType.orEmpty(),
         errorMessage = errorMessage,
         pollIntervalSeconds = visualGenerationPollIntervalSeconds(estimatedPollIntervalSeconds),
+        requestId = previous?.requestId.orEmpty(),
+        templateId = templateId,
+        categoryId = previous?.categoryId.orEmpty(),
+        quality = quality,
+        diamondCost = diamondCost,
+        source = previous?.source.orEmpty(),
     )
 
 internal fun VisualResource.toTrackedGenerationTask(defaultTitle: String): TrackedGenerationTask =

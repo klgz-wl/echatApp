@@ -110,6 +110,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
@@ -125,8 +126,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.collectLatest
 import yumo.achat.app.R
+import yumo.achat.app.BuildConfig
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
+import yumo.achat.app.analytics.GenerationAnalytics
+import yumo.achat.app.analytics.GenerationAnalyticsContext
+import yumo.achat.app.analytics.AnalyticsConsent
+import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
 import yumo.achat.core.backend.PreparedStorePayment
@@ -170,8 +179,8 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
 internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
     0 -> "video"
     1 -> "image"
-    2 -> "top_up"
-    3 -> "me"
+    2 -> "purchase"
+    3 -> "profile"
     else -> "unknown"
 }
 
@@ -198,7 +207,7 @@ internal data class AchatBackendUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val profileName: String = "Quiet wanderer",
-    val profileId: String = "3095609813",
+    val profileId: String = "",
     val profileAvatarUrl: String? = null,
     val isNewProfile: Boolean? = null,
     val diamondBalance: Int = 0,
@@ -367,6 +376,18 @@ private data class SelectedGenerationTemplate(
     val title: String,
     val previewMedia: TemplatePreviewMedia,
     val durationSeconds: Int,
+    val categoryId: String,
+    val source: String,
+    val quotedDiamondCost: Int,
+)
+
+private fun SelectedGenerationTemplate.analyticsContext() = GenerationAnalyticsContext(
+    templateId = templateId,
+    categoryId = categoryId,
+    modality = modality,
+    source = source,
+    quality = quality,
+    quotedDiamondCost = quotedDiamondCost,
 )
 
 internal data class CreditPack(
@@ -431,6 +452,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val context = localContext.applicationContext
     val repository = remember(context) { createAchatRepository(context) }
     val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
+    val attributionRuntime = remember(context) {
+        if (AnalyticsConsent.granted(context)) AchatAttributionRuntime.get(context) else null
+    }
     val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
@@ -467,6 +491,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var chargedGenerationTaskIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var diamondBalanceRefreshSerial by remember { mutableStateOf(0L) }
     val defaultTaskTitle = stringResource(R.string.default_task_title)
+    val generationEvents = remember(analytics) { GenerationAnalytics(analytics, analytics::currentUserId) }
     val trackedTasks = mergeTrackedGenerationTasks(sessionTasks, serverHistoryTasks)
     val templateEdgeHint = templateEdgeHintRes?.let { messageRes ->
         TransientMessage(
@@ -549,6 +574,23 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     fun handleGenerationTaskCreated(task: VisualGenerationTask, trackedTask: TrackedGenerationTask) {
         sessionTasks = upsertTrackedGenerationTask(sessionTasks, trackedTask)
+        if (trackedTask.isFinished && trackedTask.requestId.isNotBlank()) {
+            generationEvents.terminalResult(
+                context = GenerationAnalyticsContext(
+                    templateId = trackedTask.templateId,
+                    categoryId = trackedTask.categoryId,
+                    modality = trackedTask.modality,
+                    source = trackedTask.source,
+                    quality = trackedTask.quality,
+                    quotedDiamondCost = trackedTask.diamondCost,
+                ),
+                requestId = trackedTask.requestId,
+                taskId = trackedTask.taskId,
+                status = trackedTask.status,
+                quality = trackedTask.quality,
+                diamondCost = trackedTask.diamondCost,
+            )
+        }
         if (shouldApplyGenerationCharge(task.taskId, chargedGenerationTaskIds)) {
             chargedGenerationTaskIds = chargedGenerationTaskIds + task.taskId
             backendState = backendState.copy(
@@ -617,11 +659,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     fun navigateFromBottomNavigation(navigationIndex: Int) {
         val route = routeFromBottomNavigation(navigationIndex)
+        val previousNavigation = selectedNavigation
         analytics.track(
             name = "tab_click",
             parameters = mapOf(
-                "tab_index" to navigationIndex,
                 "tab_name" to bottomNavigationAnalyticsName(navigationIndex),
+                "previous_tab" to bottomNavigationAnalyticsName(previousNavigation),
+                "is_reselect" to (previousNavigation == navigationIndex),
             ),
             userId = backendState.profileId,
         )
@@ -645,6 +689,23 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         analytics.initialize()
     }
 
+    LaunchedEffect(attributionRuntime, repository) {
+        attributionRuntime?.successfulReports?.collectLatest { userId ->
+            if (analytics.currentUserId() != userId) return@collectLatest
+            repeat(BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1)) { attempt ->
+                val profile = runCatching { repository.userProfileSnapshot() }.getOrNull()
+                if (profile != null && analytics.currentUserId() == userId) {
+                    applyProfile(profile)
+                    analytics.mode(if (profile.isNew == true) "B" else "A")
+                    return@collectLatest
+                }
+                if (attempt + 1 < BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS) {
+                    delay(BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong())
+                }
+            }
+        }
+    }
+
     LaunchedEffect(context, startupReloadSerial) {
         val profileRevisionAtStart = profileRevision
         backendState = backendState.copy(
@@ -656,18 +717,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             imageTemplateErrorMessage = null,
         )
         runCatching {
-            repository.loadHomeData()
+            withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.loadHomeData() }
         }.onSuccess { homeData ->
             analytics.identify(homeData.session.userId)
-            analytics.track(
-                name = "app_launch",
-                parameters = mapOf(
-                    "is_new" to (homeData.profile?.isNew == true),
-                    "has_profile" to (homeData.profile != null),
-                ),
-                userId = homeData.session.userId,
-                onceKey = "app_launch:${homeData.session.userId}",
-            )
+            topUpPaymentViewModel.startReconciliation()
+            if (profileRevision == profileRevisionAtStart) {
+                analytics.mode(if (homeData.profile?.isNew == true) "B" else "A")
+            }
             backendState = backendState.withLoadedProfile(
                 profile = homeData.profile,
                 fallbackId = homeData.session.userId,
@@ -733,7 +789,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 catalog = catalog,
                 diamondBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance,
             )
-            topUpPaymentController.retainAvailableProducts(catalog.products)
+            topUpPaymentController.retainAvailableProducts(catalog.products, catalog.userInfo)
             screenScope.launch {
                 val transactions = try {
                     repository.walletTransactions()
@@ -799,6 +855,23 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     fetch = repository::getVisualGenerationTask,
                     onUpdate = { updatedTask ->
                         sessionTasks = upsertTrackedGenerationTask(sessionTasks, updatedTask)
+                        if (updatedTask.isFinished && updatedTask.requestId.isNotBlank()) {
+                            generationEvents.terminalResult(
+                                context = GenerationAnalyticsContext(
+                                    templateId = updatedTask.templateId,
+                                    categoryId = updatedTask.categoryId,
+                                    modality = updatedTask.modality,
+                                    source = updatedTask.source,
+                                    quality = updatedTask.quality,
+                                    quotedDiamondCost = updatedTask.diamondCost,
+                                ),
+                                requestId = updatedTask.requestId,
+                                taskId = updatedTask.taskId,
+                                status = updatedTask.status,
+                                quality = updatedTask.quality,
+                                diamondCost = updatedTask.diamondCost,
+                            )
+                        }
                         if (shouldRefreshBalanceForTaskStatus(updatedTask.status)) {
                             refreshDiamondBalance()
                         }
@@ -819,6 +892,35 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    if (backendState.isLoading || backendState.errorMessage != null) {
+        Box(
+            modifier = modifier.fillMaxSize().background(AchatDeepNavy),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = backendState.errorMessage ?: stringResource(R.string.backend_loading_templates),
+                    color = Color.White,
+                )
+                if (backendState.errorMessage != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.template_feed_retry),
+                        color = AchatCyan,
+                        modifier = Modifier.clickable { startupReloadSerial += 1 },
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    TrackAnalyticsPage(
+        pageName = analyticsPageName(destination, selectedNavigation, selectedResultTask != null),
+        tracker = analytics,
+        userId = backendState.profileId.takeIf(String::isNotBlank),
+    )
 
     Box(
         modifier = modifier
@@ -856,14 +958,29 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         currentTemplate = page
                         templateEdgeHintRes = null
                     },
+                    onTemplateExpose = { template, position ->
+                        analytics.track(
+                            name = "template_expose",
+                            parameters = mapOf(
+                                "template_id" to template.templateId,
+                                "category_id" to template.categoryId,
+                                "modality" to template.modality,
+                                "source" to template.source,
+                                "position" to position.toLong(),
+                                "filter_category_id" to "",
+                            ),
+                            userId = backendState.profileId,
+                        )
+                    },
                     onUseTemplate = { template ->
                         if (template != null) {
                             analytics.track(
-                                name = "template_use_click",
+                                name = "click_upload_img",
                                 parameters = mapOf(
                                     "template_id" to template.templateId,
-                                    "modality" to template.modality.lowercase(Locale.ROOT),
-                                    "quality" to template.quality,
+                                    "category_id" to template.categoryId,
+                                    "modality" to template.modality,
+                                    "source" to template.source,
                                 ),
                                 userId = backendState.profileId,
                             )
@@ -906,6 +1023,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     selectedTemplate = selectedGenerationTemplate,
                     trackedTasks = sessionTasks,
                     onTaskCreated = ::handleGenerationTaskCreated,
+                    analytics = analytics,
+                    analyticsUserId = backendState.profileId,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -1029,6 +1148,7 @@ private fun TemplateBrowserScreen(
     onPlayToggle: () -> Unit,
     onMoveTemplate: (TemplateFeedDirection, Int) -> Unit,
     onTemplatePageSelected: (Int) -> Unit,
+    onTemplateExpose: (SelectedGenerationTemplate, Int) -> Unit,
     onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
@@ -1116,7 +1236,32 @@ private fun TemplateBrowserScreen(
             title = template.name,
             previewMedia = template.toPreviewMedia(),
             durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
+            categoryId = template.categoryId.orEmpty(),
+            source = if (section == TemplateSection.Image) "image" else "video",
+            quotedDiamondCost = template.displayPrice ?: 0,
         )
+    }
+    val exposureLifecycle = LocalLifecycleOwner.current.lifecycle
+    val exposedTemplates = remember(selectedNavigation, selectedTab) { mutableSetOf<String>() }
+    DisposableEffect(exposureLifecycle, selectedNavigation, selectedTab) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) exposedTemplates.clear()
+        }
+        exposureLifecycle.addObserver(observer)
+        onDispose {
+            exposureLifecycle.removeObserver(observer)
+            exposedTemplates.clear()
+        }
+    }
+    LaunchedEffect(selectedGenerationTemplate?.templateId, selectedTab, selectedNavigation, exposureLifecycle) {
+        exposureLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            selectedGenerationTemplate?.let { template ->
+                if (exposedTemplates.add(template.templateId)) {
+                    onTemplateExpose(template, selectedTemplateIndex + 1)
+                }
+            }
+            awaitCancellation()
+        }
     }
     TemplateMediaPreloader(videoUrls = nearbyVideoUrls, imageUrls = nearbyImageUrls)
     Column(
@@ -3380,12 +3525,17 @@ private fun UploadPhotoScreen(
     selectedTemplate: SelectedGenerationTemplate?,
     trackedTasks: List<TrackedGenerationTask>,
     onTaskCreated: (VisualGenerationTask, TrackedGenerationTask) -> Unit,
+    analytics: yumo.achat.core.analytics.EventTracker,
+    analyticsUserId: String?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
     val repository = remember(appContext) { createAchatRepository(appContext) }
     val scope = rememberCoroutineScope()
+    val generationAnalytics = remember(analytics, analyticsUserId) {
+        GenerationAnalytics(analytics) { analyticsUserId }
+    }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadedResourceId by remember { mutableStateOf<String?>(null) }
     var generationSubmissionKey by rememberSaveable { mutableStateOf<GenerationSubmissionKey?>(null) }
@@ -3443,15 +3593,24 @@ private fun UploadPhotoScreen(
         uploadedResourceId = null
         generationSubmissionKey = null
         currentTask = null
+        selectedTemplate?.let { generationAnalytics.localPrepare(it.analyticsContext(), success = true) }
         uploadSelectedPhoto(uri)
     }
     fun launchPhotoPicker() {
         if (!uploadInProgress) {
-            pickerLauncher.launch(
-                Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
-                    type = "image/*"
-                },
-            )
+            runCatching {
+                pickerLauncher.launch(
+                    Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                        type = "image/*"
+                    },
+                )
+            }.onFailure {
+                selectedTemplate?.let { template ->
+                    generationAnalytics.localPrepare(
+                        template.analyticsContext(), success = false, reason = "picker_unavailable",
+                    )
+                }
+            }
         }
     }
 
@@ -3461,6 +3620,16 @@ private fun UploadPhotoScreen(
     LaunchedEffect(trackedCurrentTask?.taskId, trackedCurrentTask?.status) {
         val task = trackedCurrentTask ?: return@LaunchedEffect
         if (task.isFinished) {
+            val requestId = generationSubmissionKey?.idempotencyKey
+            val initial = currentTask
+            val template = selectedTemplate
+            if (requestId != null && initial != null && template != null) {
+                generationAnalytics.terminalResult(
+                    template.analyticsContext(),
+                    requestId,
+                    initial.copy(status = task.status, errorMessage = task.errorMessage),
+                )
+            }
             if (task.status == "succeeded") {
                 showUploadMessage(
                     text = taskSucceededPattern.format(task.taskId.take(8)),
@@ -3545,6 +3714,7 @@ private fun UploadPhotoScreen(
                     resourceId = resourceId,
                 )
                 generationSubmissionKey = submissionKey
+                generationAnalytics.clickGenerate(template.analyticsContext(), submissionKey.idempotencyKey)
                 scope.launch {
                     runCatching {
                         repository.createVisualGenerationTask(
@@ -3555,10 +3725,26 @@ private fun UploadPhotoScreen(
                             idempotencyKey = submissionKey.idempotencyKey,
                         )
                     }.onSuccess { task ->
+                        generationAnalytics.submitResult(
+                            template.analyticsContext(), submissionKey.idempotencyKey, task, null,
+                        )
                         currentTask = task
-                        onTaskCreated(task, task.toTrackedGenerationTask(template.title))
+                        onTaskCreated(
+                            task,
+                            task.toTrackedGenerationTask(template.title).copy(
+                                requestId = submissionKey.idempotencyKey,
+                                templateId = template.templateId,
+                                categoryId = template.categoryId,
+                                quality = template.quality,
+                                diamondCost = task.diamondCost,
+                                source = template.source,
+                            ),
+                        )
                         showUploadMessage(taskCreatedPattern.format(task.taskId.take(8), task.status))
                     }.onFailure { error ->
+                        generationAnalytics.submitResult(
+                            template.analyticsContext(), submissionKey.idempotencyKey, null, error,
+                        )
                         showUploadMessage(
                             text = visualGenerationUserMessage(error.message, uploadFailedMessage),
                             tone = TransientMessageTone.Error,

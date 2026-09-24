@@ -9,7 +9,7 @@ interface BackendAttribution {
     suspend fun report(session: AuthSession)
 }
 
-internal class NoOpBackendAttribution(
+class NoOpBackendAttribution(
     private val configuration: AchatBackendConfiguration,
 ) : BackendAttribution {
     override suspend fun forLogin(installDeviceId: String): LoginAttribution =

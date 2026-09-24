@@ -7,6 +7,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 fun readProperties(path: String) = Properties().apply {
@@ -37,7 +38,7 @@ val flavorEndpoints = mapOf(
         "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
         "CORE_STREAM_URL" to "wss://release.appjoly.com",
         "CORE_CDN_URL" to "https://cdn.appjoly.com",
-        "REGION_LOOKUP_URL" to "",
+        "REGION_LOOKUP_URL" to "https://api.country.is/",
     ),
 )
 
@@ -127,6 +128,9 @@ android {
                     if (env == "prod" && mode == "FORMAL") "formal" else "sharedDev",
                 )
                 manifestPlaceholders["appLabel"] = config.getProperty("app.display.name", "Achat")
+                manifestPlaceholders["firebaseAnalyticsEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_ANALYTICS", "false")
+                manifestPlaceholders["firebaseCrashlyticsEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_CRASHLYTICS", "false")
+                manifestPlaceholders["firebaseMessagingEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_MESSAGING", "false")
                 val baseUrl = config.getProperty("build.string.CORE_BASE_URL").removeSuffix("/api/v1/")
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
                 buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
@@ -171,6 +175,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("com.android.billingclient:billing-ktx:9.1.0")
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.messaging)
 
     val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
     implementation(composeBom)

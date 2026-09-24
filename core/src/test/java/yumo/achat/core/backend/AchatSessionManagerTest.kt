@@ -15,6 +15,26 @@ import yumo.achat.core.attribution.LoginAttribution
 
 class AchatSessionManagerTest {
     @Test
+    fun `anonymous login reports sanitized success and failure outcomes`() = runBlocking {
+        val outcomes = mutableListOf<Pair<Boolean, String?>>()
+        val success = AchatSessionManager(
+            FakeSessionStore(null),
+            FakeAuthApi(loginResult = Result.success(session("access", "refresh"))),
+            onLoginResult = { ok, reason, _ -> outcomes += ok to reason },
+        )
+        success.session()
+
+        val failed = AchatSessionManager(
+            FakeSessionStore(null),
+            FakeAuthApi(loginResult = Result.failure(IllegalStateException("Bearer secret"))),
+            onLoginResult = { ok, reason, _ -> outcomes += ok to reason },
+        )
+        runCatching { failed.session() }
+
+        assertEquals(listOf(true to null, false to "authentication_unavailable"), outcomes)
+    }
+
+    @Test
     fun `401 refreshes access token persists session and retries once`() = runBlocking {
         val store = FakeSessionStore(session("old-access", "refresh-1"))
         val api = FakeAuthApi(refreshResult = Result.success("new-access"))
@@ -131,6 +151,22 @@ class AchatSessionManagerTest {
 
         assertEquals(0, api.loginCount.get())
         assertEquals(listOf(existing), attribution.reportedSessions)
+    }
+
+    @Test
+    fun `startup session reauthenticates stored identity with current attribution`() = runBlocking {
+        val existing = session("old-access", "old-refresh")
+        val replacement = session("new-access", "new-refresh")
+        val store = FakeSessionStore(existing)
+        val api = FakeAuthApi(loginResult = Result.success(replacement))
+        val attribution = FakeAttribution()
+        val manager = AchatSessionManager(store, api, attribution = attribution)
+
+        assertEquals(replacement, manager.startupSession())
+
+        assertEquals(1, api.loginCount.get())
+        assertEquals(replacement, store.session)
+        assertEquals(loginAttribution(), api.lastLoginAttribution)
     }
 
     @Test

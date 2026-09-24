@@ -13,16 +13,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.R
+import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.core.backend.PreparedStorePayment
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreOrder
+import yumo.achat.core.backend.StoreUserInfo
 import yumo.achat.core.backend.StorePaymentGateway
+import yumo.achat.core.analytics.EventTracker
+import yumo.achat.core.analytics.NoOpEventTracker
+import yumo.achat.core.analytics.paymentResult
 
 internal class TopUpPaymentController(
     private val gateway: StorePaymentGateway,
     private val paymentFlow: TopUpPaymentFlow,
     private val scope: CoroutineScope,
     private val errorMessage: (Throwable) -> String,
+    private val events: EventTracker = NoOpEventTracker,
+    private val userId: () -> String? = { null },
 ) {
     var selectedProductId by mutableStateOf<String?>(null)
         private set
@@ -45,6 +52,9 @@ internal class TopUpPaymentController(
     private var requestSerial = 0L
     private val successfulOrderIds = mutableSetOf<String>()
     private var officialProductIds: Map<String, String> = emptyMap()
+    private var products: Map<String, StoreProduct> = emptyMap()
+    private var storeUserInfo: StoreUserInfo? = null
+    private val playQuotes = mutableMapOf<String, Pair<Double, String>>()
 
     fun beginReconciliationLookup() {
         reconciliationCount += 1
@@ -67,7 +77,9 @@ internal class TopUpPaymentController(
         refreshJob?.cancel()
     }
 
-    fun retainAvailableProducts(products: List<StoreProduct>) {
+    fun retainAvailableProducts(products: List<StoreProduct>, userInfo: StoreUserInfo? = null) {
+        storeUserInfo = userInfo
+        this.products = products.associateBy(StoreProduct::id)
         officialProductIds = products.associate { product -> product.id to product.officialProductId }
         val productIds = products.map { it.id }
         val retained = selectedProductId?.takeIf { it in productIds }
@@ -100,6 +112,7 @@ internal class TopUpPaymentController(
         ) {
             return
         }
+        trackPackageClick(productId)
         val existingOrder = (state as? TopUpPurchaseState.Error)
             ?.takeIf { it.productId == productId }
             ?.order
@@ -133,6 +146,12 @@ internal class TopUpPaymentController(
                         state = officialFallbackRoute(productId, order)
                         return@launch
                     }
+                    emitPreparationFailure(
+                        productId = productId,
+                        order = order,
+                        stage = if (order == null) "order_creation" else "initialize",
+                        serial = serial,
+                    )
                     state = TopUpPurchaseState.Error(
                         productId = productId,
                         message = errorMessage(error),
@@ -156,23 +175,57 @@ internal class TopUpPaymentController(
         checkoutState = TopUpCheckoutState.Launching
     }
 
+    fun onGoogleBillingLaunched(route: TopUpPurchaseState.OfficialReady, price: Double, currency: String) {
+        if (state != route) return
+        if (price.isFinite() && price >= 0 && currency.matches(Regex("[A-Z]{3}"))) {
+            playQuotes[route.orderId] = price to currency
+        }
+        events.track(
+            "initiate_pay",
+            paymentAnalyticsValues(route, "initiated", "sdk_launch"),
+            userId(),
+            "payment:${route.orderId}:initiate",
+        )
+    }
+
     fun onGooglePurchaseAccepted(route: TopUpPurchaseState.OfficialReady, pending: Boolean) {
         if (state != route) return
         checkoutState = TopUpCheckoutState.AwaitingPayment(pending)
+        if (pending) emitPaymentResult(route, "pending", "play_pending", null, "pending")
         startPolling(route.order.id, route.channelCode, "sdk", 3, 600)
     }
 
     fun onGooglePurchaseCancelled(route: TopUpPurchaseState.OfficialReady) {
-        if (state == route) checkoutState = TopUpCheckoutState.Cancelled
+        if (state == route) {
+            emitPaymentResult(route, "cancelled", "purchase", "user_cancelled", "cancelled")
+            checkoutState = TopUpCheckoutState.Cancelled
+        }
     }
 
     fun onCheckoutLaunchError(message: String) {
+        emitCurrentPaymentResult("failed", "purchase", "payment_failed", "launch_error")
         checkoutState = TopUpCheckoutState.Failed(message, retryPreparedRoute = true)
     }
 
     fun openThirdParty(route: TopUpPurchaseState.ThirdPartyReady) {
         if (state != route || checkoutState != TopUpCheckoutState.Idle) return
         checkoutState = TopUpCheckoutState.AwaitingPayment(false)
+        events.track(
+            name = "3rdpayment_link_ok",
+            parameters = paymentAnalyticsValues(route, status = "initiated", stage = "checkout_open") + mapOf(
+                "channel_code" to route.channelCode,
+                "open_mode" to route.openMode,
+                "page_name" to "recharge_paywall",
+            ),
+            userId = userId(),
+            onceKey = "payment:${route.orderId}:link_ok",
+        )
+        events.track(
+            name = "initiate_pay",
+            parameters = paymentAnalyticsValues(route, status = "initiated", stage = "checkout_open"),
+            userId = userId(),
+            onceKey = "payment:${route.orderId}:initiate",
+        )
         reportEvent(route, "link_ok")
         reportEvent(route, "page_opened")
         startPolling(
@@ -184,7 +237,19 @@ internal class TopUpPaymentController(
         )
     }
 
-    fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady) = reportEvent(route, "page_loaded")
+    fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady) {
+        events.track(
+            name = "3rdpayment_page_loaded",
+            parameters = paymentAnalyticsValues(route, "initiated", "checkout_open") + mapOf(
+                "channel_code" to route.channelCode,
+                "open_mode" to route.openMode,
+                "page_name" to "recharge_paywall",
+            ),
+            userId = userId(),
+            onceKey = "payment:${route.orderId}:page_loaded",
+        )
+        reportEvent(route, "page_loaded")
+    }
 
     fun onThirdPartyPageError(route: TopUpPurchaseState.ThirdPartyReady, message: String) {
         reportEvent(route, "page_load_error", "webview_error", message)
@@ -208,6 +273,7 @@ internal class TopUpPaymentController(
                 reportEvent(route, "paid_on_close")
                 markSuccess(route.orderId)
             } else {
+                emitCurrentPaymentResult("closed", "checkout_close", null, "closed")
                 reportEvent(route, "user_cancel")
                 checkoutState = TopUpCheckoutState.Cancelled
             }
@@ -229,7 +295,10 @@ internal class TopUpPaymentController(
             if (serial != requestSerial || state != route) return@launch
             when (outcome) {
                 TopUpPaymentOutcome.Success -> markSuccess(route.orderId)
-                TopUpPaymentOutcome.Failed -> checkoutState = TopUpCheckoutState.Failed("Payment failed")
+                TopUpPaymentOutcome.Failed -> {
+                    emitCurrentPaymentResult("failed", "server_status", "payment_failed", "failed")
+                    checkoutState = TopUpCheckoutState.Failed("Payment failed")
+                }
                 else -> Unit
             }
         }
@@ -246,7 +315,7 @@ internal class TopUpPaymentController(
                     while (System.nanoTime() < deadline) {
                         when (runCatching { classifyTopUpPayment(gateway.storePaymentStatus(purchase.orderId)) }.getOrNull()) {
                             TopUpPaymentOutcome.Success -> {
-                                markSuccess(purchase.orderId)
+                                markRestoredSuccess(purchase)
                                 return@launch
                             }
                             TopUpPaymentOutcome.Failed -> return@launch
@@ -285,6 +354,7 @@ internal class TopUpPaymentController(
                         return@launch
                     }
                     TopUpPaymentOutcome.Failed -> {
+                        emitCurrentPaymentResult("failed", "server_status", "payment_failed", "failed")
                         checkoutState = TopUpCheckoutState.Failed("Payment failed")
                         return@launch
                     }
@@ -293,6 +363,7 @@ internal class TopUpPaymentController(
                 delay(interval * 1_000L)
             }
             if (requestSerial == serial) {
+                emitCurrentPaymentResult("unknown", "poll_timeout", "poll_timeout", "timeout")
                 checkoutState = TopUpCheckoutState.TimedOut
                 if (openMode != "sdk") {
                     runCatching { gateway.reportStorePaymentEvent(orderId, "poll_timeout", channelCode, openMode) }
@@ -304,10 +375,191 @@ internal class TopUpPaymentController(
 
     private fun markSuccess(orderId: String) {
         if (!successfulOrderIds.add(orderId)) return
+        val route = state
+        val values = when (route) {
+            is TopUpPurchaseState.OfficialReady -> route.takeIf { it.orderId == orderId }
+                ?.let { paymentAnalyticsValues(it, "success", "fulfilled") }
+            is TopUpPurchaseState.ThirdPartyReady -> route.takeIf { it.orderId == orderId }
+                ?.let { paymentAnalyticsValues(it, "success", "fulfilled") }
+            else -> null
+        }
+        if (values != null) {
+            userId()?.let { owner ->
+                events.paymentResult(values, owner, "payment:$orderId:terminal")
+            }
+        }
         checkoutState = TopUpCheckoutState.Succeeded(orderId)
         successSerial += 1
         pollingJob?.cancel()
         refreshJob?.cancel()
+    }
+
+    private suspend fun markRestoredSuccess(purchase: RecoveredGooglePurchase) {
+        if (purchase.orderId in successfulOrderIds) return
+        var owner: String? = null
+        for (attempt in 0 until 10) {
+            owner = userId()
+            if (owner != null) break
+            if (attempt < 9) delay(500)
+        }
+        val identifiedUser = owner ?: return
+        if (!successfulOrderIds.add(purchase.orderId)) return
+        val values = buildMap<String, Any> {
+            put("status", "success")
+            put("af_success", "true")
+            put("pay_method", "google_play")
+            put("payment_flow", "restored")
+            put("entry_source", "restored")
+            put("af_order_id", purchase.orderId)
+            put("stage", "server_status")
+            purchase.sdkProductId.takeIf(String::isNotBlank)?.let { put("af_content_id", it) }
+        }
+        events.paymentResult(values, identifiedUser, "payment:${purchase.orderId}:restored")
+    }
+
+    private fun trackPackageClick(productId: String) {
+        val product = products[productId]
+        events.track(
+            name = "click_package",
+            parameters = buildMap {
+                put("package_id", productId)
+                put("entry_source", "main")
+                product?.let {
+                    val firstBuy = storeUserInfo?.hasMadeFirstPurchase == false && it.isFirstBuyPromotion
+                    val price = it.firstBuyPrice.takeIf { value -> firstBuy && value > java.math.BigDecimal.ZERO } ?: it.price
+                    put("af_price", price.toDouble())
+                    it.currency.takeIf(String::isNotBlank)?.let { currency -> put("af_currency", currency) }
+                    put("price_source", "catalog_quote")
+                    it.googleProductId.takeIf(String::isNotBlank)?.let { sku -> put("af_content_id", sku) }
+                    put("diamond_amount", it.value.toLong())
+                    put("bonus_amount", (it.bonusValue + if (firstBuy) it.firstBuyBonusValue else 0).toLong())
+                }
+            },
+            userId = userId(),
+        )
+    }
+
+    private fun paymentAnalyticsValues(
+        route: TopUpPurchaseState.OfficialReady,
+        status: String,
+        stage: String,
+    ): Map<String, Any> = paymentAnalyticsValues(
+        productId = route.productId,
+        orderId = route.orderId,
+        method = route.channelCode,
+        flow = paymentFlow,
+        status = status,
+        stage = stage,
+        sdkProductId = route.sdkProductId,
+        playQuote = playQuotes[route.orderId],
+    )
+
+    private fun paymentAnalyticsValues(
+        route: TopUpPurchaseState.ThirdPartyReady,
+        status: String,
+        stage: String,
+    ): Map<String, Any> = paymentAnalyticsValues(
+        productId = route.productId,
+        orderId = route.orderId,
+        method = route.channelCode,
+        flow = paymentFlow,
+        status = status,
+        stage = stage,
+        sdkProductId = null,
+        playQuote = null,
+    )
+
+    private fun paymentAnalyticsValues(
+        productId: String,
+        orderId: String?,
+        method: String,
+        flow: TopUpPaymentFlow,
+        status: String,
+        stage: String,
+        sdkProductId: String?,
+        playQuote: Pair<Double, String>?,
+    ): Map<String, Any> = buildMap {
+        put("status", status)
+        put("af_success", (status == "success").toString())
+        put("pay_method", method)
+        put("payment_flow", flow.name.uppercase())
+        put("entry_source", "main")
+        put("package_id", productId)
+        orderId?.takeIf(String::isNotBlank)?.let { put("af_order_id", it) }
+        put("stage", stage)
+        sdkProductId?.takeIf(String::isNotBlank)?.let { put("af_content_id", it) }
+        if (playQuote != null) {
+            put("af_price", playQuote.first)
+            put("af_currency", playQuote.second)
+            put("price_source", "google_play")
+        } else products[productId]?.let { product ->
+            val firstBuy = storeUserInfo?.hasMadeFirstPurchase == false && product.isFirstBuyPromotion
+            val price = product.firstBuyPrice.takeIf { firstBuy && it > java.math.BigDecimal.ZERO } ?: product.price
+            put("af_price", price.toDouble())
+            product.currency.takeIf(String::isNotBlank)?.let { put("af_currency", it) }
+            put("price_source", "catalog_quote")
+        }
+    }
+
+    private fun emitPaymentResult(
+        route: TopUpPurchaseState.OfficialReady,
+        status: String,
+        stage: String,
+        reason: String?,
+        keySuffix: String,
+    ) {
+        val owner = userId() ?: return
+        val values = paymentAnalyticsValues(route, status, stage) +
+            (reason?.let { mapOf("fail_reason" to it) } ?: emptyMap())
+        events.paymentResult(values, owner, "payment:${route.orderId}:$keySuffix")
+    }
+
+    private fun emitCurrentPaymentResult(
+        status: String,
+        stage: String,
+        reason: String?,
+        keySuffix: String,
+    ) {
+        val owner = userId() ?: return
+        val route = state
+        val values = when (route) {
+            is TopUpPurchaseState.OfficialReady -> paymentAnalyticsValues(route, status, stage)
+            is TopUpPurchaseState.ThirdPartyReady -> paymentAnalyticsValues(route, status, stage)
+            else -> return
+        } + (reason?.let { mapOf("fail_reason" to it) } ?: emptyMap())
+        val orderId = when (route) {
+            is TopUpPurchaseState.OfficialReady -> route.orderId
+            is TopUpPurchaseState.ThirdPartyReady -> route.orderId
+        }
+        events.paymentResult(values, owner, "payment:$orderId:$keySuffix")
+    }
+
+    private fun emitPreparationFailure(
+        productId: String,
+        order: StoreOrder?,
+        stage: String,
+        serial: Long,
+    ) {
+        val owner = userId() ?: return
+        val values = paymentAnalyticsValues(
+            productId = productId,
+            orderId = order?.id,
+            method = "unknown",
+            flow = paymentFlow,
+            status = "failed",
+            stage = stage,
+            sdkProductId = officialProductIds[productId],
+            playQuote = null,
+        ) + mapOf("fail_reason" to if (stage == "order_creation") "order_unknown" else "initialize_failed")
+        events.paymentResult(values, owner, "payment:${order?.id ?: productId}:$stage:$serial")
+        if (stage == "initialize") {
+            events.track(
+                "3rdpayment_link_error",
+                values + mapOf("page_name" to "recharge_paywall"),
+                owner,
+                "payment:${order?.id}:link_error:$serial",
+            )
+        }
     }
 
     private fun reportEvent(
@@ -350,6 +602,7 @@ internal sealed interface TopUpCheckoutState {
 
 internal class TopUpPaymentViewModel(application: Application) : AndroidViewModel(application) {
     private val billingManager = GooglePlayBillingManager.get(application)
+    private val analytics = AchatAnalyticsRuntime.get(application)
     val controller = TopUpPaymentController(
         gateway = createAchatRepository(application),
         paymentFlow = TopUpPaymentFlow.fromConfig(BuildConfig.PAYMENT_FLOW),
@@ -361,9 +614,15 @@ internal class TopUpPaymentViewModel(application: Application) : AndroidViewMode
                 application.getString(R.string.top_up_payment_channel_unavailable),
             )
         },
+        events = analytics,
+        userId = analytics::currentUserId,
     )
 
-    init {
+    private var reconciliationStarted = false
+
+    fun startReconciliation() {
+        if (reconciliationStarted) return
+        reconciliationStarted = true
         controller.beginReconciliationLookup()
         billingManager.restoreActivePurchases(controller::completeReconciliationLookup)
     }
@@ -372,6 +631,9 @@ internal class TopUpPaymentViewModel(application: Application) : AndroidViewMode
         controller.beginOfficialCheckout(route)
         billingManager.launch(activity, route) { result ->
             when (result) {
+                is GooglePurchaseResult.Launched -> controller.onGoogleBillingLaunched(
+                    route, result.price, result.currency,
+                )
                 is GooglePurchaseResult.Purchased -> {
                     val recovered = result.recoveredOrderId
                     if (recovered != null && recovered != route.orderId) {
