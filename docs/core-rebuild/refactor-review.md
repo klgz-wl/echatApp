@@ -16,4 +16,6 @@
 
 ## 宿主接入与验证边界
 
-已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。脚手架官方 verify 任务列表仍按锁定工具执行；此外，本工程额外提供 `:app:verifyProdReleaseRuntimeConfig`、`:app:verifyFormalRelease` 和 `:app:verifyCoreFullChainEvidence`，分别用于可重复检查 prod/release 运行地址、支付路由、Firebase 开关、正式签名/确认门禁，以及在缺少本机平台验收 evidence 文件时阻止误称“全链路完整”。真实平台验收仍需外部条件：后端 dev/release 服务联通、Google Play Billing 测试账号、AppsFlyer/ThinkingData/后端事件控台回看、上传/生成/支付的真实沙箱数据。dev 保留交接包固定 Firebase 基线开关，但当前不接入 Firebase SDK，避免 FirebaseInitProvider 提前自动初始化；prod Firebase 相关开关仍保持关闭，直到正式 Firebase/Crashlytics/Messaging 平台验收完成。本报告不把本地构建通过等同于这些平台验收。
+已完成的真实本地验收包括脚手架完整性、doctor、基线 verify、refactored 静态计划检查、Gradle 单测、lint 和 dev/prod APK 身份检查。脚手架官方 verify 任务列表仍按锁定工具执行；此外，本工程额外提供 `:app:verifyProdReleaseRuntimeConfig`、`:app:verifyFormalRelease` 和 `:app:verifyCoreFullChainEvidence`，分别用于可重复检查 prod/release 运行地址、支付路由、Firebase 开关、正式签名/确认门禁，以及在缺少本机平台验收 evidence 文件时阻止误称“全链路完整”。真实平台验收仍需外部条件：后端 dev/release 服务联通、Google Play Billing 测试账号、AppsFlyer/ThinkingData/Firebase/后端事件控台回看、上传/生成/支付的真实沙箱数据。dev 已接入 Firebase Analytics、Crashlytics、Messaging 依赖与延迟初始化 sink/service，Manifest 显式移除 FirebaseInitProvider，并在地区及用户同意门禁之后初始化；prod Firebase 相关开关仍保持关闭，直到正式 Firebase/Crashlytics/Messaging 平台验收完成。本报告不把本地构建通过等同于这些平台验收。
+
+当前手写宿主已把真实 Compose、生成和支付控制器接入应用级统计 runtime：包括冷/暖启动、后台超时、页面/商店曝光、Tab、模板曝光与使用、匿名登录、上传/生成终态、支付发起/结果和第三方页面事件。匿名启动会强制重新认证并要求 profile.is_new；真实迟到归因补报成功后按当前 user 刷新 profile 与 app_mode。Google Play 收入只在 ProductDetails 提供真实金额/币种且后端确认 fulfilled 时记录。上述仍属于源码与本地验证，不代表四端控制台、真实投放或真实交易已经验收。

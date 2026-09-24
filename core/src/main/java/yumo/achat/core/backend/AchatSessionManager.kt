@@ -18,6 +18,7 @@ internal class AchatSessionManager(
     private val authApi: AchatAuthApi,
     private val attribution: BackendAttribution = NoOpBackendAttribution(AchatBackendConfiguration.Default),
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L },
+    private val onLoginResult: (Boolean, String?, String?) -> Unit = { _, _, _ -> },
 ) {
     private val sessionMutex = Mutex()
     private val attributionReportGuard = Any()
@@ -26,6 +27,21 @@ internal class AchatSessionManager(
     private var lastAttributionReportToken: String? = null
 
     suspend fun session(): AuthSession = ensureSession()
+
+    suspend fun startupSession(): AuthSession = sessionMutex.withLock {
+        try {
+            loginAnonymously().also { session ->
+                store.saveSession(session)
+                reportAttribution(session)
+                loginFailure = null
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            loginFailure = TimedAuthFailure(store.readSession()?.token, nowMillis(), error)
+            throw error
+        }
+    }
 
     suspend fun <T> authenticated(operation: (String) -> T): T {
         val session = ensureSession()
@@ -101,7 +117,17 @@ internal class AchatSessionManager(
 
     private suspend fun loginAnonymously(): AuthSession {
         val installDeviceId = store.deviceId()
-        return authApi.loginAnonymously(installDeviceId, attribution.forLogin(installDeviceId))
+        return try {
+            authApi.loginAnonymously(installDeviceId, attribution.forLogin(installDeviceId)).also {
+                onLoginResult(true, null, it.userId)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            val reason = if (error is java.io.IOException) "offline" else "authentication_unavailable"
+            onLoginResult(false, reason, null)
+            throw error
+        }
     }
 
     private suspend fun reportAttribution(session: AuthSession) {
@@ -130,6 +156,7 @@ internal class AchatSessionManager(
             context: Context,
             configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
             attribution: BackendAttribution = NoOpBackendAttribution(configuration),
+            onLoginResult: (Boolean, String?, String?) -> Unit = { _, _, _ -> },
         ): AchatSessionManager =
             applicationInstance ?: synchronized(this) {
                 applicationInstance ?: run {
@@ -138,6 +165,7 @@ internal class AchatSessionManager(
                         store = AchatSessionStore(appContext),
                         authApi = AchatBackendClient(configuration),
                         attribution = attribution,
+                        onLoginResult = onLoginResult,
                     ).also { applicationInstance = it }
                 }
             }

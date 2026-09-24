@@ -13,8 +13,150 @@ import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreOrder
 import yumo.achat.core.backend.StorePaymentGateway
 import yumo.achat.core.backend.PaymentOrderStatus
+import yumo.achat.core.backend.StoreUserInfo
+import yumo.achat.core.analytics.EventTracker
 
 class TopUpPaymentControllerTest {
+    @Test
+    fun `first buy click uses displayed promotional price and bonus`() {
+        val events = RecordingEvents()
+        val controller = controller(FakeGateway(), events = events)
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", firstBuy = true)),
+            StoreUserInfo(currentDiamond = 0, hasMadeFirstPurchase = false, isVip = false),
+        )
+
+        controller.prepare()
+
+        val event = events.single("click_package")
+        assertEquals(1.99, event.parameters["af_price"])
+        assertEquals(25L, event.parameters["bonus_amount"])
+    }
+
+    @Test
+    fun `purchase action records package click with catalog quote`() {
+        val events = RecordingEvents()
+        val controller = controller(FakeGateway(), events = events)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100", googleProductId = "play.pack.100")))
+
+        controller.prepare()
+
+        val event = events.single("click_package")
+        assertEquals("pack-100", event.parameters["package_id"])
+        assertEquals("play.pack.100", event.parameters["af_content_id"])
+        assertEquals(4.99, event.parameters["af_price"])
+        assertEquals("USD", event.parameters["af_currency"])
+        assertEquals(100L, event.parameters["diamond_amount"])
+    }
+
+    @Test
+    fun `fulfilled official payment records result events once`() {
+        val events = RecordingEvents()
+        val gateway = FakeGateway(
+            paymentStatus = {
+                PaymentOrderStatus(it, "paid", "google_play", "fulfilled", null, null, null, null)
+            },
+        )
+        val controller = controller(gateway, events = events)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100", googleProductId = "play.pack.100")))
+        controller.prepare()
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+
+        controller.onGooglePurchaseAccepted(route, pending = false)
+        controller.onGooglePurchaseAccepted(route, pending = false)
+
+        assertEquals(1, events.named("pay_result").size)
+        assertEquals(1, events.named("payment_custom").size)
+        assertEquals("success", events.single("pay_result").parameters["status"])
+        assertEquals("fulfilled", events.single("pay_result").parameters["stage"])
+    }
+
+    @Test
+    fun `google success uses play price for the single revenue event`() {
+        val events = RecordingEvents()
+        val gateway = FakeGateway(paymentStatus = {
+            PaymentOrderStatus(it, "paid", "google_play", "fulfilled", null, null, null, null)
+        })
+        val controller = controller(gateway, events = events)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100", googleProductId = "play.pack.100")))
+        controller.prepare()
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+
+        controller.onGoogleBillingLaunched(route, 2.99, "USD")
+        controller.onGooglePurchaseAccepted(route, pending = false)
+
+        val result = events.single("payment_custom")
+        assertEquals("google_play", result.parameters["price_source"])
+        assertEquals(2.99, result.parameters["af_revenue"])
+        assertEquals("USD", result.parameters["af_currency"])
+    }
+
+    @Test
+    fun `terminal backend payment failure records controlled result`() {
+        val events = RecordingEvents()
+        val gateway = FakeGateway(paymentStatus = {
+            PaymentOrderStatus(it, "failed", "google_play", "failed", null, null, null, null)
+        })
+        val controller = controller(gateway, events = events)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100", googleProductId = "play.pack.100")))
+        controller.prepare()
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+
+        controller.onGooglePurchaseAccepted(route, pending = false)
+
+        val result = events.single("pay_result")
+        assertEquals("failed", result.parameters["status"])
+        assertEquals("server_status", result.parameters["stage"])
+        assertEquals("payment_failed", result.parameters["fail_reason"])
+    }
+
+    @Test
+    fun `opening third party checkout records link and payment initiation`() {
+        val events = RecordingEvents()
+        val gateway = FakeGateway(initialize = {
+            PaymentInitialization(
+                orderId = "order-1", channelType = "third_party", channelCode = "payu_web_us",
+                openMode = "webview", paymentUrl = "https://checkout.example/pay/1", expiresAt = null,
+                queryIntervalSeconds = 10, maxQuerySeconds = 600, sdkProductId = "",
+            )
+        })
+        val controller = controller(gateway, events = events)
+        controller.retainAvailableProducts(listOf(product(id = "pack-100")))
+        controller.prepare()
+
+        controller.openThirdParty(controller.state as TopUpPurchaseState.ThirdPartyReady)
+
+        assertEquals(1, events.named("3rdpayment_link_ok").size)
+        assertEquals(1, events.named("initiate_pay").size)
+    }
+
+    @Test
+    fun `google cancellation and third party page load record controlled outcomes`() {
+        val googleEvents = RecordingEvents()
+        val google = controller(FakeGateway(), events = googleEvents)
+        google.retainAvailableProducts(listOf(product(id = "pack-100", googleProductId = "play.pack.100")))
+        google.prepare()
+        val official = google.state as TopUpPurchaseState.OfficialReady
+        google.beginOfficialCheckout(official)
+        google.onGooglePurchaseCancelled(official)
+
+        assertEquals("cancelled", googleEvents.single("pay_result").parameters["status"])
+        assertEquals("user_cancelled", googleEvents.single("pay_result").parameters["fail_reason"])
+
+        val webEvents = RecordingEvents()
+        val web = controller(FakeGateway(initialize = {
+            PaymentInitialization("order-1", "third_party", "payu_web_us", "webview",
+                "https://checkout.example/pay/1", null, 10, 600, "")
+        }), events = webEvents)
+        web.retainAvailableProducts(listOf(product(id = "pack-100")))
+        web.prepare()
+        val route = web.state as TopUpPurchaseState.ThirdPartyReady
+        web.openThirdParty(route)
+        web.onThirdPartyPageLoaded(route)
+
+        assertEquals(1, webEvents.named("3rdpayment_page_loaded").size)
+    }
+
     @Test
     fun `switching product prevents stale payment route from being applied`() {
         val createGate = CompletableDeferred<StoreOrder>()
@@ -196,6 +338,7 @@ class TopUpPaymentControllerTest {
     @Test
     fun `initialize failure retry reuses created order`() {
         var initializeAttempts = 0
+        val events = RecordingEvents()
         val gateway = FakeGateway(
             initialize = {
                 initializeAttempts += 1
@@ -203,11 +346,12 @@ class TopUpPaymentControllerTest {
                 officialInitialization()
             },
         )
-        val controller = controller(gateway)
+        val controller = controller(gateway, events = events)
         controller.selectProduct("pack-100")
 
         controller.prepare()
         assertTrue(controller.state is TopUpPurchaseState.Error)
+        assertEquals("initialize", events.single("pay_result").parameters["stage"])
         controller.prepare()
 
         assertEquals(1, gateway.createCount)
@@ -248,15 +392,47 @@ class TopUpPaymentControllerTest {
         assertEquals(1, gateway.createCount)
     }
 
+    @Test
+    fun `restored fulfilled purchase records isolated result without replacing checkout state`() {
+        val events = RecordingEvents()
+        val gateway = FakeGateway(paymentStatus = {
+            PaymentOrderStatus(it, "paid", "google_play", "fulfilled", null, null, null, null)
+        })
+        val controller = controller(gateway, events = events)
+
+        controller.reconcileGooglePurchases(
+            listOf(RecoveredGooglePurchase("restored-order", pending = false, sdkProductId = "play.pack.100")),
+        )
+
+        val result = events.single("pay_result")
+        assertEquals("restored", result.parameters["payment_flow"])
+        assertEquals("restored-order", result.parameters["af_order_id"])
+        assertEquals("play.pack.100", result.parameters["af_content_id"])
+        assertEquals(TopUpCheckoutState.Idle, controller.checkoutState)
+    }
+
     private fun controller(
         gateway: FakeGateway,
         flow: TopUpPaymentFlow = TopUpPaymentFlow.Service,
+        events: EventTracker = yumo.achat.core.analytics.NoOpEventTracker,
     ) = TopUpPaymentController(
         gateway = gateway,
         paymentFlow = flow,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         errorMessage = { it.message ?: "Payment failed" },
+        events = events,
+        userId = { "user-1" },
     )
+
+    private class RecordingEvents : EventTracker {
+        data class Event(val name: String, val parameters: Map<String, Any>, val userId: String?)
+        private val values = mutableListOf<Event>()
+        override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
+            values += Event(name, parameters, userId)
+        }
+        fun named(name: String) = values.filter { it.name == name }
+        fun single(name: String) = named(name).single()
+    }
 
     private fun TopUpPaymentController.forceCheckoutState(value: TopUpCheckoutState) {
         javaClass.getDeclaredMethod("setCheckoutState", TopUpCheckoutState::class.java)
@@ -327,22 +503,22 @@ class TopUpPaymentControllerTest {
             sdkProductId = "diamonds_100",
         )
 
-        private fun product(id: String, googleProductId: String = "") = StoreProduct(
+        private fun product(id: String, googleProductId: String = "", firstBuy: Boolean = false) = StoreProduct(
             id = id,
             name = "Diamonds",
             description = "",
             type = "diamond",
             value = 100,
             bonusValue = 0,
-            firstBuyBonusValue = 0,
+            firstBuyBonusValue = if (firstBuy) 25 else 0,
             currency = "USD",
             originalPrice = BigDecimal("4.99"),
             price = BigDecimal("4.99"),
-            firstBuyPrice = BigDecimal.ZERO,
+            firstBuyPrice = if (firstBuy) BigDecimal("1.99") else BigDecimal.ZERO,
             discountRate = BigDecimal.ZERO,
             firstBuyDiscount = BigDecimal.ZERO,
             icon = "",
-            isFirstBuyPromotion = false,
+            isFirstBuyPromotion = firstBuy,
             isPromotion = false,
             isSubscription = false,
             promotionType = "",

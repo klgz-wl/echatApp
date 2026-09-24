@@ -14,19 +14,25 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 
 internal sealed interface GooglePurchaseResult {
+    data class Launched(val price: Double, val currency: String) : GooglePurchaseResult
     data class Purchased(val recoveredOrderId: String? = null) : GooglePurchaseResult
     data class Pending(val recoveredOrderId: String? = null) : GooglePurchaseResult
     data object Cancelled : GooglePurchaseResult
     data class Error(val message: String) : GooglePurchaseResult
 }
 
-internal data class RecoveredGooglePurchase(val orderId: String, val pending: Boolean)
+internal data class RecoveredGooglePurchase(
+    val orderId: String,
+    val pending: Boolean,
+    val sdkProductId: String = "",
+)
 
 internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedListener {
     private var callback: ((GooglePurchaseResult) -> Unit)? = null
     private var pendingRoute: TopUpPurchaseState.OfficialReady? = null
     private var connecting = false
-    private val connectionWaiters = mutableListOf<() -> Unit>()
+    private data class ConnectionWaiter(val connected: () -> Unit, val failed: () -> Unit)
+    private val connectionWaiters = mutableListOf<ConnectionWaiter>()
     private val billingClient = BillingClient.newBuilder(context.applicationContext)
         .setListener(this)
         .enablePendingPurchases(
@@ -42,13 +48,13 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
     ) {
         this.callback = callback
         pendingRoute = route
-        connect {
+        connect(onConnected = {
             restoreOrLaunch(activity, route, callback)
-        }
+        })
     }
 
     fun restoreActivePurchases(callback: (List<RecoveredGooglePurchase>) -> Unit) {
-        connect {
+        connect(onConnected = {
             billingClient.queryPurchasesAsync(
                 QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
             ) { result, purchases ->
@@ -61,10 +67,11 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
                     if (orderId.isBlank()) null else RecoveredGooglePurchase(
                         orderId = orderId,
                         pending = purchase.purchaseState != Purchase.PurchaseState.PURCHASED,
+                        sdkProductId = purchase.products.firstOrNull().orEmpty(),
                     )
                 })
             }
-        }
+        }, onFailure = { callback(emptyList()) })
     }
 
     private fun restoreOrLaunch(
@@ -94,12 +101,14 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
         }
     }
 
-    private fun connect(onConnected: () -> Unit) {
+    private fun connect(onConnected: () -> Unit, onFailure: () -> Unit = {
+        deliver(GooglePurchaseResult.Error("Billing unavailable"))
+    }) {
         if (billingClient.isReady) {
             onConnected()
             return
         }
-        connectionWaiters += onConnected
+        connectionWaiters += ConnectionWaiter(onConnected, onFailure)
         if (connecting) return
         connecting = true
         billingClient.startConnection(object : BillingClientStateListener {
@@ -108,10 +117,10 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
                 val waiters = connectionWaiters.toList()
                 connectionWaiters.clear()
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                    deliver(GooglePurchaseResult.Error(result.debugMessage))
+                    waiters.forEach { it.failed() }
                     return
                 }
-                waiters.forEach { it() }
+                waiters.forEach { it.connected() }
             }
 
             override fun onBillingServiceDisconnected() = Unit
@@ -140,7 +149,8 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
     }
 
     private fun launchFlow(activity: Activity, route: TopUpPurchaseState.OfficialReady, details: ProductDetails) {
-        val offerToken = details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken
+        val offer = details.oneTimePurchaseOfferDetailsList?.firstOrNull()
+        val offerToken = offer?.offerToken
         val productParams = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(details)
             .apply { if (!offerToken.isNullOrBlank()) setOfferToken(offerToken) }
@@ -155,6 +165,13 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
         val result = billingClient.launchBillingFlow(activity, flowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             deliver(GooglePurchaseResult.Error(result.debugMessage))
+        } else if (offer != null) {
+            deliver(
+                GooglePurchaseResult.Launched(
+                    price = offer.priceAmountMicros.toDouble() / 1_000_000.0,
+                    currency = offer.priceCurrencyCode,
+                ),
+            )
         }
     }
 
@@ -178,7 +195,7 @@ internal class GooglePlayBillingManager(context: Context) : PurchasesUpdatedList
 
     private fun deliver(result: GooglePurchaseResult) {
         val target = callback
-        if (result !is GooglePurchaseResult.Pending) {
+        if (result !is GooglePurchaseResult.Pending && result !is GooglePurchaseResult.Launched) {
             callback = null
             pendingRoute = null
         }

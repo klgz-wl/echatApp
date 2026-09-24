@@ -14,13 +14,11 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
     private val preferences = context.getSharedPreferences("achat_backend_session", Context.MODE_PRIVATE)
 
     override fun deviceId(): String {
-        val existing = preferences.getString(KEY_DEVICE_ID, null)
-        if (!existing.isNullOrBlank()) {
-            return existing
-        }
-        return UUID.randomUUID().toString().also { generated ->
-            preferences.edit().putString(KEY_DEVICE_ID, generated).apply()
-        }
+        return StableInstallId.resolve(
+            read = { preferences.getString(KEY_DEVICE_ID, null) },
+            persist = { preferences.edit().putString(KEY_DEVICE_ID, it).commit() },
+            generate = { UUID.randomUUID().toString() },
+        )
     }
 
     override fun readSession(): AuthSession? {

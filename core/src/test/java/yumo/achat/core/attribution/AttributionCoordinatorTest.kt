@@ -68,6 +68,14 @@ class AttributionCoordinatorTest {
         assertEquals(false, repo.awaitInitial())
         assertEquals("Non-organic", repo.forLogin().extraData["af_status"]!!.jsonPrimitive.content)
     }
+    @Test fun `有效缓存只供登录使用不触发重复补报`() = runBlocking {
+        val source = Source().apply { conversion.value = ConversionResult.Failed }
+        val repo = coordinator(source, Storage(data("Non-organic")))
+
+        repo.forLogin()
+
+        assertEquals(null, repo.snapshots.value)
+    }
     @Test fun `迟到回调更新快照供补报与资料刷新且不重复启动SDK`() = runBlocking {
         val source = Source(); val storage = Storage(); val repo = coordinator(source, storage, 20)
         assertEquals(false, repo.awaitInitial())

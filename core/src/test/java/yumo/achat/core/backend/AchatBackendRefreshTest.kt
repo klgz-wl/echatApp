@@ -89,6 +89,25 @@ class AchatBackendRefreshTest {
     }
 
     @Test
+    fun `attribution report rejects successful http with failed business code`() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/api/v1/attribution/report") { exchange ->
+            val response = """{"code":5001,"message":"rejected"}""".toByteArray()
+            exchange.sendResponseHeaders(200, response.size.toLong())
+            exchange.responseBody.use { it.write(response) }
+        }
+        server.start()
+        try {
+            val client = AchatBackendClient("http://127.0.0.1:${server.address.port}")
+            org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+                client.reportAttribution(JSONObject().put("device_id", "stable-device"))
+            }
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
     fun `refresh posts refresh token and parses new access token`() {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/api/v1/auth/refresh") { exchange ->
