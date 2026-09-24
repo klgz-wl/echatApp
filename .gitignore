@@ -28,6 +28,7 @@ artifacts/
 .core-scaffold/verify.log
 .core-scaffold/platform-evidence.json
 *.local.json
+.worktrees/
 
 # Signing material and credentials
 *.jks
