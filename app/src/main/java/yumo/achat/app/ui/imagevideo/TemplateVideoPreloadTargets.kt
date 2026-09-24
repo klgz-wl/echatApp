@@ -35,5 +35,10 @@ internal fun shouldPlayTemplatePage(page: Int, currentPage: Int, requestedPlayin
 
 internal fun shouldShowVideoPoster(hasRenderedFirstFrame: Boolean): Boolean = !hasRenderedFirstFrame
 
+internal fun shouldShowTemplateMediaLoading(
+    hasRenderedRemoteContent: Boolean,
+    hasMediaError: Boolean,
+): Boolean = !hasRenderedRemoteContent && !hasMediaError
+
 internal fun shouldPlayVideo(requestedPlaying: Boolean, lifecycleStarted: Boolean): Boolean =
     requestedPlaying && lifecycleStarted

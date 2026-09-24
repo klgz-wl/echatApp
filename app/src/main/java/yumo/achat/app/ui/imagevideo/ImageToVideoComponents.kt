@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +59,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -75,6 +77,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import yumo.achat.app.R
 import yumo.achat.app.ui.components.TransientMessage
@@ -264,28 +268,49 @@ private fun TemplatePreviewImage(
 
         is TemplatePreviewMedia.RemoteImage -> {
             val context = LocalContext.current
-            AsyncImage(
+            val painter = rememberAsyncImagePainter(
                 model = ImageRequest.Builder(context)
                     .data(media.url)
                     .size(TemplatePreviewWidthPx, TemplatePreviewHeightPx)
                     .scale(coilScaleForContentScale(contentScale))
                     .crossfade(150)
                     .build(),
-                contentDescription = contentDescription,
-                contentScale = contentScale,
-                error = placeholder,
-                modifier = modifier,
             )
+            val imageState = painter.state
+            val hasRenderedRemoteContent = imageState is AsyncImagePainter.State.Success
+            val hasImageError = imageState is AsyncImagePainter.State.Error
+
+            Box(modifier = modifier.background(Color(0xFF080A13))) {
+                Image(
+                    painter = if (hasImageError) placeholder else painter,
+                    contentDescription = contentDescription,
+                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                AnimatedVisibility(
+                    visible = shouldShowTemplateMediaLoading(
+                        hasRenderedRemoteContent = hasRenderedRemoteContent,
+                        hasMediaError = hasImageError,
+                    ),
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    TemplateMediaLoadingIndicator()
+                }
+            }
         }
 
         is TemplatePreviewMedia.RemoteVideo -> {
             var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
+            var hasPlaybackError by remember(media.url) { mutableStateOf(false) }
             Box(modifier = modifier.background(Color.Black)) {
                 TemplatePreviewVideo(
                     url = media.url,
                     isPlaying = isPlaying,
                     resizeMode = videoResizeMode,
                     onFirstFrame = { hasRenderedFirstFrame = true },
+                    onPlaybackError = { hasPlaybackError = true },
                     modifier = Modifier.fillMaxSize(),
                 )
                 AnimatedVisibility(
@@ -305,7 +330,41 @@ private fun TemplatePreviewImage(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+                AnimatedVisibility(
+                    visible = shouldShowTemplateMediaLoading(
+                        hasRenderedRemoteContent = hasRenderedFirstFrame,
+                        hasMediaError = hasPlaybackError,
+                    ),
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    TemplateMediaLoadingIndicator()
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun TemplateMediaLoadingIndicator(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(Color(0x99080B12))
+                .border(1.dp, AchatCyan.copy(alpha = 0.45f), CircleShape)
+                .padding(12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(30.dp),
+                color = AchatCyan,
+                strokeWidth = 2.dp,
+            )
         }
     }
 }
@@ -317,11 +376,13 @@ private fun TemplatePreviewVideo(
     isPlaying: Boolean,
     resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
     onFirstFrame: () -> Unit = {},
+    onPlaybackError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val firstFrameCallback = rememberUpdatedState(onFirstFrame)
+    val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
     var lifecycleStarted by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
@@ -331,6 +392,8 @@ private fun TemplatePreviewVideo(
             .build()
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() = firstFrameCallback.value()
+
+            override fun onPlayerError(error: PlaybackException) = playbackErrorCallback.value()
         }
         player.addListener(listener)
         player.apply {

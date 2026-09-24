@@ -29,6 +29,13 @@ class TemplatePlaybackStateTest {
     }
 
     @Test
+    fun `remote media loading indicator is visible only before success or error`() {
+        assertTrue(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = false, hasMediaError = false))
+        assertFalse(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = true, hasMediaError = false))
+        assertFalse(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = false, hasMediaError = true))
+    }
+
+    @Test
     fun `video pauses outside started lifecycle`() {
         assertTrue(shouldPlayVideo(requestedPlaying = true, lifecycleStarted = true))
         assertFalse(shouldPlayVideo(requestedPlaying = true, lifecycleStarted = false))
