@@ -57,6 +57,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -261,6 +262,8 @@ internal fun templateRetryAction(state: AchatBackendUiState, section: TemplateSe
 }
 
 internal fun visibleTemplatePrice(template: VisualTemplate?): Int? = template?.displayPrice
+
+internal fun shouldAnimateLiveTemplatePlaceholder(isLoading: Boolean): Boolean = isLoading
 
 internal fun simulatedFeedbackAcknowledgement(): String = "Thanks for your feedback"
 
@@ -1347,7 +1350,15 @@ internal fun LiveTemplatePlaceholderCard(
                     .border(1.dp, AchatCyan.copy(alpha = 0.42f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                DiamondIcon(16.dp)
+                if (shouldAnimateLiveTemplatePlaceholder(isLoading)) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = AchatCyan,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    DiamondIcon(16.dp)
+                }
             }
             Text(
                 text = title,

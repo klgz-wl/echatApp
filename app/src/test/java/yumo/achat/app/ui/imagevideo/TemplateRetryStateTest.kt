@@ -94,6 +94,12 @@ class TemplateRetryStateTest {
         assertEquals(1, visibleTemplatePrice(template("video-live")))
     }
 
+    @Test
+    fun `live template placeholder animates only while loading`() {
+        assertTrue(shouldAnimateLiveTemplatePlaceholder(isLoading = true))
+        assertFalse(shouldAnimateLiveTemplatePlaceholder(isLoading = false))
+    }
+
     private fun template(id: String) = VisualTemplate(
         id = id,
         categoryId = null,
