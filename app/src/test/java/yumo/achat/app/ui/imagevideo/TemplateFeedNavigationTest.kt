@@ -41,4 +41,12 @@ class TemplateFeedNavigationTest {
         assertEquals(1, result.index)
         assertTrue(result.reachedEdge)
     }
+
+    @Test
+    fun `precomposes nearby pages only when feed can switch`() {
+        assertEquals(0, templatePagerPrecomposedPageCount(totalItems = 0))
+        assertEquals(0, templatePagerPrecomposedPageCount(totalItems = 1))
+        assertEquals(1, templatePagerPrecomposedPageCount(totalItems = 2))
+        assertEquals(1, templatePagerPrecomposedPageCount(totalItems = 6))
+    }
 }

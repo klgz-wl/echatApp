@@ -37,3 +37,6 @@ internal fun moveTemplateFeedIndex(
         }
     }
 }
+
+internal fun templatePagerPrecomposedPageCount(totalItems: Int): Int =
+    if (totalItems > 1) 1 else 0

@@ -1238,6 +1238,7 @@ private fun TemplateFeedPager(
     VerticalPager(
         state = pagerState,
         key = { page -> templatePagerKey(templates, page) },
+        beyondViewportPageCount = templatePagerPrecomposedPageCount(templates.size),
         modifier = modifier,
     ) { page ->
         val template = templates[page]
