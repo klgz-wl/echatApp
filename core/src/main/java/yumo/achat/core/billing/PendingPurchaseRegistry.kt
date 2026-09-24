@@ -6,6 +6,8 @@ internal data class PendingPurchaseRecord(
     val productType: BillingProductType,
     val purchaseToken: String?,
     val userId: String? = null,
+    val ownerUserId: String? = null,
+    val businessOrderId: String? = null,
 ) { override fun toString() = "PendingPurchaseRecord(购买凭据已隐藏)" }
 
 /** 负责持久化层之外的 pending 交易关联，匹配时优先使用 token/order，避免同 SKU 串单。 */

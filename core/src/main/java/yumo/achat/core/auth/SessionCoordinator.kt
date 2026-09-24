@@ -39,6 +39,20 @@ class SessionCoordinator @Inject constructor(private val storage: SessionStorage
             }
         }
     }
+    suspend fun synchronize() = withContext(Dispatchers.IO) {
+        synchronized(guard) {
+            val saved = runBlocking { storage.read() }
+            val active = current
+            if (saved == null) {
+                mutable.value = null
+            } else if (active?.userId != saved.userId || active.token != saved.token ||
+                active.refreshToken != saved.refreshToken || active.revision != saved.revision
+            ) {
+                mutable.value = saved
+            }
+            restored = true
+        }
+    }
     suspend fun saveLogin(response: AuthResponse) = withContext(Dispatchers.IO) {
         val refresh = response.refreshToken?.takeIf { it.isNotBlank() } ?: throw ServiceFailure.InvalidResponse
         val user = response.userId?.takeIf { it.isNotBlank() } ?: throw ServiceFailure.InvalidResponse

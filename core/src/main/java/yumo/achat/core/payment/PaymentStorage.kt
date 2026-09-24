@@ -18,6 +18,10 @@ import javax.inject.Singleton
     val deadline: Long? = null, val successShownAt: Long? = null, val successAcknowledged: Boolean = false,
     val error: String? = null,
     val quotePrice: Double? = null, val quoteCurrency: String? = null,
+    val quoteSource: String = "catalog_quote",
+    val obfuscatedAccountId: String? = null,
+    val obfuscatedProfileId: String? = null,
+    val officialFallbackProductId: String? = null,
 ) {
     val thirdParty get() = initialized?.channelType == "third_party"
     // ACCESS_DENIED 只表示本客户端不得继续使用该订单，不代表服务器取消、退款或已完成。

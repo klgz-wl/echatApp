@@ -21,9 +21,9 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
         )
     }
 
-    override fun readSession(): AuthSession? {
+    override fun readSession(): AuthSession? = synchronized(SESSION_LOCK) {
         val stored = preferences.getString(KEY_AUTH_SESSION, null) ?: return null
-        return runCatching {
+        runCatching {
             val json = JSONObject(stored)
             AuthSession(
                 userId = json.getString("userId"),
@@ -35,7 +35,18 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
         }.getOrNull()
     }
 
-    override fun saveSession(session: AuthSession) {
+    override fun saveSession(session: AuthSession) = synchronized(SESSION_LOCK) {
+        saveSessionLocked(session)
+    }
+
+    fun saveSessionIfTokenUnchanged(expectedToken: String?, session: AuthSession): Boolean = synchronized(SESSION_LOCK) {
+        val currentToken = readSession()?.token
+        if (currentToken != expectedToken) return@synchronized false
+        saveSessionLocked(session)
+        true
+    }
+
+    private fun saveSessionLocked(session: AuthSession) {
         val json = JSONObject()
             .put("userId", session.userId)
             .put("token", session.token)
@@ -45,7 +56,12 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
         preferences.edit().putString(KEY_AUTH_SESSION, json.toString()).apply()
     }
 
+    fun clearSession() = synchronized(SESSION_LOCK) {
+        preferences.edit().remove(KEY_AUTH_SESSION).commit()
+    }
+
     private companion object {
+        val SESSION_LOCK = Any()
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_AUTH_SESSION = "auth_session"
     }

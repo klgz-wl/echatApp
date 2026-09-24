@@ -13,7 +13,9 @@ class PendingPurchaseRegistryTest {
             orderId = "backend-order-1",
             productType = BillingProductType.IN_APP,
             purchaseToken = null,
-            userId = "user-1",
+            userId = "obfuscated-account",
+            ownerUserId = "user-1",
+            businessOrderId = "business-order-1",
         )
         registry.restore(listOf(record))
 
@@ -57,7 +59,9 @@ class PendingPurchaseRegistryTest {
             orderId = "order-1",
             productType = BillingProductType.IN_APP,
             purchaseToken = null,
-            userId = "user-1",
+            userId = "obfuscated-account",
+            ownerUserId = "user-1",
+            businessOrderId = "business-order-1",
         )
         registry.restore(listOf(pending))
 
@@ -68,10 +72,11 @@ class PendingPurchaseRegistryTest {
         )
 
         assertEquals("token-1", upgraded?.purchaseToken)
-        assertEquals("user-1", upgraded?.userId)
+        assertEquals("user-1", upgraded?.ownerUserId)
+        assertEquals("business-order-1", upgraded?.businessOrderId)
         assertEquals(
             "user-1",
-            registry.findMatching(emptyList(), null, "token-1")?.userId,
+            registry.findMatching(emptyList(), null, "token-1")?.ownerUserId,
         )
         registry.remove(upgraded!!)
         assertNull(registry.findMatching(emptyList(), null, "token-1"))

@@ -98,6 +98,25 @@ class ConsumablePurchaseOrchestratorTest {
     }
 
     @Test
+    fun `backend managed fulfillment never consumes purchase token`() = runBlocking {
+        var consumeCalls = 0
+        val result = ConsumablePurchaseOrchestrator().purchase(
+            initializeBilling = { PurchaseStepResult.Success(Unit) },
+            queryStoreProduct = { PurchaseStepResult.Success("store-product") },
+            createOrder = { PurchaseStepResult.Success("order-id") },
+            launchPurchase = { PurchaseStepResult.Success("purchase-token") },
+            consumePurchase = {
+                consumeCalls++
+                PurchaseStepResult.Success(Unit)
+            },
+            clientConsumesPurchase = false,
+        )
+
+        assertEquals(ConsumablePurchaseResult.Success("store-product"), result)
+        assertEquals(0, consumeCalls)
+    }
+
+    @Test
     fun `concurrent purchase is rejected while first purchase is active`() = runBlocking {
         val firstPurchaseStarted = CompletableDeferred<Unit>()
         val releaseFirstPurchase = CompletableDeferred<Unit>()

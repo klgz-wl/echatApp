@@ -17,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class BillingRepository @Inject constructor(private val manager: BillingManager,
     private val wallet: WalletRepository, private val sessions: SessionCoordinator,
-    @ApplicationContext context: Context, private val events: EventTracker) {
+    @ApplicationContext context: Context, private val events: EventTracker,
+    private val config: BillingConfiguration) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val initialization = Mutex()
     private val fulfillment = PurchaseFulfillmentCoordinator(scope, manager::markRecoveredPurchaseHandled)
@@ -35,9 +36,12 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
     fun onForeground() { scope.launch { initialize() } }
     suspend fun queryProducts(ids: List<String>): BillingResult<List<BillingProduct>> =
         if (ids.isEmpty()) BillingResult.success(emptyList()) else manager.queryProducts(ids, BillingProductType.IN_APP)
-    suspend fun purchase(activity: Activity, productId: String, userId: String, orderId: String): BillingResult<BillingPurchase> {
+    suspend fun purchase(activity: Activity, productId: String, ownerUserId: String, businessOrderId: String,
+        obfuscatedAccountId: String, obfuscatedProfileId: String): BillingResult<BillingPurchase> {
         val request = withContext(Dispatchers.Main.immediate) {
-            manager.launchPurchaseFlow(activity, productId, BillingProductType.IN_APP, userId = userId, orderId = orderId)
+            manager.launchPurchaseFlow(activity, productId, BillingProductType.IN_APP,
+                userId = obfuscatedAccountId, orderId = obfuscatedProfileId,
+                ownerUserId = ownerUserId, businessOrderId = businessOrderId)
         }
         // 与参考实现一致：取消页面观察不会把 Play 全局回调交给下一笔订单。
         return withContext(NonCancellable) { manager.waitForPurchaseResult(request) }
@@ -51,11 +55,17 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
         return BillingResult.success(Unit)
     }
     private suspend fun fulfillRecovered(purchase: BillingPurchase) {
-        val tracked = manager.trackedPurchaseRecord(purchase.purchaseToken)
-        val owner = tracked?.userId
+        val tracked = manager.trackedPurchaseRecord(purchase.purchaseToken) ?: return
+        val owner = tracked.ownerUserId ?: tracked.userId
+        if (config.backendOwnedFulfillment) {
+            if (owner != null && sessions.current?.userId == owner) {
+                (tracked.businessOrderId ?: tracked.orderId)?.let { mutableRecovered.emit(it) }
+            }
+            return
+        }
         val result = consume(purchase.purchaseToken)
         if (!result.isSuccess || owner == null || sessions.current?.userId != owner) return
-        tracked.orderId?.let { orderId ->
+        (tracked.businessOrderId ?: tracked.orderId)?.let { orderId ->
             events.paymentResult(mapOf("status" to "success", "af_success" to "true", "pay_method" to "google_play",
                 "payment_flow" to "restored", "entry_source" to "restored", "af_content_id" to tracked.productId,
                 "af_order_id" to orderId, "stage" to "play_consumed"), owner, "play:$orderId:consumed")
@@ -63,7 +73,7 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
         try {
             wallet.refreshBalance()
             wallet.loadRecords(refresh = true)
-            mutableRecovered.emit(owner)
+            (tracked.businessOrderId ?: tracked.orderId)?.let { mutableRecovered.emit(it) }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { /* 消费结果不因余额刷新失败而重复执行；下次前台继续读取真实余额。 */ }
     }
