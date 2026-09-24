@@ -29,7 +29,15 @@ object NetworkModule {
     @Provides @Singleton fun paymentEvents(value: yumo.achat.core.payment.PaymentEventQueue): yumo.achat.core.payment.PaymentEventSink = value
     @Provides @Singleton fun paymentClock() = yumo.achat.core.payment.PaymentClock { System.currentTimeMillis() }
     @Provides @Singleton fun paymentOrders(wallet: yumo.achat.core.wallet.WalletRepository, config: yumo.achat.core.billing.BillingConfiguration) =
-        yumo.achat.core.payment.PaymentOrderFactory { productId, session -> wallet.createOrder(productId, config.defaultTrigger, session).orderId }
+        yumo.achat.core.payment.PaymentOrderFactory { productId, session ->
+            wallet.createOrder(productId, config.defaultTrigger, session).let { order ->
+                yumo.achat.core.payment.PaymentBusinessOrder(
+                    orderId = order.orderId,
+                    obfuscatedAccountId = order.obfuscatedAccountId,
+                    obfuscatedProfileId = order.obfuscatedProfileId,
+                )
+            }
+        }
 
     @Provides @Singleton fun paymentRepository(value: yumo.achat.core.payment.ApiPaymentRepository): yumo.achat.core.payment.PaymentRepository = value
     @Provides @Singleton fun paymentApi(@Named("publicClient") client: OkHttpClient, sessions: SessionCoordinator,
@@ -38,7 +46,7 @@ object NetworkModule {
         return retrofit(paymentClient, config, json).create(yumo.achat.core.payment.PaymentServiceApi::class.java)
     }
 
-    @Provides @Singleton fun storage(value: PreferenceSessionStorage): SessionStorage = value
+    @Provides @Singleton fun storage(value: yumo.achat.core.backend.AchatCoreSessionStorage): SessionStorage = value
     @Provides @Singleton fun repository(value: ApiAuthRepository): AuthRepository = value
     @Provides @Singleton fun json() = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     @Provides @Singleton fun logging(config: CoreRuntimeConfig): HttpLoggingInterceptor = createHttpLoggingInterceptor(config)

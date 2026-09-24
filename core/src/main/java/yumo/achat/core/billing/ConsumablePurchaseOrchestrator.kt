@@ -20,8 +20,9 @@ class ConsumablePurchaseOrchestrator @Inject constructor() {
         queryStoreProduct: suspend () -> PurchaseStepResult<StoreProduct>,
         launchPurchase: suspend (String) -> PurchaseStepResult<String>,
         consumePurchase: suspend (String) -> PurchaseStepResult<Unit>,
+        clientConsumesPurchase: Boolean = true,
     ): ConsumablePurchaseResult<StoreProduct> = purchase(initializeBilling, queryStoreProduct,
-        { PurchaseStepResult.Success(orderId) }, launchPurchase, consumePurchase)
+        { PurchaseStepResult.Success(orderId) }, launchPurchase, consumePurchase, clientConsumesPurchase)
 
     suspend fun <StoreProduct> purchase(
         initializeBilling: suspend () -> PurchaseStepResult<Unit>,
@@ -29,6 +30,7 @@ class ConsumablePurchaseOrchestrator @Inject constructor() {
         createOrder: suspend () -> PurchaseStepResult<String>,
         launchPurchase: suspend (orderId: String) -> PurchaseStepResult<String>,
         consumePurchase: suspend (purchaseToken: String) -> PurchaseStepResult<Unit>,
+        clientConsumesPurchase: Boolean = true,
     ): ConsumablePurchaseResult<StoreProduct> {
         if (!purchaseInProgress.compareAndSet(false, true)) {
             return ConsumablePurchaseResult.InProgress
@@ -60,6 +62,8 @@ class ConsumablePurchaseOrchestrator @Inject constructor() {
                 return ConsumablePurchaseResult.Pending(storeProduct)
             }
             val purchaseToken = (purchaseResult as PurchaseStepResult.Success).value
+
+            if (!clientConsumesPurchase) return ConsumablePurchaseResult.Success(storeProduct)
 
             val consumeResult = consumePurchase(purchaseToken)
             if (consumeResult is PurchaseStepResult.Failure) {

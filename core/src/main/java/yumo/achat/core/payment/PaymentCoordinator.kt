@@ -19,13 +19,17 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
         scope.launch {
             foreground.collectLatest { active ->
                 if (!active) return@collectLatest
-                var first = true
+                var observedKey: String? = null
                 while (currentCoroutineContext().isActive) {
                     val snapshot = state.value
                     val record = snapshot.record
-                    if (snapshot.epoch == sessions.current?.epoch && record?.thirdParty == true && record.orderId != null && record.unresolved &&
-                        record.openedAt != null && (first || record.stage !in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))) engine.poll(record.key)
-                    first = false
+                    val pollable = record?.thirdParty == true || record?.stage in setOf(
+                        PaymentStage.OFFICIAL_LAUNCHED,
+                        PaymentStage.AWAITING_FULFILLMENT,
+                    )
+                    if (snapshot.epoch == sessions.current?.epoch && pollable && record?.orderId != null && record.unresolved &&
+                        record.openedAt != null && (record.key != observedKey || record.stage !in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))) engine.poll(record.key)
+                    observedKey = record?.key
                     val current = state.value.record
                     val interval = configuration.interval(current?.initialized?.queryIntervalSeconds) * 1000L
                     val remaining = current?.deadline?.minus(System.currentTimeMillis())
@@ -40,9 +44,22 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
                 }
         }
     }
-    fun foreground(active: Boolean) { foreground.value = active }
+    fun foreground(active: Boolean) {
+        if (!active) {
+            foreground.value = false
+            return
+        }
+        scope.launch {
+            sessions.synchronize()
+            foreground.value = true
+        }
+    }
     fun retry(key: String) { scope.launch { engine.retry(key) } }
     fun close(key: String) { scope.launch { engine.close(key) } }
+    fun opened(key: String) { scope.launch { engine.opened(key) } }
+    fun poll(key: String) { scope.launch { engine.poll(key) } }
+    fun shown(key: String) { scope.launch { engine.shown(key) } }
+    fun acknowledge(key: String) { scope.launch { engine.acknowledge(key) } }
     fun pageEvent(key: String, type: String) { scope.launch { engine.pageEvent(key, type) } }
     suspend fun refreshWallet() {
         try { wallet.refreshBalance(); wallet.refreshProducts(); wallet.loadRecords(refresh = true) }

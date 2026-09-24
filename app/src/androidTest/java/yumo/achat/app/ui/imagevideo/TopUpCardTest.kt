@@ -15,9 +15,12 @@ import org.junit.Rule
 import org.junit.Test
 import yumo.achat.core.backend.StoreCatalog
 import yumo.achat.core.backend.StoreProduct
-import yumo.achat.core.backend.StoreOrder
 import yumo.achat.core.backend.StoreUserInfo
 import yumo.achat.app.ui.theme.AchatTheme
+import yumo.achat.core.payment.InitializedPayment
+import yumo.achat.core.payment.PaymentRecord
+import yumo.achat.core.payment.PaymentSdkParams
+import yumo.achat.core.payment.PaymentStage
 
 class TopUpCardTest {
     @get:Rule
@@ -88,10 +91,7 @@ class TopUpCardTest {
     fun preparedPaymentRoutesAreVisibleWithoutOpeningCheckout() {
         var purchaseState by mutableStateOf<TopUpPurchaseState>(
             TopUpPurchaseState.OfficialReady(
-                productId = "pack-200",
-                order = order("pack-200", "order-1"),
-                channelCode = "google_play",
-                sdkProductId = "diamonds_200",
+                record = paymentRecord("pack-200", "order-1", official = true),
             ),
         )
         composeRule.setContent {
@@ -113,14 +113,7 @@ class TopUpCardTest {
         composeRule.onNodeWithText("Checkout opens in phase 3").assertIsDisplayed()
 
         purchaseState = TopUpPurchaseState.ThirdPartyReady(
-            productId = "pack-200",
-            order = order("pack-200", "order-2"),
-            channelCode = "payu_web_us",
-            openMode = "webview",
-            paymentUrl = "https://checkout.example/pay/2",
-            expiresAt = null,
-            queryIntervalSeconds = 10,
-            maxQuerySeconds = 600,
+            record = paymentRecord("pack-200", "order-2", official = false),
         )
         composeRule.onNodeWithText("Checkout ready").assertIsDisplayed()
         composeRule.onNodeWithText("payu_web_us").assertIsDisplayed()
@@ -157,20 +150,25 @@ class TopUpCardTest {
         sortOrder = sortOrder,
         tags = "",
         thirdPartyProductId = "sku-$value",
+        googleProductId = "play-$value",
         vipLevel = 0,
     )
 
-    private fun order(productId: String, orderId: String) = StoreOrder(
-        id = orderId,
-        number = "ORD-$orderId",
+    private fun paymentRecord(productId: String, orderId: String, official: Boolean) = PaymentRecord(
+        key = "key-$orderId",
+        userId = "user",
         productId = productId,
-        productName = "Diamonds",
-        amount = BigDecimal("4.99"),
-        currency = "USD",
-        status = "pending",
-        createdAt = "2026-09-20T08:00:00Z",
-        paymentUrl = "",
-        obfuscatedAccountId = "account-hash",
-        obfuscatedProfileId = orderId,
+        source = "main",
+        orderId = orderId,
+        initialized = if (official) {
+            InitializedPayment(orderId, "official", "google_play", "sdk", PaymentSdkParams("diamonds_200"))
+        } else {
+            InitializedPayment(
+                orderId, "third_party", "payu_web_us", "webview",
+                paymentUrl = "https://checkout.example/pay/2",
+                expiresAt = "2099-01-01T00:00:00Z",
+            )
+        },
+        stage = if (official) PaymentStage.OFFICIAL_READY else PaymentStage.CHECKOUT,
     )
 }

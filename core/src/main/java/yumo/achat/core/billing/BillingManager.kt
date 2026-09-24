@@ -192,7 +192,9 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
         productType: BillingProductType,
         offerToken: String? = null,
         userId: String? = null,
-        orderId: String? = null
+        orderId: String? = null,
+        ownerUserId: String? = null,
+        businessOrderId: String? = null,
     ): PurchaseRequest {
         Timber.d("[Billing] LaunchPurchase started")
 
@@ -272,6 +274,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                     productType = productType,
                     purchaseToken = null,
                     userId = userId,
+                    ownerUserId = ownerUserId,
+                    businessOrderId = businessOrderId,
                 ),
             )
             Timber.d("[Billing] launchBillingFlow OK, waiting for user action...")
@@ -459,6 +463,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                                     productType = productType,
                                     purchaseToken = purchase.purchaseToken,
                                     userId = pendingRecord?.userId ?: request.userId,
+                                    ownerUserId = pendingRecord?.ownerUserId,
+                                    businessOrderId = pendingRecord?.businessOrderId,
                                 ),
                             )
                             purchaseRequestCoordinator.complete(request, BillingResult.success(domainPurchase))
@@ -474,6 +480,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                                 productType = productType,
                                 purchaseToken = purchase.purchaseToken,
                                 userId = pendingRecord?.userId ?: request?.userId,
+                                ownerUserId = pendingRecord?.ownerUserId,
+                                businessOrderId = pendingRecord?.businessOrderId,
                             ),
                         )
                         if (request != null) {
@@ -561,7 +569,7 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
 
     internal fun trackedPurchaseOwnerUserId(purchaseToken: String): String? =
         synchronized(pendingPurchasePersistenceLock) {
-            pendingPurchaseRegistry.findMatching(emptyList(), null, purchaseToken)?.userId
+            pendingPurchaseRegistry.findMatching(emptyList(), null, purchaseToken)?.let { it.ownerUserId ?: it.userId }
         }
 
     internal fun isTrackedPurchase(purchaseToken: String): Boolean =
@@ -625,6 +633,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                     productType = BillingProductType.valueOf(json.getString("productType")),
                     purchaseToken = json.optString("purchaseToken").takeIf(String::isNotBlank),
                     userId = json.optString("userId").takeIf(String::isNotBlank),
+                    ownerUserId = json.optString("ownerUserId").takeIf(String::isNotBlank),
+                    businessOrderId = json.optString("businessOrderId").takeIf(String::isNotBlank),
                 )
             }.onFailure { Timber.e("恢复待处理购买记录失败") }.getOrNull()
         }
@@ -637,6 +647,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                 .put("productType", record.productType.name)
                 .put("purchaseToken", record.purchaseToken.orEmpty())
                 .put("userId", record.userId.orEmpty())
+                .put("ownerUserId", record.ownerUserId.orEmpty())
+                .put("businessOrderId", record.businessOrderId.orEmpty())
                 .toString()
         }
         pendingPurchasePreferences?.edit()?.putStringSet(PENDING_PURCHASES_KEY, encoded)?.commit()

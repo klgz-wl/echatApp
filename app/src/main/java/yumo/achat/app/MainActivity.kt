@@ -23,14 +23,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.ui.imagevideo.ImageToVideoScreen
 import yumo.achat.app.ui.theme.AchatTheme
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.Lazy
+import javax.inject.Inject
+import yumo.achat.core.billing.BillingRepository
+import yumo.achat.core.payment.PaymentCoordinator
+import yumo.achat.core.payment.PurchaseRouter
+import yumo.achat.core.auth.SessionCoordinator
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject lateinit var billingProvider: Lazy<BillingRepository>
+    @Inject lateinit var paymentCoordinatorProvider: Lazy<PaymentCoordinator>
+    @Inject lateinit var purchaseRouterProvider: Lazy<PurchaseRouter>
+    @Inject lateinit var sessionCoordinatorProvider: Lazy<SessionCoordinator>
     private var businessStarted = false
 
     private fun beginBusinessStartup() {
@@ -41,6 +55,16 @@ class MainActivity : ComponentActivity() {
         }
         if (AnalyticsConsent.granted(this) && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             AchatAttributionRuntime.get(this).onActivityResumed(this)
+        }
+        lifecycleScope.launch {
+            billingProvider.get().recovered.collect { orderId ->
+                purchaseRouterProvider.get().recharge(orderId)
+            }
+        }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) lifecycleScope.launch {
+            sessionCoordinatorProvider.get().synchronize()
+            billingProvider.get().onForeground()
+            paymentCoordinatorProvider.get().foreground(true)
         }
     }
 
@@ -86,13 +110,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (businessStarted && AnalyticsConsent.granted(this)) AchatAnalyticsRuntime.get(this).foreground(true)
+        if (businessStarted) {
+            if (AnalyticsConsent.granted(this)) AchatAnalyticsRuntime.get(this).foreground(true)
+            lifecycleScope.launch {
+                sessionCoordinatorProvider.get().synchronize()
+                billingProvider.get().onForeground()
+                paymentCoordinatorProvider.get().foreground(true)
+            }
+        }
     }
 
     override fun onStop() {
         if (businessStarted && AnalyticsConsent.granted(this) && !isChangingConfigurations) {
             AchatAnalyticsRuntime.get(this).foreground(false)
         }
+        if (businessStarted) paymentCoordinatorProvider.get().foreground(false)
         super.onStop()
     }
 

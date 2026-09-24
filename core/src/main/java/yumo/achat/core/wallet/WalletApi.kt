@@ -40,7 +40,9 @@ data class CoinTransaction(val id: String, val type: String, val amount: Long,
 @Serializable data class CreateOrderRequest(@SerialName("product_id") val productId: String,
     val trigger: String, val platform: String)
 @Serializable data class CreatedOrder(@SerialName("order_id") val orderId: String,
-    @SerialName("product_id") val productId: String, val status: String)
+    @SerialName("product_id") val productId: String, val status: String,
+    @SerialName("obfuscated_account_id") val obfuscatedAccountId: String? = null,
+    @SerialName("obfuscated_profile_id") val obfuscatedProfileId: String? = null)
 
 /** 接口仍使用 diamond 字段；展示为金币，数值不做换算。 */
 interface WalletApi {

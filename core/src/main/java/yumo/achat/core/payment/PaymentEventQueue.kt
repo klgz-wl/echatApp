@@ -38,8 +38,15 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
                     // Repository 的 401 已经过一次令牌刷新；遥测不能再次排队刷新同一认证失败。
                     catch (failure: PaymentFailure.Http) { permanent = failure.status in setOf(400, 401, 403, 404, 413) }
                     catch (_: Exception) { /* 同一事件有界重试，不能阻塞订单查询。 */ }
-                    lock.withLock {
-                        save(read().mapNotNull { if (it.key != queued.key) it else if (permanent) null else it.copy(attempts = it.attempts + 1) })
+                    val stored = runCatching {
+                        lock.withLock {
+                            save(read().mapNotNull { if (it.key != queued.key) it else if (permanent) null else it.copy(attempts = it.attempts + 1) })
+                        }
+                    }.isSuccess
+                    if (!stored) {
+                        delay(config.eventRetryMs)
+                        wake.trySend(Unit)
+                        break
                     }
                     delay(config.eventRetryMs)
                 }
@@ -75,5 +82,9 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
     private fun read(): List<QueuedPaymentEvent> = runCatching {
         preferences.getString("events", null)?.let { json.decodeFromString<List<QueuedPaymentEvent>>(it) } ?: emptyList()
     }.getOrDefault(emptyList())
-    private fun save(value: List<QueuedPaymentEvent>) { preferences.edit().putString("events", json.encodeToString(value)).commit() }
+    private fun save(value: List<QueuedPaymentEvent>) {
+        check(preferences.edit().putString("events", json.encodeToString(value)).commit()) {
+            "支付事件保存失败"
+        }
+    }
 }

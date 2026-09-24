@@ -108,6 +108,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -139,8 +140,6 @@ import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
-import yumo.achat.core.backend.PreparedStorePayment
-import yumo.achat.core.backend.PaymentOrderStatus
 import yumo.achat.core.backend.StoreUserInfo
 import yumo.achat.core.backend.TemplateLoadResult
 import yumo.achat.core.backend.VisualCategory
@@ -300,78 +299,26 @@ internal sealed interface TopUpPurchaseState {
     data object Idle : TopUpPurchaseState
     data class Preparing(val productId: String) : TopUpPurchaseState
     data class OfficialReady(
-        val productId: String,
-        val order: yumo.achat.core.backend.StoreOrder,
-        val channelCode: String,
-        val sdkProductId: String,
+        val record: yumo.achat.core.payment.PaymentRecord,
     ) : TopUpPurchaseState {
-        val orderId: String get() = order.id
-        val obfuscatedAccountId: String get() = order.obfuscatedAccountId
-        val obfuscatedProfileId: String get() = order.obfuscatedProfileId
+        val productId: String get() = record.productId
+        val orderId: String get() = record.orderId.orEmpty()
+        val channelCode: String get() = record.initialized?.channelCode.orEmpty()
+        val sdkProductId: String get() = record.initialized?.sdkParams?.productId.orEmpty()
     }
     data class ThirdPartyReady(
-        val productId: String,
-        val order: yumo.achat.core.backend.StoreOrder,
-        val channelCode: String,
-        val openMode: String,
-        val paymentUrl: String,
-        val expiresAt: String?,
-        val queryIntervalSeconds: Int,
-        val maxQuerySeconds: Int,
+        val record: yumo.achat.core.payment.PaymentRecord,
     ) : TopUpPurchaseState {
-        val orderId: String get() = order.id
+        val productId: String get() = record.productId
+        val orderId: String get() = record.orderId.orEmpty()
+        val channelCode: String get() = record.initialized?.channelCode.orEmpty()
+        val openMode: String get() = record.initialized?.openMode.orEmpty()
+        val paymentUrl: String get() = record.initialized?.paymentUrl.orEmpty()
     }
     data class Error(
         val productId: String,
         val message: String,
-        val order: yumo.achat.core.backend.StoreOrder? = null,
     ) : TopUpPurchaseState
-}
-
-internal enum class TopUpPaymentOutcome { Pending, Success, Failed }
-
-internal fun classifyTopUpPayment(status: PaymentOrderStatus): TopUpPaymentOutcome = when {
-    status.status == "paid" && status.fulfillmentStatus == "fulfilled" -> TopUpPaymentOutcome.Success
-    status.status in setOf("failed", "cancelled", "expired") -> TopUpPaymentOutcome.Failed
-    else -> TopUpPaymentOutcome.Pending
-}
-
-internal fun PreparedStorePayment.toTopUpPurchaseState(productId: String): TopUpPurchaseState {
-    check(order.id == initialization.orderId) { "Payment initialization order mismatch" }
-    check(order.productId == productId) { "Payment order product mismatch" }
-    return when (initialization.channelType) {
-        "official" -> {
-            check(initialization.openMode == "sdk") { "Official payment must use sdk mode" }
-            check(initialization.sdkProductId.isNotBlank()) { "Official payment product id is missing" }
-            TopUpPurchaseState.OfficialReady(
-                productId = productId,
-                order = order,
-                channelCode = initialization.channelCode,
-                sdkProductId = initialization.sdkProductId,
-            )
-        }
-        "third_party" -> {
-            check(initialization.openMode == "webview" || initialization.openMode == "external_browser") {
-                "Unsupported third-party open mode"
-            }
-            check(initialization.paymentUrl.isNotBlank()) { "Third-party payment url is missing" }
-            val checkoutUri = runCatching { URI(initialization.paymentUrl) }.getOrNull()
-            check(checkoutUri?.scheme == "https" && !checkoutUri.host.isNullOrBlank()) {
-                "Third-party payment url must use https"
-            }
-            TopUpPurchaseState.ThirdPartyReady(
-                productId = productId,
-                order = order,
-                channelCode = initialization.channelCode,
-                openMode = initialization.openMode,
-                paymentUrl = initialization.paymentUrl,
-                expiresAt = initialization.expiresAt,
-                queryIntervalSeconds = initialization.queryIntervalSeconds,
-                maxQuerySeconds = initialization.maxQuerySeconds,
-            )
-        }
-        else -> error("Unsupported payment channel type: ${initialization.channelType}")
-    }
 }
 
 private data class SelectedGenerationTemplate(
@@ -467,7 +414,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
     var startupReloadSerial by remember { mutableIntStateOf(0) }
-    val topUpPaymentViewModel: TopUpPaymentViewModel = viewModel()
+    val topUpPaymentViewModel: TopUpPaymentViewModel = hiltViewModel()
     val topUpPaymentController = topUpPaymentViewModel.controller
     val profileEditingViewModel: ProfileEditingViewModel = viewModel()
     val profileEditingController = profileEditingViewModel.controller
@@ -743,6 +690,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.loadHomeData() }
         }.onSuccess { homeData ->
             analytics.identify(homeData.session.userId)
+            topUpPaymentViewModel.syncSession(homeData.session)
             topUpPaymentViewModel.startReconciliation()
             if (profileRevision == profileRevisionAtStart) {
                 analytics.mode(if (homeData.profile?.isNew == true) "B" else "A")
@@ -1020,12 +968,15 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onTemplateRetry = ::retryTemplates,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
+                    productSelectionEnabled = !topUpPaymentController.productSelectionLocked,
                     topUpState = topUpState,
                     purchaseState = topUpPaymentController.state,
                     checkoutState = topUpPaymentController.checkoutState,
                     isReconciling = topUpPaymentController.reconciliationCount > 0,
                     onProductSelect = topUpPaymentController::selectProduct,
-                    onPreparePayment = topUpPaymentController::prepare,
+                    onPreparePayment = {
+                        (localContext as? Activity)?.let(topUpPaymentController::prepare)
+                    },
                     onTopUpRetry = { topUpRefreshSerial += 1 },
                     onBalanceClick = ::navigateFromBalanceBadge,
                     edgeHint = templateEdgeHint,
@@ -1166,6 +1117,7 @@ private fun TemplateBrowserScreen(
     isPlaying: Boolean,
     selectedNavigation: Int,
     selectedProductId: String?,
+    productSelectionEnabled: Boolean,
     topUpState: TopUpUiState,
     purchaseState: TopUpPurchaseState,
     checkoutState: TopUpCheckoutState,
@@ -1196,6 +1148,7 @@ private fun TemplateBrowserScreen(
         TopUpScreen(
             selectedNavigation = selectedNavigation,
             selectedProductId = selectedProductId,
+            productSelectionEnabled = productSelectionEnabled,
             state = topUpState,
             diamondBalance = backendState.diamondBalance,
             purchaseState = purchaseState,
@@ -2979,6 +2932,7 @@ private fun showSoftwareKeyboard(inputMethodManager: InputMethodManager, view: a
 internal fun TopUpScreen(
     selectedNavigation: Int,
     selectedProductId: String?,
+    productSelectionEnabled: Boolean = true,
     state: TopUpUiState,
     diamondBalance: Int = state.diamondBalance,
     purchaseState: TopUpPurchaseState,
@@ -3042,6 +2996,7 @@ internal fun TopUpScreen(
                         CreditPackCard(
                             pack = pack,
                             selected = selected,
+                            enabled = productSelectionEnabled,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(creditPackHeightDp(selected).dp),
@@ -3360,6 +3315,7 @@ private fun TopUpHeader(diamondBalance: Int) {
 private fun CreditPackCard(
     pack: CreditPack,
     selected: Boolean,
+    enabled: Boolean = true,
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -3381,7 +3337,7 @@ private fun CreditPackCard(
                 ),
             )
             .border(1.dp, borderBrush, RoundedCornerShape(6.dp))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onSelect),
     ) {
         if (!selected) {
             Box(

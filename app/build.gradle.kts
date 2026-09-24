@@ -6,6 +6,8 @@ import groovy.json.JsonSlurper
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
 }
@@ -175,6 +177,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("com.android.billingclient:billing-ktx:9.1.0")
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
