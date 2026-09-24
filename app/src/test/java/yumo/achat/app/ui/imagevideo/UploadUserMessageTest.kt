@@ -81,6 +81,17 @@ class UploadUserMessageTest {
     }
 
     @Test
+    fun `insufficient balance top up route is delayed so the message is visible`() {
+        assertEquals(
+            1200L,
+            generationTopUpRouteDelayMillis(
+                """{"code":400101,"message":"Insufficient diamond balance","trace":"secret"}""",
+            ),
+        )
+        assertEquals(null, generationTopUpRouteDelayMillis("Upload failed"))
+    }
+
+    @Test
     fun `google billing disconnected message is sanitized for top up`() {
         val fallback = "Google Play is temporarily unavailable. Please try again."
 

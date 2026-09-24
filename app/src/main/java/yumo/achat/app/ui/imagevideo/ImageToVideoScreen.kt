@@ -3591,7 +3591,9 @@ private fun UploadPhotoScreen(
                             text = visualGenerationUserMessage(error.message, uploadFailedMessage),
                             tone = TransientMessageTone.Error,
                         )
-                        if (shouldRouteGenerationErrorToTopUp(error.message)) {
+                        val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message)
+                        if (topUpRouteDelayMillis != null) {
+                            delay(topUpRouteDelayMillis)
                             onNavigationSelect(2)
                         }
                     }
