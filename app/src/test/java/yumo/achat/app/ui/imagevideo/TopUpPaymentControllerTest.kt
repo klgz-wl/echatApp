@@ -222,6 +222,23 @@ class TopUpPaymentControllerTest {
     }
 
     @Test
+    fun `legacy payment uses third party sku when google sku is blank`() {
+        val gateway = FakeGateway(
+            initialize = { error("legacy must not initialize payment-service") },
+        )
+        val controller = controller(gateway, flow = TopUpPaymentFlow.Legacy)
+
+        controller.retainAvailableProducts(
+            listOf(product(id = "pack-100", thirdPartyProductId = "play.third.pack.100")),
+        )
+        controller.prepare()
+
+        assertEquals(0, gateway.initializeCount)
+        val route = controller.state as TopUpPurchaseState.OfficialReady
+        assertEquals("play.third.pack.100", route.sdkProductId)
+    }
+
+    @Test
     fun `catalog google sku does not override initializer route`() {
         val gateway = FakeGateway()
         val controller = controller(gateway)
@@ -503,7 +520,12 @@ class TopUpPaymentControllerTest {
             sdkProductId = "diamonds_100",
         )
 
-        private fun product(id: String, googleProductId: String = "", firstBuy: Boolean = false) = StoreProduct(
+        private fun product(
+            id: String,
+            googleProductId: String = "",
+            thirdPartyProductId: String = "",
+            firstBuy: Boolean = false,
+        ) = StoreProduct(
             id = id,
             name = "Diamonds",
             description = "",
@@ -524,7 +546,7 @@ class TopUpPaymentControllerTest {
             promotionType = "",
             sortOrder = 0,
             tags = "",
-            thirdPartyProductId = "",
+            thirdPartyProductId = thirdPartyProductId,
             googleProductId = googleProductId,
             vipLevel = 0,
         )

@@ -26,7 +26,7 @@ class CreditPackPresentationTest {
         assertEquals(35, pack.bonus)
         assertEquals("$2.99", pack.price)
         assertEquals("$9.99", pack.originalPrice)
-        assertEquals("Popular pack", pack.description)
+        assertEquals("Valid for 60 days", pack.description)
         assertEquals("HOT", pack.badgeText)
         assertEquals("TIER // 01", pack.tierLabel)
     }
@@ -81,15 +81,32 @@ class CreditPackPresentationTest {
     }
 
     @Test
+    fun `missing backend validity hides subtitle instead of deriving display tier days`() {
+        val blankDescriptionPack = storeProduct().copy(description = "").toCreditPackPresentation(
+            userInfo = null,
+            displayIndex = 1,
+            locale = Locale.US,
+        )
+        val localizedDescriptionPack = storeProduct().copy(description = "100金币").toCreditPackPresentation(
+            userInfo = null,
+            displayIndex = 2,
+            locale = Locale.US,
+        )
+
+        assertEquals("", blankDescriptionPack.description)
+        assertEquals("", localizedDescriptionPack.description)
+    }
+
+    @Test
     fun `selected pack expands while other packs remain compact`() {
-        assertEquals(148, creditPackHeightDp(selected = true))
-        assertEquals(86, creditPackHeightDp(selected = false))
+        assertEquals(164, creditPackHeightDp(selected = true))
+        assertEquals(126, creditPackHeightDp(selected = false))
     }
 
     private fun storeProduct() = StoreProduct(
         id = "pack-100",
         name = "100 Diamonds",
-        description = "Popular pack",
+        description = "Valid for 60 days",
         type = "diamond",
         value = 100,
         bonusValue = 10,

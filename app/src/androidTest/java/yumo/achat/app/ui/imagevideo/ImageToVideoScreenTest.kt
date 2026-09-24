@@ -83,8 +83,11 @@ class ImageToVideoScreenTest {
         composeRule.onNodeWithText("Quiet wanderer").assertIsDisplayed()
         composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
         composeRule.onNodeWithText("Conversation Log").assertIsDisplayed()
+        composeRule.onNodeWithText("LOGS").assertIsDisplayed()
         composeRule.onNodeWithText("Feedback").assertIsDisplayed()
+        composeRule.onNodeWithText("FEED").assertIsDisplayed()
         composeRule.onNodeWithText("Edit Name").assertIsDisplayed()
+        composeRule.onNodeWithText("USER_ID").assertIsDisplayed()
         composeRule.onNodeWithText("ME").assertIsSelected()
     }
 

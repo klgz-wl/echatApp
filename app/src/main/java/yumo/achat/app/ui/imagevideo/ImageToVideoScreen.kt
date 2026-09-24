@@ -77,6 +77,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -90,6 +91,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -412,7 +414,14 @@ internal data class CreditPack(
         get() = "TIER // ${tier.toString().padStart(2, '0')}"
 }
 
-internal fun creditPackHeightDp(selected: Boolean): Int = if (selected) 148 else 86
+internal fun creditPackHeightDp(selected: Boolean): Int = if (selected) 164 else 126
+
+private val creditPackValidityCopyPattern = Regex("""\bvalid\s+for\b""", RegexOption.IGNORE_CASE)
+
+internal fun StoreProduct.creditPackValidityDescription(): String {
+    val trimmedDescription = description.trim()
+    return trimmedDescription.takeIf { creditPackValidityCopyPattern.containsMatchIn(it) }.orEmpty()
+}
 
 internal fun StoreProduct.toCreditPackPresentation(
     userInfo: StoreUserInfo?,
@@ -428,7 +437,7 @@ internal fun StoreProduct.toCreditPackPresentation(
     return CreditPack(
         id = id,
         credits = value,
-        description = description,
+        description = creditPackValidityDescription(),
         price = formatStoreMoney(effectivePrice, currency, locale),
         originalPrice = comparisonPrice?.let { formatStoreMoney(it, currency, locale) },
         tier = displayIndex + 1,
@@ -1567,6 +1576,7 @@ private fun MeScreen(
     onBalanceClick: () -> Unit,
 ) {
     val context = LocalContext.current
+    val systemModuleRows = meSystemModulePresentations()
     val copyIdLabel = stringResource(R.string.profile_copy_id_description)
     val clipboardManager = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -1618,20 +1628,21 @@ private fun MeScreen(
                 icon = ModuleIcon.ConversationLog,
                 title = stringResource(R.string.conversation_log),
                 subtitle = stringResource(R.string.conversation_log_subtitle),
-                trailing = stringResource(R.string.module_count, 108),
+                trailing = systemModuleRows[0].badge,
                 onClick = onConversationLog,
             )
             ModuleRow(
                 icon = ModuleIcon.Feedback,
                 title = stringResource(R.string.feedback),
                 subtitle = stringResource(R.string.feedback_subtitle),
-                trailing = stringResource(R.string.module_new),
+                trailing = systemModuleRows[1].badge,
                 onClick = onFeedback,
             )
             ModuleRow(
                 icon = ModuleIcon.Edit,
                 title = stringResource(R.string.edit_name),
                 subtitle = stringResource(R.string.edit_name_subtitle),
+                trailing = systemModuleRows[2].badge,
                 onClick = { if (!isAvatarSaving) onEditName() },
             )
         }
@@ -1642,6 +1653,14 @@ private fun MeScreen(
         )
     }
 }
+
+internal data class MeSystemModulePresentation(val badge: String)
+
+internal fun meSystemModulePresentations(): List<MeSystemModulePresentation> = listOf(
+    MeSystemModulePresentation(badge = "LOGS"),
+    MeSystemModulePresentation(badge = "FEED"),
+    MeSystemModulePresentation(badge = "USER_ID"),
+)
 
 @Composable
 private fun MeHeader(diamondBalance: Int, onBalanceClick: () -> Unit) {
@@ -2273,18 +2292,32 @@ private fun SecondaryHeader(
     }
 }
 
+internal fun emptyTasksCardRotationDegrees(): Float = -2f
+
 @Composable
 internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .widthIn(max = 330.dp)
-            .height(260.dp)
+            .height(248.dp)
+            .graphicsLayer {
+                rotationZ = emptyTasksCardRotationDegrees()
+                cameraDistance = 18f * density
+                shadowElevation = 18f
+            }
+            .shadow(
+                elevation = 18.dp,
+                shape = RoundedCornerShape(4.dp),
+                ambientColor = AchatPink.copy(alpha = 0.28f),
+                spotColor = AchatCyan.copy(alpha = 0.24f),
+            )
             .clip(RoundedCornerShape(4.dp))
             .background(
                 Brush.radialGradient(
-                    colors = listOf(Color(0xC0161730), Color(0xF0080913)),
-                    radius = 510f,
+                    colors = listOf(Color(0xD0180B22), Color(0xF0080913)),
+                    center = Offset(120f, 150f),
+                    radius = 430f,
                 ),
             )
             .border(
@@ -2304,6 +2337,18 @@ internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
             drawLine(AchatPink, Offset(0f, size.height), Offset(corner, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
             drawLine(AchatPink, Offset(size.width, size.height - corner), Offset(size.width, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
             drawLine(AchatPink, Offset(size.width - corner, size.height), Offset(size.width, size.height), strokeWidth = accentStroke, cap = StrokeCap.Round)
+            drawLine(
+                color = AchatCyan.copy(alpha = 0.18f),
+                start = Offset(size.width * 0.1f, size.height * 0.26f),
+                end = Offset(size.width * 0.86f, size.height * 0.26f),
+                strokeWidth = 1.dp.toPx(),
+            )
+            drawLine(
+                color = AchatCyan.copy(alpha = 0.2f),
+                start = Offset(size.width * 0.1f, size.height * 0.78f),
+                end = Offset(size.width * 0.9f, size.height * 0.78f),
+                strokeWidth = 1.dp.toPx(),
+            )
         }
 
         Row(
@@ -2329,10 +2374,12 @@ internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 70.dp)
-                .size(58.dp)
+                .padding(top = 68.dp)
+                .size(56.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xD0101024))
+                .background(
+                    Brush.verticalGradient(listOf(Color(0xD0222451), Color(0xC0101024))),
+                )
                 .border(
                     1.dp,
                     Brush.linearGradient(listOf(AchatPink.copy(alpha = 0.72f), AchatCyan.copy(alpha = 0.5f))),
@@ -2358,6 +2405,12 @@ internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
                 }
                 drawPath(outer, color = AchatPink.copy(alpha = 0.82f), style = Stroke(1.2.dp.toPx()))
                 drawPath(inner, color = AchatCyan.copy(alpha = 0.78f), style = Stroke(1.dp.toPx()))
+                drawLine(
+                    color = AchatCyan.copy(alpha = 0.45f),
+                    start = Offset(0f, size.height * 0.5f),
+                    end = Offset(size.width, size.height * 0.5f),
+                    strokeWidth = 1.dp.toPx(),
+                )
             }
         }
 
@@ -2369,7 +2422,7 @@ internal fun EmptyTasksCard(modifier: Modifier = Modifier) {
             letterSpacing = 3.sp,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 149.dp),
+                .padding(top = 145.dp),
         )
 
         Text(
@@ -3396,24 +3449,24 @@ private fun CreditPackCard(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    horizontal = if (selected) 16.dp else 12.dp,
-                    vertical = if (selected) 13.dp else 9.dp,
+                    horizontal = if (selected) 18.dp else 18.dp,
+                    vertical = if (selected) 16.dp else 16.dp,
                 ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(if (selected) 44.dp else 30.dp)
-                        .clip(RoundedCornerShape(if (selected) 8.dp else 5.dp))
+                        .size(if (selected) 66.dp else 48.dp)
+                        .clip(RoundedCornerShape(if (selected) 13.dp else 8.dp))
                         .background(pack.accentColor.copy(alpha = 0.08f))
                         .border(
                             1.dp,
                             pack.accentColor.copy(alpha = 0.55f),
-                            RoundedCornerShape(if (selected) 8.dp else 5.dp),
+                            RoundedCornerShape(if (selected) 13.dp else 8.dp),
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val iconSize = if (selected) 20.dp else 13.dp
+                    val iconSize = if (selected) 30.dp else 21.dp
                     DiamondOutlineIcon(tint = pack.accentColor, modifier = Modifier.size(iconSize))
                     pack.iconUrl?.let { iconUrl ->
                         AsyncImage(
@@ -3424,31 +3477,44 @@ private fun CreditPackCard(
                         )
                     }
                 }
-                Spacer(Modifier.width(if (selected) 12.dp else 9.dp))
+                Spacer(Modifier.width(if (selected) 17.dp else 14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = pack.credits.toString(),
                             color = Color.White,
-                            fontSize = if (selected) 22.sp else 16.sp,
+                            fontSize = if (selected) 30.sp else 25.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.credit_pack_unit),
                             color = pack.accentColor,
-                            fontSize = if (selected) 9.sp else 7.sp,
+                            fontSize = if (selected) 11.sp else 8.sp,
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = pack.description,
-                        color = Color(0xFF85899E),
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (pack.description.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF33F7C8)),
+                                )
+                                Spacer(Modifier.width(7.dp))
+                            }
+                            Text(
+                                text = pack.description,
+                                color = Color(0xFF9AA0B4),
+                                fontSize = if (selected) 13.sp else 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
                 if (pack.badgeText != null || pack.bonus != null || pack.badgeTextRes != null) {
                     BonusBadge(pack = pack, selected = selected)
@@ -3461,7 +3527,7 @@ private fun CreditPackCard(
                     .height(1.dp)
                     .background(Color.White.copy(alpha = 0.07f)),
             )
-            Spacer(Modifier.height(if (selected) 9.dp else 6.dp))
+            Spacer(Modifier.height(if (selected) 13.dp else 11.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = if (selected) stringResource(R.string.credit_pack_protocol) else pack.tierLabel,
@@ -3474,7 +3540,7 @@ private fun CreditPackCard(
                     Text(
                         text = originalPrice,
                         color = AchatMuted,
-                        fontSize = 9.sp,
+                        fontSize = if (selected) 13.sp else 11.sp,
                         textDecoration = TextDecoration.LineThrough,
                     )
                     Spacer(Modifier.width(8.dp))
@@ -3482,7 +3548,7 @@ private fun CreditPackCard(
                 Text(
                     text = pack.price,
                     color = if (selected) AchatCyan else Color.White,
-                    fontSize = if (selected) 18.sp else 13.sp,
+                    fontSize = if (selected) 30.sp else 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -3499,12 +3565,12 @@ private fun BonusBadge(pack: CreditPack, selected: Boolean) {
     Text(
         text = label,
         color = Color.White,
-        fontSize = if (selected) 9.sp else 7.sp,
+        fontSize = if (selected) 12.sp else 10.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier
             .clip(CutCornerShape(topStart = 7.dp, bottomEnd = 7.dp))
             .background(Brush.horizontalGradient(listOf(AchatPink, Color(0xFF7A52E8))))
-            .padding(horizontal = if (selected) 12.dp else 7.dp, vertical = 4.dp),
+            .padding(horizontal = if (selected) 13.dp else 9.dp, vertical = if (selected) 7.dp else 5.dp),
     )
 }
 

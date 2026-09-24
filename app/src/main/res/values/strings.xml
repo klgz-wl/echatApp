@@ -74,8 +74,8 @@
     <string name="top_up_google_play_unavailable">Google Play is temporarily unavailable. Please try again.</string>
     <string name="top_up_close_checkout">Close checkout</string>
     <string name="choose_pack">CHOOSE A PACK</string>
-    <string name="credit_pack_validity">VALID FOR %1$d DAYS</string>
-    <string name="credit_pack_unit">DMS</string>
+    <string name="credit_pack_validity">Valid for %1$d days</string>
+    <string name="credit_pack_unit">DMDS</string>
     <string name="credit_pack_protocol">LOCKED PROTOCOL</string>
     <string name="credit_pack_bonus">+%1$d bonus</string>
     <string name="credit_pack_starter">STARTER</string>
@@ -109,7 +109,7 @@
     <string name="my_tasks_title">My Tasks</string>
     <string name="back_to_me_description">Back to me</string>
     <string name="no_tasks_empty">NO TASKA YES</string>
-    <string name="empty_tasks_diagnostics">&gt;&gt;&gt; NULL.STEAM</string>
+    <string name="empty_tasks_diagnostics">/// NULL_STREAM</string>
     <string name="feedback_prompt_title">Tell us what feels off</string>
     <string name="feedback_prompt_body">Screenshots help us reproduce layout glitches, style mismatch, or crashes faster.</string>
     <string name="take_photo">Take Photo</string>

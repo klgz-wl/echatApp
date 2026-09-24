@@ -28,7 +28,7 @@ class MyTasksScreenTest {
         }
 
         composeRule.onNodeWithText("NO TASKA YES").assertIsDisplayed()
-        composeRule.onNodeWithText(">>> NULL.STEAM").assertIsDisplayed()
+        composeRule.onNodeWithText("/// NULL_STREAM").assertIsDisplayed()
     }
 
     @Test

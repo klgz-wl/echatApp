@@ -16,9 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -54,23 +51,12 @@ class MainActivity : ComponentActivity() {
             AchatTheme {
                 val gate: RegionGateViewModel = viewModel()
                 val state by gate.state.collectAsState()
-                var analyticsConsent by remember { mutableStateOf(AnalyticsConsent.decision(this@MainActivity)) }
                 LaunchedEffect(Unit) { gate.check() }
-                LaunchedEffect(state.allowed, analyticsConsent) {
-                    if (state.allowed && analyticsConsent != null) beginBusinessStartup()
+                LaunchedEffect(state.allowed) {
+                    if (state.allowed) beginBusinessStartup()
                 }
                 when {
                     !state.allowed -> RegionGateScreen(state = state, onRetry = gate::check)
-                    analyticsConsent == null -> AnalyticsConsentScreen(
-                        onAccept = {
-                            AnalyticsConsent.save(this@MainActivity, true)
-                            analyticsConsent = true
-                        },
-                        onDecline = {
-                            AnalyticsConsent.save(this@MainActivity, false)
-                            analyticsConsent = false
-                        },
-                    )
                     else -> ImageToVideoScreen()
                 }
             }
@@ -118,17 +104,6 @@ private fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit) {
                 Text(stringResource(R.string.region_unavailable))
                 Button(onClick = onRetry) { Text(stringResource(R.string.top_up_retry)) }
             }
-        }
-    }
-}
-
-@Composable
-private fun AnalyticsConsentScreen(onAccept: () -> Unit, onDecline: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(stringResource(R.string.analytics_consent_message))
-            Button(onClick = onAccept) { Text(stringResource(R.string.analytics_consent_accept)) }
-            Button(onClick = onDecline) { Text(stringResource(R.string.analytics_consent_decline)) }
         }
     }
 }

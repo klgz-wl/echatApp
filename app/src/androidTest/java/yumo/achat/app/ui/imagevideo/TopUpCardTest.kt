@@ -42,7 +42,9 @@ class TopUpCardTest {
             }
         }
 
-        composeRule.onAllNodesWithText("DMS").assertCountEquals(2)
+        composeRule.onAllNodesWithText("DMDS").assertCountEquals(2)
+        composeRule.onNodeWithText("Valid for 90 days").assertIsDisplayed()
+        composeRule.onNodeWithText("Valid for 60 days").assertIsDisplayed()
         composeRule.onNodeWithText("LOCKED PROTOCOL").assertIsDisplayed()
         composeRule.onNodeWithText("TIER // 02").assertIsDisplayed()
         composeRule.onNodeWithText("100").performClick()
@@ -82,6 +84,36 @@ class TopUpCardTest {
 
         state = TopUpUiState(catalog = StoreCatalog(emptyList(), emptyList(), null))
         composeRule.onNodeWithText("No packs available").assertIsDisplayed()
+    }
+
+    @Test
+    fun missingBackendValidityDoesNotRenderValiditySubtitle() {
+        composeRule.setContent {
+            AchatTheme {
+                TopUpScreen(
+                    selectedNavigation = 2,
+                    selectedProductId = "pack-200",
+                    state = TopUpUiState(
+                        catalog = StoreCatalog(
+                            products = listOf(
+                                product("pack-200", 200, 1, "39.99", description = ""),
+                                product("pack-100", 100, 2, "19.99", description = "100金币"),
+                            ),
+                            paymentProviders = emptyList(),
+                            userInfo = StoreUserInfo(88, hasMadeFirstPurchase = true, isVip = false),
+                        ),
+                    ),
+                    purchaseState = TopUpPurchaseState.Idle,
+                    onProductSelect = {},
+                    onPreparePayment = {},
+                    onRetry = {},
+                    onNavigationSelect = {},
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("Valid for 90 days").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Valid for 60 days").assertCountEquals(0)
     }
 
     @Test
@@ -135,10 +167,16 @@ class TopUpCardTest {
         userInfo = StoreUserInfo(88, hasMadeFirstPurchase = true, isVip = false),
     )
 
-    private fun product(id: String, value: Int, sortOrder: Int, price: String) = StoreProduct(
+    private fun product(
+        id: String,
+        value: Int,
+        sortOrder: Int,
+        price: String,
+        description: String = if (value == 200) "Valid for 90 days" else "Valid for 60 days",
+    ) = StoreProduct(
         id = id,
         name = "$value Diamonds",
-        description = "Popular diamond pack",
+        description = description,
         type = "diamond",
         value = value,
         bonusValue = 0,
@@ -157,6 +195,7 @@ class TopUpCardTest {
         sortOrder = sortOrder,
         tags = "",
         thirdPartyProductId = "sku-$value",
+        googleProductId = "",
         vipLevel = 0,
     )
 

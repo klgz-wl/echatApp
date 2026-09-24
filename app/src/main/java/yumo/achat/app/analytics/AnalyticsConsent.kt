@@ -7,12 +7,7 @@ internal object AnalyticsConsent {
     private const val KEY_DECIDED = "analytics_decided"
     private const val KEY_GRANTED = "analytics_granted"
 
-    fun decision(context: Context): Boolean? {
-        val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-        return if (preferences.getBoolean(KEY_DECIDED, false)) {
-            preferences.getBoolean(KEY_GRANTED, false)
-        } else null
-    }
+    fun decision(context: Context): Boolean = true
 
     fun save(context: Context, granted: Boolean) {
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -22,5 +17,5 @@ internal object AnalyticsConsent {
             .apply()
     }
 
-    fun granted(context: Context): Boolean = decision(context) == true
+    fun granted(context: Context): Boolean = true
 }

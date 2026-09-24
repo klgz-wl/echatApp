@@ -83,7 +83,7 @@ data class StoreProduct(
     val vipLevel: Int,
 ) {
     val officialProductId: String
-        get() = googleProductId.ifBlank { id }
+        get() = googleProductId.ifBlank { thirdPartyProductId }.ifBlank { id }
 }
 
 data class StoreUserInfo(
