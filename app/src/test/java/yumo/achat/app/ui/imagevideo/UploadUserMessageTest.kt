@@ -68,6 +68,19 @@ class UploadUserMessageTest {
     }
 
     @Test
+    fun `insufficient balance generation error routes to top up`() {
+        assertEquals(
+            true,
+            shouldRouteGenerationErrorToTopUp(
+                """{"code":400101,"message":"Insufficient diamond balance","trace":"secret"}""",
+            ),
+        )
+        assertEquals(true, shouldRouteGenerationErrorToTopUp("insufficient diamond balance"))
+        assertEquals(false, shouldRouteGenerationErrorToTopUp("Upload failed"))
+        assertEquals(false, shouldRouteGenerationErrorToTopUp(null))
+    }
+
+    @Test
     fun `google billing disconnected message is sanitized for top up`() {
         val fallback = "Google Play is temporarily unavailable. Please try again."
 

@@ -167,6 +167,8 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
     )
 }
 
+internal fun routeFromBalanceBadgeClick(): BottomNavigationRoute = routeFromBottomNavigation(2)
+
 internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
     0 -> "video"
     1 -> "image"
@@ -641,6 +643,24 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         destination = route.destination
     }
 
+    fun navigateFromBalanceBadge() {
+        val route = routeFromBalanceBadgeClick()
+        if (shouldRefreshTopUp(selectedNavigation, route.selectedNavigation)) {
+            topUpRefreshSerial += 1
+        } else {
+            topUpState = TopUpUiState(
+                isLoading = true,
+                diamondBalance = backendState.diamondBalance,
+            )
+        }
+        selectedNavigation = route.selectedNavigation
+        selectedTab = 0
+        currentTemplate = 1
+        templateEdgeHintRes = null
+        selectedResultTask = null
+        destination = route.destination
+    }
+
     LaunchedEffect(analytics) {
         analytics.initialize()
     }
@@ -887,6 +907,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     onProductSelect = topUpPaymentController::selectProduct,
                     onPreparePayment = topUpPaymentController::prepare,
                     onTopUpRetry = { topUpRefreshSerial += 1 },
+                    onBalanceClick = ::navigateFromBalanceBadge,
                     edgeHint = templateEdgeHint,
                     onEdgeHintDismiss = { messageId ->
                         if (templateEdgeHintSerial.toLong() == messageId) {
@@ -906,6 +927,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     selectedTemplate = selectedGenerationTemplate,
                     trackedTasks = sessionTasks,
                     onTaskCreated = ::handleGenerationTaskCreated,
+                    onBalanceClick = ::navigateFromBalanceBadge,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -959,6 +981,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                             localProfileAvatarUri = localProfileAvatarUri,
                             diamondBalance = backendState.diamondBalance,
                             onNavigationSelect = ::navigateFromBottomNavigation,
+                            onBalanceClick = ::navigateFromBalanceBadge,
                         )
                     }
                     Box(
@@ -1041,6 +1064,7 @@ private fun TemplateBrowserScreen(
     onProductSelect: (String) -> Unit,
     onPreparePayment: () -> Unit,
     onTopUpRetry: () -> Unit,
+    onBalanceClick: () -> Unit,
     edgeHint: TransientMessage?,
     onEdgeHintDismiss: (Long) -> Unit,
     backendState: AchatBackendUiState,
@@ -1078,6 +1102,7 @@ private fun TemplateBrowserScreen(
             profileAvatarUrl = backendState.profileAvatarUrl,
             localProfileAvatarUri = localProfileAvatarUri,
             diamondBalance = backendState.diamondBalance,
+            onBalanceClick = onBalanceClick,
             onNavigationSelect = {
                 onNavigationSelect(it)
                 onTabSelect(0)
@@ -1126,7 +1151,7 @@ private fun TemplateBrowserScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Header(section = section, diamondBalance = backendState.diamondBalance)
+        Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick)
         Spacer(Modifier.height(8.dp))
         CategoryTabs(
             section = section,
@@ -1383,6 +1408,7 @@ private fun MeScreen(
     localProfileAvatarUri: Uri?,
     diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
+    onBalanceClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val copyIdLabel = stringResource(R.string.profile_copy_id_description)
@@ -1396,7 +1422,7 @@ private fun MeScreen(
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        MeHeader(diamondBalance = diamondBalance)
+        MeHeader(diamondBalance = diamondBalance, onBalanceClick = onBalanceClick)
         Spacer(Modifier.height(28.dp))
         ProfileCard(
             profileName = profileName,
@@ -1462,7 +1488,7 @@ private fun MeScreen(
 }
 
 @Composable
-private fun MeHeader(diamondBalance: Int) {
+private fun MeHeader(diamondBalance: Int, onBalanceClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -1479,6 +1505,7 @@ private fun MeHeader(diamondBalance: Int) {
                 .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
                 .background(Color(0xB20A111C))
+                .clickable(onClick = onBalanceClick)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -3380,6 +3407,7 @@ private fun UploadPhotoScreen(
     selectedTemplate: SelectedGenerationTemplate?,
     trackedTasks: List<TrackedGenerationTask>,
     onTaskCreated: (VisualGenerationTask, TrackedGenerationTask) -> Unit,
+    onBalanceClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -3485,7 +3513,7 @@ private fun UploadPhotoScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        UploadPhotoHeader(onBack = onBack, diamondBalance = diamondBalance)
+        UploadPhotoHeader(onBack = onBack, diamondBalance = diamondBalance, onBalanceClick = onBalanceClick)
         Spacer(Modifier.height(22.dp))
         Text(
             text = stringResource(R.string.template_preview_heading),
@@ -3563,6 +3591,9 @@ private fun UploadPhotoScreen(
                             text = visualGenerationUserMessage(error.message, uploadFailedMessage),
                             tone = TransientMessageTone.Error,
                         )
+                        if (shouldRouteGenerationErrorToTopUp(error.message)) {
+                            onNavigationSelect(2)
+                        }
                     }
                     uploadInProgress = false
                 }
@@ -3577,7 +3608,7 @@ private fun UploadPhotoScreen(
 }
 
 @Composable
-private fun UploadPhotoHeader(onBack: () -> Unit, diamondBalance: Int) {
+private fun UploadPhotoHeader(onBack: () -> Unit, diamondBalance: Int, onBalanceClick: () -> Unit) {
     val backDescription = stringResource(R.string.back_to_templates_description)
     val balanceDescription = stringResource(R.string.balance_panel_description)
     Row(
@@ -3612,6 +3643,7 @@ private fun UploadPhotoHeader(onBack: () -> Unit, diamondBalance: Int) {
                 .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
                 .background(Color(0xB20A111C))
+                .clickable(onClick = onBalanceClick)
                 .padding(horizontal = 11.dp)
                 .semantics { contentDescription = balanceDescription },
             verticalAlignment = Alignment.CenterVertically,
@@ -3648,7 +3680,7 @@ private fun BackgroundGlow() {
 }
 
 @Composable
-private fun Header(section: TemplateSection, diamondBalance: Int) {
+private fun Header(section: TemplateSection, diamondBalance: Int, onBalanceClick: () -> Unit) {
     val title = stringResource(
         if (section == TemplateSection.Image) R.string.image_to_image_title else R.string.image_to_video_title,
     )
@@ -3669,6 +3701,7 @@ private fun Header(section: TemplateSection, diamondBalance: Int) {
                 .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
                 .background(Color(0xB20A111C))
+                .clickable(onClick = onBalanceClick)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

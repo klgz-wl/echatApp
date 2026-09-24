@@ -19,4 +19,12 @@ class BottomNavigationRoutingTest {
         assertEquals(true, shouldRefreshTopUp(currentNavigation = 2, selectedNavigation = 2))
         assertEquals(false, shouldRefreshTopUp(currentNavigation = 0, selectedNavigation = 3))
     }
+
+    @Test
+    fun `diamond balance badge routes to top up`() {
+        val route = routeFromBalanceBadgeClick()
+
+        assertEquals(2, route.selectedNavigation)
+        assertEquals(ImageToVideoDestination.Templates, route.destination)
+    }
 }

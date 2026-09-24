@@ -16,6 +16,13 @@ internal fun visualGenerationUserMessage(
     return message
 }
 
+internal fun shouldRouteGenerationErrorToTopUp(rawMessage: String?): Boolean {
+    val message = visualGenerationUserMessage(rawMessage, fallback = "").lowercase()
+    return message.contains("insufficient") &&
+        message.contains("diamond") &&
+        message.contains("balance")
+}
+
 internal fun apiEnvelopeUserMessage(rawMessage: String?, fallback: String): String {
     val message = rawMessage?.trim().orEmpty()
     if (message.isBlank()) return fallback
