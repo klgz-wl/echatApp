@@ -198,6 +198,12 @@ internal fun topUpReturnTargetForInsufficientBalance(
 
 internal fun routeAfterTopUpSuccess(returnTarget: BottomNavigationRoute?): BottomNavigationRoute? = returnTarget
 
+internal fun routeAfterGenerationTaskCreated(selectedNavigation: Int): BottomNavigationRoute =
+    BottomNavigationRoute(
+        selectedNavigation = selectedNavigation,
+        destination = ImageToVideoDestination.MyTasks,
+    )
+
 internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
     0 -> "video"
     1 -> "image"
@@ -587,6 +593,12 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     fun handleGenerationTaskCreated(task: VisualGenerationTask, trackedTask: TrackedGenerationTask) {
         sessionTasks = upsertTrackedGenerationTask(sessionTasks, trackedTask)
+        val route = routeAfterGenerationTaskCreated(selectedNavigation)
+        selectedResultTask = null
+        isLoadingTaskHistory = true
+        taskHistoryError = null
+        selectedNavigation = route.selectedNavigation
+        destination = route.destination
         if (trackedTask.isFinished && trackedTask.requestId.isNotBlank()) {
             generationEvents.terminalResult(
                 context = GenerationAnalyticsContext(
@@ -2275,8 +2287,12 @@ private fun TaskStatusCard(task: TrackedGenerationTask, onOpen: () -> Unit) {
 internal fun GenerationResultScreen(
     task: TrackedGenerationTask,
     onBack: () -> Unit,
+    initialVideoPlaybackFailed: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    var videoPlaybackFailed by remember(task.taskId, task.resultUrl) {
+        mutableStateOf(initialVideoPlaybackFailed)
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -2335,15 +2351,24 @@ internal fun GenerationResultScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else if (task.canOpenResult && (task.mimeType.startsWith("video/") || task.modality == "video")) {
-                    TemplatePreviewPanel(
-                        media = TemplatePreviewMedia.RemoteVideo(
-                            url = task.resultUrl.orEmpty(),
-                            posterUrl = task.thumbnailUrl.orEmpty(),
-                        ),
-                        durationSeconds = 0,
-                        isPlaying = true,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    if (videoPlaybackFailed) {
+                        Text(
+                            text = stringResource(R.string.task_result_file_unavailable),
+                            color = AchatMuted,
+                            fontSize = 11.sp,
+                        )
+                    } else {
+                        TemplatePreviewPanel(
+                            media = TemplatePreviewMedia.RemoteVideo(
+                                url = task.resultUrl.orEmpty(),
+                                posterUrl = task.thumbnailUrl.orEmpty(),
+                            ),
+                            durationSeconds = 0,
+                            isPlaying = true,
+                            onPlaybackError = { videoPlaybackFailed = true },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 } else {
                     Text(
                         text = stringResource(R.string.task_result_preview_unavailable),

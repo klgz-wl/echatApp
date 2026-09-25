@@ -253,6 +253,7 @@ private fun TemplatePreviewImage(
     contentDescription: String?,
     contentScale: ContentScale = ContentScale.Crop,
     videoResizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+    onPlaybackError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val placeholder = painterResource(R.drawable.hero_portrait)
@@ -304,13 +305,17 @@ private fun TemplatePreviewImage(
         is TemplatePreviewMedia.RemoteVideo -> {
             var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
             var hasPlaybackError by remember(media.url) { mutableStateOf(false) }
+            val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
             Box(modifier = modifier.background(Color.Black)) {
                 TemplatePreviewVideo(
                     url = media.url,
                     isPlaying = isPlaying,
                     resizeMode = videoResizeMode,
                     onFirstFrame = { hasRenderedFirstFrame = true },
-                    onPlaybackError = { hasPlaybackError = true },
+                    onPlaybackError = {
+                        hasPlaybackError = true
+                        playbackErrorCallback.value()
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
                 AnimatedVisibility(
@@ -594,6 +599,7 @@ internal fun TemplatePreviewPanel(
     media: TemplatePreviewMedia = TemplatePreviewMedia.LocalPlaceholder,
     durationSeconds: Int = 5,
     isPlaying: Boolean = false,
+    onPlaybackError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val selectedTemplateDescription = stringResource(R.string.selected_template_description)
@@ -610,6 +616,7 @@ internal fun TemplatePreviewPanel(
             contentScale = uploadPreviewContentScale(),
             videoResizeMode = uploadPreviewVideoResizeMode(),
             contentDescription = null,
+            onPlaybackError = onPlaybackError,
             modifier = Modifier.fillMaxSize(),
         )
         Box(

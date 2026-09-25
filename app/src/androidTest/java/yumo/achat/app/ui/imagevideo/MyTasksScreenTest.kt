@@ -106,4 +106,29 @@ class MyTasksScreenTest {
         composeRule.onNodeWithText("Video result").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Selected template preview").assertIsDisplayed()
     }
+
+    @Test
+    fun generationResultScreenShowsUnavailableMessageWhenVideoPlaybackFails() {
+        val task = TrackedGenerationTask(
+            taskId = "task-video-404",
+            title = "Missing video result",
+            modality = "video",
+            status = "succeeded",
+            resultUrl = "https://cdn.appjoly.com/missing.mp4",
+            mimeType = "video/mp4",
+            errorMessage = null,
+        )
+
+        composeRule.setContent {
+            AchatTheme {
+                GenerationResultScreen(
+                    task = task,
+                    onBack = {},
+                    initialVideoPlaybackFailed = true,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Result file unavailable, pull to refresh or try later.").assertIsDisplayed()
+    }
 }

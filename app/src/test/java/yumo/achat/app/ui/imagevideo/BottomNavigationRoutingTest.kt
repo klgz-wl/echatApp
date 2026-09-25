@@ -56,4 +56,17 @@ class BottomNavigationRoutingTest {
         )
         assertEquals(null, routeAfterTopUpSuccess(null))
     }
+
+    @Test
+    fun `successful generation task routes to my tasks`() {
+        val route = routeAfterGenerationTaskCreated(selectedNavigation = 1)
+
+        assertEquals(
+            BottomNavigationRoute(
+                selectedNavigation = 1,
+                destination = ImageToVideoDestination.MyTasks,
+            ),
+            route,
+        )
+    }
 }

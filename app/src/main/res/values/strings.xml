@@ -48,6 +48,7 @@
     <string name="task_result_title">Result</string>
     <string name="task_result_image_description">Generated result</string>
     <string name="task_result_preview_unavailable">Preview unavailable</string>
+    <string name="task_result_file_unavailable">Result file unavailable, pull to refresh or try later.</string>
     <string name="task_history_loading">Loading creations...</string>
     <string name="selected_template_description">Selected template preview</string>
     <string name="photo_picker_description">Photo picker placeholder</string>
