@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.merge
 import javax.inject.Inject
 import javax.inject.Singleton
 
+enum class RechargeNotificationRoute { LegacyFirst, Handled, Unknown }
+
 /** 页面统一入口；配置只影响新购买，恢复与到账按持久化订单归属分派。 */
 @Singleton
 class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDispatcher,
@@ -39,20 +41,33 @@ class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDis
     suspend fun launchOfficial(activity: Activity, key: String, epoch: String) =
         dispatcher.resumeOwnedOrder { service.launchOfficial(activity, key, epoch) }
 
-    /** true 表示已接管通知；false 保留参考旧流程的成功提示及返回生成页行为。 */
-    suspend fun recharge(orderId: String?): Boolean {
-        val session = sessions.current ?: return true
+    /** Play 恢复事件只让新流程查单，不能提前消费旧流程的真实到账通知。 */
+    suspend fun recoveredPurchase(orderId: String?) {
+        payments.engine.recharge(orderId)
+    }
+
+    /** 明确区分首次旧流程到账、已由 Core 接管及未知通知，避免未知订单触发成功 UI。 */
+    suspend fun rechargeNotification(orderId: String?): RechargeNotificationRoute {
+        val session = sessions.current ?: return RechargeNotificationRoute.Unknown
         return try {
             when (legacyOrders.recharge(orderId, session.userId)) {
-                LegacyRechargeMatch.FIRST -> sessions.current?.epoch != session.epoch
-                LegacyRechargeMatch.DUPLICATE -> true
-                LegacyRechargeMatch.UNKNOWN -> payments.engine.recharge(orderId)
+                LegacyRechargeMatch.FIRST -> if (sessions.current?.epoch == session.epoch) {
+                    RechargeNotificationRoute.LegacyFirst
+                } else {
+                    RechargeNotificationRoute.Handled
+                }
+                LegacyRechargeMatch.DUPLICATE -> RechargeNotificationRoute.Handled
+                LegacyRechargeMatch.UNKNOWN -> if (payments.engine.recharge(orderId)) {
+                    RechargeNotificationRoute.Handled
+                } else {
+                    RechargeNotificationRoute.Unknown
+                }
             }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) {
             // 无法确认归属时只刷新钱包，不把新流程通知误判为旧流程到账。
             payments.refreshWallet()
-            true
+            RechargeNotificationRoute.Unknown
         }
     }
 }

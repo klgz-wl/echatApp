@@ -5,6 +5,7 @@ import yumo.achat.core.billing.BillingConfiguration
 import yumo.achat.core.payment.PaymentConfiguration
 import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
+import yumo.achat.core.wallet.RechargeStreamConfiguration
 
 internal data class CorePaymentConfiguration(
     val payment: PaymentConfiguration,
@@ -27,6 +28,15 @@ internal fun corePaymentConfiguration() = CorePaymentConfiguration(
         defaultTrigger = BuildConfig.PURCHASE_TRIGGER,
         backendOwnedFulfillment = true,
     ),
+)
+
+internal fun coreRechargeStreamConfiguration() = RechargeStreamConfiguration(
+    initialRetry = BuildConfig.RECHARGE_RETRY_INITIAL_MS.toLong(),
+    maxRetry = BuildConfig.RECHARGE_RETRY_MAX_MS.toLong(),
+    firstMessageTimeout = BuildConfig.RECHARGE_FIRST_MESSAGE_TIMEOUT_MS.toLong(),
+    idleTimeout = BuildConfig.RECHARGE_IDLE_TIMEOUT_MS.toLong(),
+    checkInterval = BuildConfig.RECHARGE_CHECK_INTERVAL_MS.toLong(),
+    dedupeWindow = BuildConfig.RECHARGE_DEDUPE_WINDOW_MS.toLong(),
 )
 
 internal data class CorePaymentPresentation(

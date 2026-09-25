@@ -2,7 +2,9 @@ package yumo.achat.core.backend
 
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.net.URLEncoder
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import yumo.achat.core.attribution.LoginAttribution
 
@@ -189,10 +191,27 @@ class AchatBackendClient(
         )
     }
 
-    fun templates(token: String, modality: String, page: Int = 1, pageSize: Int = 20): List<VisualTemplate> =
-        AchatBackendParsers.parseTemplates(
-            get("/api/v1/visual-generation/$modality/templates?page=$page&page_size=$pageSize", token),
+    fun templates(
+        token: String,
+        modality: String,
+        sortBy: String,
+        categoryId: String? = null,
+        page: Int = 1,
+        pageSize: Int = 20,
+    ): List<VisualTemplate> {
+        require(sortBy == "hot" || sortBy == "latest") { "Unsupported template sort: $sortBy" }
+        val query = buildList {
+            add("page=$page")
+            add("page_size=$pageSize")
+            add("sort_by=$sortBy")
+            categoryId?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                add("category_id=${URLEncoder.encode(it, StandardCharsets.UTF_8.name())}")
+            }
+        }.joinToString("&")
+        return AchatBackendParsers.parseTemplates(
+            get("/api/v1/visual-generation/$modality/templates?$query", token),
         )
+    }
 
     fun categories(token: String, modality: String): List<VisualCategory> =
         AchatBackendParsers.parseCategories(

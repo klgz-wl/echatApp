@@ -226,6 +226,11 @@ internal enum class TemplateSection {
     Image,
 }
 
+internal fun templateSortBy(section: TemplateSection, selectedTab: Int): String = when {
+    section == TemplateSection.Video && selectedTab == 0 -> "hot"
+    else -> "latest"
+}
+
 internal enum class TemplateRetryAction {
     Startup,
     Section,
@@ -467,6 +472,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
     var startupReloadSerial by remember { mutableIntStateOf(0) }
+    var videoTemplateRequestSerial by remember { mutableStateOf(0L) }
+    var imageTemplateRequestSerial by remember { mutableStateOf(0L) }
     val topUpPaymentViewModel: TopUpPaymentViewModel = hiltViewModel()
     val topUpPaymentController = topUpPaymentViewModel.controller
     val profileEditingViewModel: ProfileEditingViewModel = viewModel()
@@ -572,18 +579,31 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    fun retryTemplates(section: TemplateSection) {
-        if (templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
-            startupReloadSerial += 1
-            return
-        }
+    fun reloadTemplates(
+        section: TemplateSection,
+        sortBy: String,
+        categoryId: String? = null,
+    ) {
         val modality = if (section == TemplateSection.Video) "video" else "image"
+        val requestSerial = when (section) {
+            TemplateSection.Video -> ++videoTemplateRequestSerial
+            TemplateSection.Image -> ++imageTemplateRequestSerial
+        }
         backendState = when (section) {
             TemplateSection.Video -> backendState.copy(videoTemplatesLoading = true)
             TemplateSection.Image -> backendState.copy(imageTemplatesLoading = true)
         }
         screenScope.launch {
-            val result = repository.loadTemplates(modality)
+            val result = repository.loadTemplates(
+                modality = modality,
+                sortBy = sortBy,
+                categoryId = categoryId,
+            )
+            val isLatestRequest = when (section) {
+                TemplateSection.Video -> requestSerial == videoTemplateRequestSerial
+                TemplateSection.Image -> requestSerial == imageTemplateRequestSerial
+            }
+            if (!isLatestRequest) return@launch
             val fallback = if (section == TemplateSection.Video) videoTemplatesFallback else imageTemplatesFallback
             val errorMessage = result.errorMessage?.let { apiEnvelopeUserMessage(it, fallback) }
             backendState = backendState.withTemplateLoadResult(
@@ -591,6 +611,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 result = result.copy(errorMessage = errorMessage),
             )
         }
+    }
+
+    fun retryTemplates(section: TemplateSection) {
+        if (templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
+            startupReloadSerial += 1
+            return
+        }
+        reloadTemplates(
+            section = section,
+            sortBy = templateSortBy(section, selectedTab),
+        )
     }
 
     fun refreshDiamondBalance() {
@@ -614,6 +645,25 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 // Keep the last visible balance; the next refresh opportunity reconciles it.
             }
         }
+    }
+
+    suspend fun refreshRechargeBalance(): Boolean {
+        diamondBalanceRefreshSerial += 1
+        val requestSerial = diamondBalanceRefreshSerial
+        val diamondBalance = loadRechargeBalanceWithRetry(
+            maxAttempts = 4,
+            waitBeforeRetry = { delay(it) },
+            loadBalance = { repository.userCurrencySnapshot().diamondBalance },
+        ) ?: return false
+        if (!shouldApplyCurrencySnapshot(requestSerial, diamondBalanceRefreshSerial)) return false
+        val updated = applyCurrencyBalanceSnapshot(
+            backendState = backendState,
+            topUpState = topUpState,
+            diamondBalance = diamondBalance,
+        )
+        backendState = updated.backendState
+        topUpState = updated.topUpState
+        return true
     }
 
     fun handleGenerationTaskCreated(task: VisualGenerationTask, trackedTask: TrackedGenerationTask) {
@@ -765,6 +815,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         templateEdgeHintRes = null
         selectedResultTask = null
         destination = route.destination
+        if (navigationIndex == 0 || navigationIndex == 1) {
+            val section = if (navigationIndex == 0) TemplateSection.Video else TemplateSection.Image
+            reloadTemplates(section = section, sortBy = templateSortBy(section, selectedTab = 0))
+        }
     }
 
     fun navigateFromBalanceBadge() {
@@ -830,6 +884,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(context, startupReloadSerial) {
         val profileRevisionAtStart = profileRevision
+        val videoRequestSerialAtStart = videoTemplateRequestSerial
+        val imageRequestSerialAtStart = imageTemplateRequestSerial
         backendState = backendState.copy(
             isLoading = true,
             errorMessage = null,
@@ -847,6 +903,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             if (profileRevision == profileRevisionAtStart) {
                 analytics.mode(if (homeData.profile?.isNew == true) "B" else "A")
             }
+            val applyStartupVideo = videoRequestSerialAtStart == videoTemplateRequestSerial
+            val applyStartupImage = imageRequestSerialAtStart == imageTemplateRequestSerial
             backendState = backendState.withLoadedProfile(
                 profile = homeData.profile,
                 fallbackId = homeData.session.userId,
@@ -854,28 +912,42 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             ).copy(
                 isLoading = false,
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
-                videoTemplates = homeData.videoTemplates,
-                imageTemplates = homeData.imageTemplates,
-                videoTemplatesLoading = false,
-                imageTemplatesLoading = false,
-                videoTemplateErrorMessage = homeData.videoTemplateErrorMessage?.let {
-                    apiEnvelopeUserMessage(it, videoTemplatesFallback)
+                videoTemplates = if (applyStartupVideo) homeData.videoTemplates else backendState.videoTemplates,
+                imageTemplates = if (applyStartupImage) homeData.imageTemplates else backendState.imageTemplates,
+                videoTemplatesLoading = if (applyStartupVideo) false else backendState.videoTemplatesLoading,
+                imageTemplatesLoading = if (applyStartupImage) false else backendState.imageTemplatesLoading,
+                videoTemplateErrorMessage = if (applyStartupVideo) {
+                    homeData.videoTemplateErrorMessage?.let { apiEnvelopeUserMessage(it, videoTemplatesFallback) }
+                } else {
+                    backendState.videoTemplateErrorMessage
                 },
-                imageTemplateErrorMessage = homeData.imageTemplateErrorMessage?.let {
-                    apiEnvelopeUserMessage(it, imageTemplatesFallback)
+                imageTemplateErrorMessage = if (applyStartupImage) {
+                    homeData.imageTemplateErrorMessage?.let { apiEnvelopeUserMessage(it, imageTemplatesFallback) }
+                } else {
+                    backendState.imageTemplateErrorMessage
                 },
                 videoCategories = homeData.videoCategories,
                 imageCategories = homeData.imageCategories,
             )
         }.onFailure { error ->
             val rawMessage = error.message ?: "Backend unavailable"
+            val applyStartupVideo = videoRequestSerialAtStart == videoTemplateRequestSerial
+            val applyStartupImage = imageRequestSerialAtStart == imageTemplateRequestSerial
             backendState = backendState.copy(
                 isLoading = false,
                 errorMessage = rawMessage,
-                videoTemplatesLoading = false,
-                imageTemplatesLoading = false,
-                videoTemplateErrorMessage = apiEnvelopeUserMessage(rawMessage, videoTemplatesFallback),
-                imageTemplateErrorMessage = apiEnvelopeUserMessage(rawMessage, imageTemplatesFallback),
+                videoTemplatesLoading = if (applyStartupVideo) false else backendState.videoTemplatesLoading,
+                imageTemplatesLoading = if (applyStartupImage) false else backendState.imageTemplatesLoading,
+                videoTemplateErrorMessage = if (applyStartupVideo) {
+                    apiEnvelopeUserMessage(rawMessage, videoTemplatesFallback)
+                } else {
+                    backendState.videoTemplateErrorMessage
+                },
+                imageTemplateErrorMessage = if (applyStartupImage) {
+                    apiEnvelopeUserMessage(rawMessage, imageTemplatesFallback)
+                } else {
+                    backendState.imageTemplateErrorMessage
+                },
             )
         }
     }
@@ -989,15 +1061,24 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(topUpPaymentController.successSerial) {
         if (topUpPaymentController.successSerial > 0) {
             topUpRefreshSerial += 1
-            refreshDiamondBalance()
+            if (!refreshRechargeBalance()) return@LaunchedEffect
             val returnRoute = routeAfterTopUpSuccess(pendingTopUpReturnRoute())
             if (returnRoute != null) {
-                setPendingTopUpReturnRoute(null)
                 delay(1_200L)
+                setPendingTopUpReturnRoute(null)
                 selectedNavigation = returnRoute.selectedNavigation
                 selectedResultTask = null
                 destination = returnRoute.destination
+            } else {
+                delay(1_200L)
             }
+            topUpPaymentController.acknowledgeLegacySuccess()
+        }
+    }
+
+    LaunchedEffect(topUpPaymentController.rechargeRefreshSerial) {
+        if (topUpPaymentController.rechargeRefreshSerial > 0) {
+            refreshDiamondBalance()
         }
     }
 
@@ -1017,6 +1098,16 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (topUpPaymentController.checkoutState is TopUpCheckoutState.Succeeded) {
+                topUpPaymentController.retryVisibleSuccess()
+            } else {
+                refreshDiamondBalance()
+            }
+            awaitCancellation()
+        }
+    }
     DisposableEffect(lifecycleOwner, topUpPaymentController.state, topUpPaymentController.checkoutState) {
         val observer = LifecycleEventObserver { _, event ->
             val route = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
@@ -1055,11 +1146,15 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         selectedTab = it
                         currentTemplate = 1
                         templateEdgeHintRes = null
+                        val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
+                        val sortBy = templateSortBy(section, it)
+                        reloadTemplates(section = section, sortBy = sortBy)
                         analytics.track(
                             name = "template_category_tab_click",
                             parameters = mapOf(
-                                "modality" to if (it == 0) "video" else "image",
+                                "modality" to if (section == TemplateSection.Video) "video" else "image",
                                 "tab_index" to it,
+                                "sort_by" to sortBy,
                             ),
                             userId = backendState.profileId,
                         )
@@ -1303,10 +1398,7 @@ private fun TemplateBrowserScreen(
             onProductSelect = onProductSelect,
             onPreparePayment = onPreparePayment,
             onRetry = onTopUpRetry,
-            onNavigationSelect = {
-                onNavigationSelect(it)
-                onTabSelect(0)
-            },
+            onNavigationSelect = onNavigationSelect,
         )
         return
     }
@@ -1325,10 +1417,7 @@ private fun TemplateBrowserScreen(
             localProfileAvatarUri = localProfileAvatarUri,
             diamondBalance = backendState.diamondBalance,
             onBalanceClick = onBalanceClick,
-            onNavigationSelect = {
-                onNavigationSelect(it)
-                onTabSelect(0)
-            },
+            onNavigationSelect = onNavigationSelect,
         )
         return
     }
@@ -1439,10 +1528,7 @@ private fun TemplateBrowserScreen(
         Spacer(Modifier.height(12.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
-            onSelect = {
-                onNavigationSelect(it)
-                onTabSelect(0)
-            },
+            onSelect = onNavigationSelect,
         )
     }
 }

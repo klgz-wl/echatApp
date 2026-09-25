@@ -305,7 +305,7 @@ class AchatBackendParsersTest {
     }
 
     @Test
-    fun `parse templates sorted by hot score`() {
+    fun `parse templates preserves backend sort order`() {
         val templates = AchatBackendParsers.parseTemplates(
             """
             {
@@ -345,13 +345,13 @@ class AchatBackendParsersTest {
             """.trimIndent(),
         )
 
-        assertEquals(listOf("hot", "cold"), templates.map { it.id })
-        assertEquals("Hot", templates.first().name)
-        assertEquals("video/mp4", templates.first().mimeType)
-        assertEquals("https://example.test/hot-poster.webp", templates.first().previewUrl)
-        assertEquals("", templates.last().previewUrl)
-        assertEquals(9, templates.first().fastPrice)
-        assertEquals(null, templates.first().qualityPrice)
+        assertEquals(listOf("cold", "hot"), templates.map { it.id })
+        assertEquals("Cold", templates.first().name)
+        assertEquals("image/webp", templates.first().mimeType)
+        assertEquals("", templates.first().previewUrl)
+        assertEquals("https://example.test/hot-poster.webp", templates.last().previewUrl)
+        assertEquals(9, templates.last().fastPrice)
+        assertEquals(null, templates.last().qualityPrice)
     }
 
     @Test

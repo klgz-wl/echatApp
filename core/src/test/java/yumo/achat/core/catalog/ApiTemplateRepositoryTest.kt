@@ -11,14 +11,14 @@ import org.junit.Test
 
 class ApiTemplateRepositoryTest {
     private class Api : VisualGenerationApi {
-        val featuredQueries = mutableListOf<Boolean?>()
+        val sortQueries = mutableListOf<String>()
         val queries = mutableListOf<Triple<String, Int, String?>>()
         var response: suspend (String, Int) -> VisualPage<VisualTemplate> = { kind, page -> VisualPage(listOf(
             VisualTemplate("$kind-$page", "Backend title", "category", fileUrl = "https://example.test/media", mimeType = "$kind/test", width = 400, height = 600)), page, 2, 3) }
         override suspend fun categories(modality: String, session: Session) = ApiResponse(0, data = listOf(VisualCategory("category", "Backend category")))
-        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, homeFeatured: Boolean?, session: Session): ApiResponse<VisualPage<VisualTemplate>> {
+        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, sortBy: String, session: Session): ApiResponse<VisualPage<VisualTemplate>> {
             queries += Triple(modality, page, categoryId)
-            featuredQueries += homeFeatured
+            sortQueries += sortBy
             return ApiResponse(0, data = response(modality, page))
         }
         override suspend fun createTask(modality: String, idempotencyKey: String, templateId: RequestBody, quality: RequestBody, image: MultipartBody.Part?, session: Session): ApiResponse<VisualTask> = error("浏览不能创建任务")
@@ -30,10 +30,10 @@ class ApiTemplateRepositoryTest {
         sessions.saveLogin(AuthResponse("token", "refresh", "user"))
         return Triple(ApiTemplateRepository(api, sessions, CatalogConfiguration(MediaKind.VIDEO, 2)), api, sessions)
     }
-    @Test fun `首页与视频分类分页刷新重试均显式保持精选条件`() = runBlocking {
+    @Test fun `首页与视频分类分页刷新重试均保持热门排序`() = runBlocking {
         val (repository, api) = fixture()
         for (channel in listOf(CatalogChannel.HOME, CatalogChannel.VIDEO)) {
-            val start = api.featuredQueries.size
+            val start = api.sortQueries.size
             repository.load(channel)
             repository.load(channel, "category")
             repository.load(channel, "category", 2)
@@ -43,16 +43,16 @@ class ApiTemplateRepositoryTest {
             try { repository.load(channel, "category", 2); fail() } catch (_: java.io.IOException) { }
             api.response = normal
             repository.load(channel, "category", 2)
-            assertEquals(List(6) { channel == CatalogChannel.HOME }, api.featuredQueries.drop(start))
+            assertEquals(List(6) { "hot" }, api.sortQueries.drop(start))
             assertEquals(listOf(null, "category", "category", "category", "category", "category"), api.queries.drop(start).map { it.third })
         }
     }
-    @Test fun `图片接口不附加视频专属首页过滤`() = runBlocking {
+    @Test fun `图片接口使用最新排序`() = runBlocking {
         val (repository, api, sessions) = fixture()
         repository.load(CatalogChannel.IMAGE)
         repository.load(CatalogChannel.IMAGE, "category", 2)
         ApiTemplateRepository(api, sessions, CatalogConfiguration(MediaKind.IMAGE, 2)).load(CatalogChannel.HOME)
-        assertEquals(listOf(null, null, null), api.featuredQueries)
+        assertEquals(listOf("latest", "latest", "latest"), api.sortQueries)
         assertTrue(api.queries.all { it.first == "image" })
     }
     @Test fun `动态图封面与实际视频地址分离并兼容旧草稿`() = runBlocking {

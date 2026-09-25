@@ -34,6 +34,7 @@ import yumo.achat.core.billing.BillingRepository
 import yumo.achat.core.payment.PaymentCoordinator
 import yumo.achat.core.payment.PurchaseRouter
 import yumo.achat.core.auth.SessionCoordinator
+import yumo.achat.core.wallet.RechargeNotifications
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var paymentCoordinatorProvider: Lazy<PaymentCoordinator>
     @Inject lateinit var purchaseRouterProvider: Lazy<PurchaseRouter>
     @Inject lateinit var sessionCoordinatorProvider: Lazy<SessionCoordinator>
+    @Inject lateinit var rechargeNotificationsProvider: Lazy<RechargeNotifications>
     private var businessStarted = false
 
     private fun beginBusinessStartup() {
@@ -55,10 +57,11 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             billingProvider.get().recovered.collect { orderId ->
-                purchaseRouterProvider.get().recharge(orderId)
+                purchaseRouterProvider.get().recoveredPurchase(orderId)
             }
         }
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) lifecycleScope.launch {
+            rechargeNotificationsProvider.get().setForeground(true)
             sessionCoordinatorProvider.get().synchronize()
             billingProvider.get().onForeground()
             paymentCoordinatorProvider.get().foreground(true)
@@ -97,6 +100,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         if (businessStarted) {
+            rechargeNotificationsProvider.get().setForeground(true)
             if (AnalyticsConsent.granted(this)) AchatAnalyticsRuntime.get(this).foreground(true)
             lifecycleScope.launch {
                 sessionCoordinatorProvider.get().synchronize()
@@ -110,7 +114,10 @@ class MainActivity : ComponentActivity() {
         if (businessStarted && AnalyticsConsent.granted(this) && !isChangingConfigurations) {
             AchatAnalyticsRuntime.get(this).foreground(false)
         }
-        if (businessStarted) paymentCoordinatorProvider.get().foreground(false)
+        if (businessStarted) {
+            rechargeNotificationsProvider.get().setForeground(false)
+            paymentCoordinatorProvider.get().foreground(false)
+        }
         super.onStop()
     }
 

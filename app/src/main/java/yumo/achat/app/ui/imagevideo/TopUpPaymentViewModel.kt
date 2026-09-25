@@ -26,7 +26,9 @@ import yumo.achat.core.payment.PaymentRecord
 import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 import yumo.achat.core.payment.PurchaseRouter
+import yumo.achat.core.payment.RechargeNotificationRoute
 import yumo.achat.core.wallet.CoinProduct
+import yumo.achat.core.wallet.RechargeNotifications
 
 internal sealed interface TopUpCheckoutState {
     data object Idle : TopUpCheckoutState
@@ -46,8 +48,29 @@ internal class TopUpPaymentViewModel @Inject constructor(
     private val sessions: SessionCoordinator,
     private val billing: BillingRepository,
     private val purchases: CoinPurchaseController,
+    private val rechargeNotifications: RechargeNotifications,
 ) : ViewModel() {
     val controller = CoreTopUpPaymentController(payments, router, sessions, billing, purchases, viewModelScope)
+
+    init {
+        viewModelScope.launch {
+            rechargeNotifications.events.collect { notice ->
+                val isCurrentSession = rechargeNotifications.isCurrent(notice)
+                val route = if (isCurrentSession) {
+                    router.rechargeNotification(notice.orderId)
+                } else {
+                    RechargeNotificationRoute.Unknown
+                }
+                controller.applyRechargeNotice(
+                    action = rechargeNoticeAction(
+                        isCurrentSession = isCurrentSession && rechargeNotifications.isCurrent(notice),
+                        route = route,
+                    ),
+                    orderId = notice.orderId,
+                )
+            }
+        }
+    }
 
     fun syncSession(session: AuthSession) = controller.syncSession(session)
 
@@ -76,6 +99,8 @@ internal class CoreTopUpPaymentController(
     var successSerial by mutableLongStateOf(0L)
         private set
     var reconciliationCount by mutableIntStateOf(0)
+        private set
+    var rechargeRefreshSerial by mutableLongStateOf(0L)
         private set
     var productSelectionLocked by mutableStateOf(false)
         private set
@@ -161,6 +186,33 @@ internal class CoreTopUpPaymentController(
         coreState.record?.let { record ->
             payments.pageEvent(record.key, "page_load_error")
             if (record.thirdParty) payments.close(record.key)
+        }
+    }
+
+    fun applyRechargeNotice(action: RechargeNoticeAction, orderId: String?) {
+        when (action) {
+            RechargeNoticeAction.Ignore -> Unit
+            RechargeNoticeAction.RefreshBalance -> rechargeRefreshSerial += 1
+            RechargeNoticeAction.LegacySuccess -> {
+                checkoutState = TopUpCheckoutState.Succeeded(orderId.orEmpty())
+                successSerial += 1
+            }
+        }
+    }
+
+    fun retryVisibleSuccess() {
+        if (shouldRetryLegacySuccess(
+                hasCoreRecord = coreState.record != null,
+                checkoutSucceeded = checkoutState is TopUpCheckoutState.Succeeded,
+            )
+        ) {
+            successSerial += 1
+        }
+    }
+
+    fun acknowledgeLegacySuccess() {
+        if (coreState.record == null && checkoutState is TopUpCheckoutState.Succeeded) {
+            checkoutState = TopUpCheckoutState.Idle
         }
     }
 }

@@ -35,7 +35,7 @@ class GenerationRequestRepositoryTest {
             return response(modality)
         }
         override suspend fun categories(modality: String, session: Session): ApiResponse<List<VisualCategory>> = error("非本测试范围")
-        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, homeFeatured: Boolean?, session: Session): ApiResponse<VisualPage<VisualTemplate>> = error("非本测试范围")
+        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, sortBy: String, session: Session): ApiResponse<VisualPage<VisualTemplate>> = error("非本测试范围")
         override suspend fun task(id: String, session: Session): ApiResponse<VisualTask> = ApiResponse(0, data = taskValue("image").copy(status = "failed", refunded = true, refundAmount = 7))
         override suspend fun resources(page: Int, pageSize: Int, modality: String?, session: Session): ApiResponse<VisualPage<VisualResource>> = error("非本测试范围")
     }

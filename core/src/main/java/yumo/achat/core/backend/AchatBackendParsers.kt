@@ -205,7 +205,7 @@ object AchatBackendParsers {
                     ),
                 )
             }
-        }.sortedByDescending { it.hotScore }
+        }
     }
 
     fun parseCategories(json: String): List<VisualCategory> {

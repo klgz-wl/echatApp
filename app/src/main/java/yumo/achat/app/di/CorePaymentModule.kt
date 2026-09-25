@@ -12,6 +12,7 @@ import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.ui.imagevideo.corePaymentConfiguration
+import yumo.achat.app.ui.imagevideo.coreRechargeStreamConfiguration
 import yumo.achat.core.analytics.AttributionIdProvider
 import yumo.achat.core.analytics.EventTracker
 import yumo.achat.core.billing.BillingConfiguration
@@ -26,6 +27,7 @@ import yumo.achat.core.payment.PreferenceLegacyOrderStorage
 import yumo.achat.core.payment.PurchaseFlow
 import yumo.achat.core.payment.PurchaseFlowConfiguration
 import yumo.achat.core.wallet.WalletConfiguration
+import yumo.achat.core.wallet.RechargeStreamConfiguration
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,6 +39,10 @@ object CorePaymentModule {
     @Provides
     @Singleton
     fun billingConfiguration(): BillingConfiguration = corePaymentConfiguration().billing
+
+    @Provides
+    @Singleton
+    fun rechargeStreamConfiguration(): RechargeStreamConfiguration = coreRechargeStreamConfiguration()
 
     @Provides
     @Singleton

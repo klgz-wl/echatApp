@@ -39,7 +39,7 @@ interface VisualGenerationApi {
     @GET("visual-generation/{modality}/categories") suspend fun categories(@Path("modality") modality: String, @Tag session: Session): ApiResponse<List<VisualCategory>>
     @GET("visual-generation/{modality}/templates") suspend fun templates(@Path("modality") modality: String,
         @Query("page") page: Int, @Query("page_size") pageSize: Int, @Query("category_id") categoryId: String?,
-        @Query("home_featured") homeFeatured: Boolean?, @Tag session: Session): ApiResponse<VisualPage<VisualTemplate>>
+        @Query("sort_by") sortBy: String, @Tag session: Session): ApiResponse<VisualPage<VisualTemplate>>
     @Multipart @POST("visual-generation/{modality}/tasks") suspend fun createTask(@Path("modality") modality: String,
         @Header("Idempotency-Key") idempotencyKey: String, @Part("template_id") templateId: RequestBody,
         @Part("quality") quality: RequestBody, @Part image: MultipartBody.Part?, @Tag session: Session): ApiResponse<VisualTask>

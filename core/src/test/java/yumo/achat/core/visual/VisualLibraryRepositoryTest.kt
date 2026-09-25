@@ -17,7 +17,7 @@ class VisualLibraryRepositoryTest {
             pages += page to modality; return ApiResponse(0, data = response(page, modality))
         }
         override suspend fun categories(modality: String, session: Session): ApiResponse<List<VisualCategory>> = error("非本测试范围")
-        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, homeFeatured: Boolean?, session: Session): ApiResponse<VisualPage<VisualTemplate>> = error("非本测试范围")
+        override suspend fun templates(modality: String, page: Int, pageSize: Int, categoryId: String?, sortBy: String, session: Session): ApiResponse<VisualPage<VisualTemplate>> = error("非本测试范围")
         override suspend fun createTask(modality: String, idempotencyKey: String, templateId: RequestBody, quality: RequestBody, image: MultipartBody.Part?, session: Session): ApiResponse<VisualTask> = error("查询不得创建任务")
         override suspend fun task(id: String, session: Session): ApiResponse<VisualTask> = error("非本测试范围")
     }

@@ -16,6 +16,8 @@ data class RechargeNotice(val epoch: String, val key: String, val orderId: Strin
 data class RechargeStreamConfiguration(val initialRetry: Long, val maxRetry: Long, val firstMessageTimeout: Long,
     val idleTimeout: Long, val checkInterval: Long, val dedupeWindow: Long)
 
+internal fun rechargeEventFlow() = MutableSharedFlow<RechargeNotice>(replay = 1, extraBufferCapacity = 8)
+
 /** 只迁移参考 Centrifugo 的充值通知分支，不引入聊天业务。 */
 @Singleton
 class RechargeNotifications @Inject constructor(@Named("publicClient") private val client: OkHttpClient,
@@ -23,7 +25,7 @@ class RechargeNotifications @Inject constructor(@Named("publicClient") private v
     private val sessions: SessionCoordinator, private val wallet: WalletRepository, private val json: Json) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val foreground = MutableStateFlow(false)
-    private val mutable = MutableSharedFlow<RechargeNotice>(extraBufferCapacity = 8)
+    private val mutable = rechargeEventFlow()
     val events = mutable.asSharedFlow()
     init {
         scope.launch {

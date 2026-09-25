@@ -16,4 +16,16 @@ class CorePaymentConfigurationTest {
         assertTrue(configuration.billing.backendOwnedFulfillment)
         assertEquals("top_up", configuration.billing.defaultTrigger)
     }
+
+    @Test
+    fun `recharge stream uses generated runtime timing configuration`() {
+        val configuration = coreRechargeStreamConfiguration()
+
+        assertEquals(BuildConfig.RECHARGE_RETRY_INITIAL_MS.toLong(), configuration.initialRetry)
+        assertEquals(BuildConfig.RECHARGE_RETRY_MAX_MS.toLong(), configuration.maxRetry)
+        assertEquals(BuildConfig.RECHARGE_FIRST_MESSAGE_TIMEOUT_MS.toLong(), configuration.firstMessageTimeout)
+        assertEquals(BuildConfig.RECHARGE_IDLE_TIMEOUT_MS.toLong(), configuration.idleTimeout)
+        assertEquals(BuildConfig.RECHARGE_CHECK_INTERVAL_MS.toLong(), configuration.checkInterval)
+        assertEquals(BuildConfig.RECHARGE_DEDUPE_WINDOW_MS.toLong(), configuration.dedupeWindow)
+    }
 }

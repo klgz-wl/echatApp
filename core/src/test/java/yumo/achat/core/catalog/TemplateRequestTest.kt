@@ -18,7 +18,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 class TemplateRequestTest {
-    @Test fun `真实Retrofit请求显式发送true和false并保留分类分页参数`() = runBlocking {
+    @Test fun `真实Retrofit请求发送模板排序并保留可选分类分页参数`() = runBlocking {
         val requests = mutableListOf<HttpUrl>()
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             val url = chain.request().url
@@ -41,7 +41,8 @@ class TemplateRequestTest {
         repository.load(CatalogChannel.VIDEO, "category", page = 2)
         repository.load(CatalogChannel.IMAGE)
         val templates = requests.filter { it.encodedPath.endsWith("templates") }
-        assertEquals(listOf("true", "true", "false", "false", "false", null), templates.map { it.queryParameter("home_featured") })
+        assertEquals(listOf("hot", "hot", "hot", "hot", "hot", "latest"), templates.map { it.queryParameter("sort_by") })
+        assertTrue(templates.all { it.queryParameter("home_featured") == null })
         assertEquals(listOf("1", "2", "1", "1", "2", "1"), templates.map { it.queryParameter("page") })
         assertEquals(listOf(null, null, null, "category", "category", null), templates.map { it.queryParameter("category_id") })
         assertTrue(templates.take(5).all { it.encodedPath == "/api/v1/visual-generation/video/templates" })

@@ -52,12 +52,12 @@ class AchatRepository(
             }
             val videoTemplates = async {
                 loadTemplateResult("Unable to load video templates") {
-                    sessionManager.authenticated { token -> client.templates(token, "video") }
+                    sessionManager.authenticated { token -> client.templates(token, "video", sortBy = "hot") }
                 }
             }
             val imageTemplates = async {
                 loadTemplateResult("Unable to load image templates") {
-                    sessionManager.authenticated { token -> client.templates(token, "image") }
+                    sessionManager.authenticated { token -> client.templates(token, "image", sortBy = "latest") }
                 }
             }
             val videoCategories = async {
@@ -87,10 +87,21 @@ class AchatRepository(
         }
     }
 
-    suspend fun loadTemplates(modality: String): TemplateLoadResult = withContext(Dispatchers.IO) {
+    suspend fun loadTemplates(
+        modality: String,
+        sortBy: String,
+        categoryId: String? = null,
+    ): TemplateLoadResult = withContext(Dispatchers.IO) {
         require(modality == "video" || modality == "image") { "Unsupported template modality" }
         loadTemplateResult("Unable to load $modality templates") {
-            sessionManager.authenticated { token -> client.templates(token, modality) }
+            sessionManager.authenticated { token ->
+                client.templates(
+                    token = token,
+                    modality = modality,
+                    sortBy = sortBy,
+                    categoryId = categoryId,
+                )
+            }
         }
     }
 

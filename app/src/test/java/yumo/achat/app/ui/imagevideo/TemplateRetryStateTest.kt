@@ -10,6 +10,14 @@ import yumo.achat.core.backend.VisualTemplate
 
 class TemplateRetryStateTest {
     @Test
+    fun `template tabs map to backend sort values`() {
+        assertEquals("hot", templateSortBy(TemplateSection.Video, selectedTab = 0))
+        assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 1))
+        assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 0))
+        assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 1))
+    }
+
+    @Test
     fun `template retry escalates to startup retry when initial home load failed`() {
         val state = AchatBackendUiState(
             isLoading = false,
