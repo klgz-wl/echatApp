@@ -11,15 +11,15 @@ import yumo.achat.core.backend.VisualTemplate
 class TemplateRetryStateTest {
     @Test
     fun `template tabs map to backend sort values`() {
-        assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 0))
+        assertEquals("hot", templateSortBy(TemplateSection.Video, selectedTab = 0))
         assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 1))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 0))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 1))
     }
 
     @Test
-    fun `video removes sort tabs while image keeps its mode tabs`() {
-        assertFalse(shouldShowTemplateTabs(TemplateSection.Video))
+    fun `video and image show their template tabs`() {
+        assertTrue(shouldShowTemplateTabs(TemplateSection.Video))
         assertTrue(shouldShowTemplateTabs(TemplateSection.Image))
     }
 

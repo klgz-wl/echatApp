@@ -226,10 +226,12 @@ internal enum class TemplateSection {
     Image,
 }
 
-internal fun templateSortBy(@Suppress("UNUSED_PARAMETER") section: TemplateSection, @Suppress("UNUSED_PARAMETER") selectedTab: Int): String =
-    "latest"
+internal fun templateSortBy(section: TemplateSection, selectedTab: Int): String = when {
+    section == TemplateSection.Video && selectedTab == 0 -> "hot"
+    else -> "latest"
+}
 
-internal fun shouldShowTemplateTabs(section: TemplateSection): Boolean = section == TemplateSection.Image
+internal fun shouldShowTemplateTabs(@Suppress("UNUSED_PARAMETER") section: TemplateSection): Boolean = true
 
 internal fun shouldShowTemplateBackendStatus(
     isLoading: Boolean,
@@ -516,6 +518,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val defaultTaskTitle = stringResource(R.string.default_task_title)
     val generationEvents = remember(analytics) { GenerationAnalytics(analytics, analytics::currentUserId) }
     val trackedTasks = mergeTrackedGenerationTasks(sessionTasks, serverHistoryTasks)
+    val homeTaskBadges = homeTaskStatusBadges(sessionTasks)
     val templateEdgeHint = templateEdgeHintRes?.let { messageRes ->
         TransientMessage(
             id = templateEdgeHintSerial.toLong(),
@@ -1160,6 +1163,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     currentTemplate = currentTemplate,
                     isPlaying = isPlaying,
                     selectedNavigation = selectedNavigation,
+                    homeTaskBadges = homeTaskBadges,
                     onTabSelect = {
                         selectedTab = it
                         currentTemplate = 1
@@ -1372,6 +1376,7 @@ private fun TemplateBrowserScreen(
     currentTemplate: Int,
     isPlaying: Boolean,
     selectedNavigation: Int,
+    homeTaskBadges: List<HomeTaskStatusBadge>,
     selectedProductId: String?,
     productSelectionEnabled: Boolean,
     topUpState: TopUpUiState,
@@ -1537,6 +1542,7 @@ private fun TemplateBrowserScreen(
             onTemplatePageSelected = onTemplatePageSelected,
             edgeHint = edgeHint,
             onEdgeHintDismiss = onEdgeHintDismiss,
+            homeTaskBadges = homeTaskBadges,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(12.dp))
@@ -1567,32 +1573,45 @@ private fun TemplateFeedPager(
     onTemplatePageSelected: (Int) -> Unit,
     edgeHint: TransientMessage?,
     onEdgeHintDismiss: (Long) -> Unit,
+    homeTaskBadges: List<HomeTaskStatusBadge>,
     modifier: Modifier = Modifier,
 ) {
     if (templates.isEmpty()) {
         if (showLocalFallback) {
-            HeroCard(
-                currentPage = 1,
-                totalPages = 1,
-                durationSeconds = 5,
-                previewMedia = TemplatePreviewMedia.LocalPlaceholder,
-                isPlaying = isPlaying,
-                onPlayToggle = onPlayToggle,
-                onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
-                onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
-                enableSwipeGestures = false,
-                edgeHint = edgeHint,
-                onEdgeHintDismiss = onEdgeHintDismiss,
-                modifier = modifier,
-            )
+            Box(modifier = modifier) {
+                HeroCard(
+                    currentPage = 1,
+                    totalPages = 1,
+                    durationSeconds = 5,
+                    previewMedia = TemplatePreviewMedia.LocalPlaceholder,
+                    isPlaying = isPlaying,
+                    onPlayToggle = onPlayToggle,
+                    onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
+                    onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
+                    enableSwipeGestures = false,
+                    edgeHint = edgeHint,
+                    onEdgeHintDismiss = onEdgeHintDismiss,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                HomeTaskStatusBadges(
+                    badges = homeTaskBadges,
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 14.dp),
+                )
+            }
             return
         }
-        LiveTemplatePlaceholderCard(
-            isLoading = isLoading,
-            errorMessage = errorMessage,
-            onRetry = onRetry,
-            modifier = modifier,
-        )
+        Box(modifier = modifier) {
+            LiveTemplatePlaceholderCard(
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                onRetry = onRetry,
+                modifier = Modifier.fillMaxSize(),
+            )
+            HomeTaskStatusBadges(
+                badges = homeTaskBadges,
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 14.dp),
+            )
+        }
         return
     }
 
@@ -1618,39 +1637,119 @@ private fun TemplateFeedPager(
         }
     }
 
-    VerticalPager(
-        state = pagerState,
-        key = { page -> "$page:${templatePagerKey(templates, Math.floorMod(page, templates.size))}" },
-        beyondViewportPageCount = templatePagerPrecomposedPageCount(templates.size),
-        modifier = modifier,
-    ) { page ->
-        val templateIndex = Math.floorMod(page, templates.size)
-        val template = templates[templateIndex]
-        HeroCard(
-            currentPage = templateIndex + 1,
-            totalPages = templates.size,
-            durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
-            previewMedia = template.toPreviewMedia(),
-            isPlaying = shouldPlayTemplatePage(
-                page = page,
-                currentPage = pagerState.currentPage,
-                requestedPlaying = isPlaying,
-            ),
-            onPlayToggle = onPlayToggle,
-            onPrevious = {
-                scope.launch {
-                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
-                }
-            },
-            onNext = {
-                scope.launch {
-                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
-                }
-            },
-            enableSwipeGestures = false,
-            edgeHint = edgeHint,
-            onEdgeHintDismiss = onEdgeHintDismiss,
+    Box(modifier = modifier) {
+        VerticalPager(
+            state = pagerState,
+            key = { page -> "$page:${templatePagerKey(templates, Math.floorMod(page, templates.size))}" },
+            beyondViewportPageCount = templatePagerPrecomposedPageCount(templates.size),
             modifier = Modifier.fillMaxSize(),
+        ) { page ->
+            val templateIndex = Math.floorMod(page, templates.size)
+            val template = templates[templateIndex]
+            HeroCard(
+                currentPage = templateIndex + 1,
+                totalPages = templates.size,
+                durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
+                previewMedia = template.toPreviewMedia(),
+                isPlaying = shouldPlayTemplatePage(
+                    page = page,
+                    currentPage = pagerState.currentPage,
+                    requestedPlaying = isPlaying,
+                ),
+                onPlayToggle = onPlayToggle,
+                onPrevious = {
+                    scope.launch {
+                        pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
+                    }
+                },
+                onNext = {
+                    scope.launch {
+                        pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
+                    }
+                },
+                enableSwipeGestures = false,
+                edgeHint = edgeHint,
+                onEdgeHintDismiss = onEdgeHintDismiss,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        HomeTaskStatusBadges(
+            badges = homeTaskBadges,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 14.dp),
+        )
+    }
+}
+
+@Composable
+private fun HomeTaskStatusBadges(
+    badges: List<HomeTaskStatusBadge>,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        badges.forEach { badge ->
+            HomeTaskStatusBadgePill(badge)
+        }
+    }
+}
+
+@Composable
+private fun HomeTaskStatusBadgePill(badge: HomeTaskStatusBadge) {
+    val completed = badge == HomeTaskStatusBadge.Completed
+    val label = stringResource(if (completed) R.string.home_task_completed else R.string.home_task_generating)
+    val shape = RoundedCornerShape(2.dp)
+    Row(
+        modifier = Modifier
+            .shadow(3.dp, shape)
+            .clip(shape)
+            .then(
+                if (completed) {
+                    Modifier.background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFF8065DE), AchatPink)))
+                } else {
+                    Modifier.background(Color(0xFFF7F8FA))
+                },
+            )
+            .border(1.dp, if (completed) Color.White.copy(alpha = 0.28f) else AchatCyan.copy(alpha = 0.28f), shape)
+            .height(36.dp)
+            .widthIn(min = 84.dp)
+            .padding(horizontal = 10.dp)
+            .semantics { contentDescription = label },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Canvas(Modifier.size(12.dp)) {
+            if (completed) {
+                drawCircle(Color.White, style = Stroke(width = 1.2.dp.toPx()))
+                drawLine(
+                    color = Color.White,
+                    start = Offset(size.width * 0.25f, size.height * 0.52f),
+                    end = Offset(size.width * 0.44f, size.height * 0.7f),
+                    strokeWidth = 1.2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = Color.White,
+                    start = Offset(size.width * 0.44f, size.height * 0.7f),
+                    end = Offset(size.width * 0.78f, size.height * 0.32f),
+                    strokeWidth = 1.2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            } else {
+                val diamond = Path().apply {
+                    moveTo(size.width * 0.5f, 0f)
+                    lineTo(size.width, size.height * 0.5f)
+                    lineTo(size.width * 0.5f, size.height)
+                    lineTo(0f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(diamond, AchatCyan)
+            }
+        }
+        Text(
+            text = label,
+            color = if (completed) Color.White else Color(0xFF20242D),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
         )
     }
 }

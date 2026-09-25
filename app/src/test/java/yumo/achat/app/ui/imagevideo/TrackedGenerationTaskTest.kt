@@ -9,6 +9,31 @@ import yumo.achat.core.backend.VisualResource
 
 class TrackedGenerationTaskTest {
     @Test
+    fun `home shows latest generating and completed task badges`() {
+        val base = TrackedGenerationTask(
+            taskId = "task-base",
+            title = "Template",
+            modality = "video",
+            status = "processing",
+            resultUrl = null,
+            mimeType = "",
+            errorMessage = null,
+        )
+        val tasks = listOf(
+            base.copy(taskId = "failed", status = "failed"),
+            base.copy(taskId = "generating", status = "processing"),
+            base.copy(taskId = "completed", status = "succeeded"),
+            base.copy(taskId = "older-generating", status = "queued"),
+        )
+
+        assertEquals(
+            listOf(HomeTaskStatusBadge.Generating, HomeTaskStatusBadge.Completed),
+            homeTaskStatusBadges(tasks),
+        )
+        assertEquals(emptyList<HomeTaskStatusBadge>(), homeTaskStatusBadges(listOf(tasks.first())))
+    }
+
+    @Test
     fun `successful task exposes generated result url`() {
         val task = VisualGenerationTask(
             taskId = "task-12345678",
@@ -99,6 +124,22 @@ class TrackedGenerationTaskTest {
         assertEquals(listOf("task-1", "task-2"), tasks.map { it.taskId })
         assertEquals("succeeded", tasks.first().status)
         assertEquals("https://example.test/result.webp", tasks.first().resultUrl)
+    }
+
+    @Test
+    fun `late processing response cannot revive a terminal task`() {
+        val terminal = TrackedGenerationTask(
+            taskId = "task-1",
+            title = "Template",
+            modality = "video",
+            status = "succeeded",
+            resultUrl = "https://example.test/result.mp4",
+            mimeType = "video/mp4",
+            errorMessage = null,
+        )
+        val stale = terminal.copy(status = "processing", resultUrl = null, mimeType = "")
+
+        assertEquals(listOf(terminal), upsertTrackedGenerationTask(listOf(terminal), stale))
     }
 
     @Test

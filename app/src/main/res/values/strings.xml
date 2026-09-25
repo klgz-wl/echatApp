@@ -152,4 +152,6 @@
     <string name="template_feed_retry">RETRY</string>
     <string name="video_templates_error">Unable to load video templates</string>
     <string name="image_templates_error">Unable to load image templates</string>
+    <string name="home_task_generating">Generating...</string>
+    <string name="home_task_completed">Completed</string>
 </resources>

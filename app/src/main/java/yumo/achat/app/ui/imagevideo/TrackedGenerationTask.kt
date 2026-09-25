@@ -35,6 +35,16 @@ internal data class TrackedGenerationTask(
         get() = canOpenResult && (mimeType.startsWith("image/") || modality == "image")
 }
 
+internal enum class HomeTaskStatusBadge {
+    Generating,
+    Completed,
+}
+
+internal fun homeTaskStatusBadges(tasks: List<TrackedGenerationTask>): List<HomeTaskStatusBadge> = buildList {
+    if (tasks.any { !it.isFinished }) add(HomeTaskStatusBadge.Generating)
+    if (tasks.any { it.status == "succeeded" }) add(HomeTaskStatusBadge.Completed)
+}
+
 internal fun VisualGenerationTask.toTrackedGenerationTask(
     title: String,
     previous: TrackedGenerationTask? = null,
@@ -72,7 +82,11 @@ internal fun VisualResource.toTrackedGenerationTask(defaultTitle: String): Track
 internal fun upsertTrackedGenerationTask(
     tasks: List<TrackedGenerationTask>,
     updatedTask: TrackedGenerationTask,
-): List<TrackedGenerationTask> = listOf(updatedTask) + tasks.filterNot { it.taskId == updatedTask.taskId }
+): List<TrackedGenerationTask> {
+    val existing = tasks.firstOrNull { it.taskId == updatedTask.taskId }
+    if (existing?.isFinished == true && !updatedTask.isFinished) return tasks
+    return listOf(updatedTask) + tasks.filterNot { it.taskId == updatedTask.taskId }
+}
 
 internal fun mergeTrackedGenerationTasks(
     sessionTasks: List<TrackedGenerationTask>,
