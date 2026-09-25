@@ -108,6 +108,10 @@
     <string name="edit_name_subtitle">Update your companion style</string>
     <string name="edit_name_icon_description">Edit name icon</string>
     <string name="my_tasks_title">My Tasks</string>
+    <string name="play_result_video_description">Play result video</string>
+    <string name="pause_result_video_description">Pause result video</string>
+    <string name="result_video_surface_description">Result video player</string>
+    <string name="result_video_progress_description">Video progress</string>
     <string name="back_to_me_description">Back to me</string>
     <string name="no_tasks_empty">NO TASKA YES</string>
     <string name="empty_tasks_diagnostics">/// NULL_STREAM</string>

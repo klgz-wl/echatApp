@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -476,6 +478,185 @@ private data class TemplatePlayerBinding(
     val player: ExoPlayer,
     val listener: Player.Listener,
 )
+
+@Composable
+@OptIn(UnstableApi::class)
+internal fun MyTaskVideoPlayer(
+    url: String,
+    posterUrl: String,
+    isPlaying: Boolean,
+    onPlayToggle: () -> Unit,
+    onPlaybackError: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
+    var lifecycleStarted by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    var hasRenderedFirstFrame by remember(url) { mutableStateOf(false) }
+    var positionMs by remember(url) { mutableStateOf(0L) }
+    var durationMs by remember(url) { mutableStateOf(0L) }
+    var controlsRevealed by remember(url) { mutableStateOf(true) }
+    val binding = remember(url) {
+        val player = ExoPlayer.Builder(context)
+            .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context))
+            .build()
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                hasRenderedFirstFrame = true
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackErrorCallback.value()
+            }
+        }
+        player.addListener(listener)
+        player.apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            setMediaItem(MediaItem.fromUri(url))
+            prepare()
+        }
+        TemplatePlayerBinding(player, listener)
+    }
+    val playDescription = stringResource(
+        if (isPlaying) R.string.pause_result_video_description else R.string.play_result_video_description,
+    )
+    val videoSurfaceDescription = stringResource(R.string.result_video_surface_description)
+    val progressDescription = stringResource(R.string.result_video_progress_description)
+
+    DisposableEffect(binding) {
+        onDispose {
+            binding.player.removeListener(binding.listener)
+            binding.player.release()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            lifecycleStarted = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(binding.player, isPlaying, lifecycleStarted) {
+        binding.player.playWhenReady = shouldPlayVideo(isPlaying, lifecycleStarted)
+    }
+
+    LaunchedEffect(binding.player) {
+        while (true) {
+            positionMs = binding.player.currentPosition.coerceAtLeast(0L)
+            durationMs = binding.player.duration.coerceAtLeast(0L)
+            delay(250L)
+        }
+    }
+
+    LaunchedEffect(isPlaying, controlsRevealed) {
+        if (isPlaying && controlsRevealed) {
+            delay(1_100L)
+            controlsRevealed = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black),
+    ) {
+        AndroidView(
+            factory = { viewContext ->
+                PlayerView(viewContext).apply {
+                    useController = false
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    player = binding.player
+                }
+            },
+            update = { playerView -> playerView.player = binding.player },
+            modifier = Modifier.fillMaxSize(),
+        )
+        AnimatedVisibility(
+            visible = posterUrl.isNotBlank() && !hasRenderedFirstFrame,
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            AsyncImage(
+                model = posterUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .semantics { contentDescription = videoSurfaceDescription }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { controlsRevealed = true },
+                ),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.3f)
+                .align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)))),
+        )
+        AnimatedVisibility(
+            visible = !isPlaying || controlsRevealed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            HexPlayButton(
+                isPlaying = isPlaying,
+                modifier = Modifier
+                    .size(76.dp)
+                    .semantics { contentDescription = playDescription }
+                    .clickable {
+                        controlsRevealed = !isPlaying
+                        onPlayToggle()
+                    },
+            )
+        }
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Slider(
+                value = myTaskPlaybackProgress(positionMs, durationMs),
+                onValueChange = { progress ->
+                    val seekPosition = myTaskSeekPosition(progress, durationMs)
+                    binding.player.seekTo(seekPosition)
+                    positionMs = seekPosition
+                    controlsRevealed = true
+                },
+                enabled = durationMs > 0L,
+                colors = SliderDefaults.colors(
+                    thumbColor = AchatCyan,
+                    activeTrackColor = AchatCyan,
+                    inactiveTrackColor = Color.White.copy(alpha = 0.28f),
+                    disabledThumbColor = AchatCyan.copy(alpha = 0.7f),
+                    disabledActiveTrackColor = AchatCyan.copy(alpha = 0.7f),
+                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .semantics { contentDescription = progressDescription },
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(formatMyTaskPlaybackTime(positionMs), color = Color.White, fontSize = 10.sp)
+                Text(formatMyTaskPlaybackTime(durationMs), color = Color.White, fontSize = 10.sp)
+            }
+        }
+    }
+}
 
 @Composable
 private fun TemplateMetadata(durationSeconds: Int, modifier: Modifier = Modifier) {

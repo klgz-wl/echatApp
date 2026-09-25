@@ -181,6 +181,21 @@ internal fun shouldShowMyTaskImageLoading(hasRenderedImage: Boolean, hasImageErr
 internal fun shouldShowEmptyTasksCard(taskCount: Int, isLoading: Boolean, errorMessage: String?): Boolean =
     taskCount == 0 && !isLoading && errorMessage.isNullOrBlank()
 
+internal fun myTaskPlaybackProgress(positionMs: Long, durationMs: Long): Float {
+    if (durationMs <= 0L) return 0f
+    return (positionMs.toDouble() / durationMs.toDouble()).toFloat().coerceIn(0f, 1f)
+}
+
+internal fun myTaskSeekPosition(progress: Float, durationMs: Long): Long {
+    if (durationMs <= 0L) return 0L
+    return (progress.coerceIn(0f, 1f) * durationMs).toLong()
+}
+
+internal fun formatMyTaskPlaybackTime(positionMs: Long): String {
+    val totalSeconds = positionMs.coerceAtLeast(0L) / 1_000L
+    return "%d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
+}
+
 internal fun List<TrackedGenerationTask>.myTaskVideoPreloadTargets(): List<TemplateVideoPreloadTarget> =
     filter { it.canOpenResult && (it.mimeType.startsWith("video/") || it.modality == "video") }
         .mapNotNull { task ->

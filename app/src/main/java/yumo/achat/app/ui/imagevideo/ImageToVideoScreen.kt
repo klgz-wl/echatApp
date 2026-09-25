@@ -2328,6 +2328,7 @@ internal fun GenerationResultScreen(
     var videoPlaybackFailed by remember(task.taskId, task.resultUrl) {
         mutableStateOf(initialVideoPlaybackFailed)
     }
+    var isVideoPlaying by remember(task.taskId, task.resultUrl) { mutableStateOf(true) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -2344,15 +2345,7 @@ internal fun GenerationResultScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xBB080A14))
-                .border(
-                    1.dp,
-                    Brush.linearGradient(listOf(AchatCyan.copy(alpha = 0.7f), AchatPink.copy(alpha = 0.7f))),
-                    RoundedCornerShape(10.dp),
-                )
-                .padding(12.dp),
+                .weight(1f),
         ) {
             Text(
                 text = task.title,
@@ -2371,7 +2364,7 @@ internal fun GenerationResultScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -2403,18 +2396,19 @@ internal fun GenerationResultScreen(
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(Color(0xCC111827))
                                     .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
-                                    .clickable { videoPlaybackFailed = false }
+                                    .clickable {
+                                        videoPlaybackFailed = false
+                                        isVideoPlaying = true
+                                    }
                                     .padding(horizontal = 18.dp, vertical = 10.dp),
                             )
                         }
                     } else {
-                        TemplatePreviewPanel(
-                            media = TemplatePreviewMedia.RemoteVideo(
-                                url = task.resultUrl.orEmpty(),
-                                posterUrl = task.thumbnailUrl.orEmpty(),
-                            ),
-                            durationSeconds = 0,
-                            isPlaying = true,
+                        MyTaskVideoPlayer(
+                            url = task.resultUrl.orEmpty(),
+                            posterUrl = task.thumbnailUrl.orEmpty(),
+                            isPlaying = isVideoPlaying,
+                            onPlayToggle = { isVideoPlaying = !isVideoPlaying },
                             onPlaybackError = { videoPlaybackFailed = true },
                             modifier = Modifier.fillMaxSize(),
                         )

@@ -105,7 +105,12 @@ class MyTasksScreenTest {
         }
 
         composeRule.onNodeWithText("Video result").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Selected template preview").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Video progress").assertIsDisplayed()
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithContentDescription("Result video player").performClick()
+        composeRule.onNodeWithContentDescription("Pause result video").assertIsDisplayed().performClick()
+        composeRule.onNodeWithContentDescription("Play result video").assertIsDisplayed()
+        composeRule.mainClock.autoAdvance = true
     }
 
     @Test
@@ -132,6 +137,6 @@ class MyTasksScreenTest {
 
         composeRule.onNodeWithText("Result file unavailable, pull to refresh or try later.").assertIsDisplayed()
         composeRule.onNodeWithText("RETRY").assertIsDisplayed().performClick()
-        composeRule.onNodeWithContentDescription("Selected template preview").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Video progress").assertIsDisplayed()
     }
 }
