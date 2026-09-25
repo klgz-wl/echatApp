@@ -24,6 +24,7 @@ class MyTasksScreenTest {
                     errorMessage = null,
                     onBack = {},
                     onOpenTask = {},
+                    onRefresh = {},
                 )
             }
         }
@@ -42,6 +43,7 @@ class MyTasksScreenTest {
                     errorMessage = "Failed to load task history",
                     onBack = {},
                     onOpenTask = {},
+                    onRefresh = {},
                 )
             }
         }
@@ -69,6 +71,7 @@ class MyTasksScreenTest {
                     errorMessage = null,
                     onBack = {},
                     onOpenTask = {},
+                    onRefresh = {},
                 )
             }
         }

@@ -57,6 +57,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -181,6 +185,18 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
 }
 
 internal fun routeFromBalanceBadgeClick(): BottomNavigationRoute = routeFromBottomNavigation(2)
+
+internal fun topUpReturnTargetForManualEntry(): BottomNavigationRoute? = null
+
+internal fun topUpReturnTargetForInsufficientBalance(
+    selectedNavigation: Int,
+    destination: ImageToVideoDestination,
+): BottomNavigationRoute = BottomNavigationRoute(
+    selectedNavigation = selectedNavigation,
+    destination = destination,
+)
+
+internal fun routeAfterTopUpSuccess(returnTarget: BottomNavigationRoute?): BottomNavigationRoute? = returnTarget
 
 internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
     0 -> "video"
@@ -440,6 +456,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
     var topUpRefreshSerial by remember { mutableIntStateOf(0) }
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
+    var pendingTopUpReturnNavigation by rememberSaveable { mutableIntStateOf(-1) }
+    var pendingTopUpReturnDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
     var sessionTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var serverHistoryTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
@@ -447,6 +465,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
     var isLoadingTaskHistory by remember { mutableStateOf(false) }
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
+    var taskHistoryRefreshSerial by remember { mutableIntStateOf(0) }
+    var shouldRefreshUnfinishedTaskStatus by remember { mutableStateOf(false) }
     var templateEdgeHintRes by remember { mutableStateOf<Int?>(null) }
     var templateEdgeHintSerial by remember { mutableIntStateOf(0) }
     var profileMessage by remember { mutableStateOf<TransientMessage?>(null) }
@@ -488,6 +508,23 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     fun showProfileMessage(text: String, tone: TransientMessageTone) {
         profileMessageSerial += 1
         profileMessage = TransientMessage(profileMessageSerial, text, tone)
+    }
+
+    fun pendingTopUpReturnRoute(): BottomNavigationRoute? {
+        val destinationName = pendingTopUpReturnDestination ?: return null
+        val routeDestination = runCatching {
+            ImageToVideoDestination.valueOf(destinationName)
+        }.getOrNull() ?: return null
+        return if (pendingTopUpReturnNavigation in 0..3) {
+            BottomNavigationRoute(pendingTopUpReturnNavigation, routeDestination)
+        } else {
+            null
+        }
+    }
+
+    fun setPendingTopUpReturnRoute(route: BottomNavigationRoute?) {
+        pendingTopUpReturnNavigation = route?.selectedNavigation ?: -1
+        pendingTopUpReturnDestination = route?.destination?.name
     }
 
     val avatarUpdatedMessage = stringResource(R.string.profile_avatar_updated)
@@ -579,6 +616,30 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         refreshDiamondBalance()
     }
 
+    fun applyTrackedGenerationTaskUpdate(updatedTask: TrackedGenerationTask) {
+        sessionTasks = upsertTrackedGenerationTask(sessionTasks, updatedTask)
+        if (updatedTask.isFinished && updatedTask.requestId.isNotBlank()) {
+            generationEvents.terminalResult(
+                context = GenerationAnalyticsContext(
+                    templateId = updatedTask.templateId,
+                    categoryId = updatedTask.categoryId,
+                    modality = updatedTask.modality,
+                    source = updatedTask.source,
+                    quality = updatedTask.quality,
+                    quotedDiamondCost = updatedTask.diamondCost,
+                ),
+                requestId = updatedTask.requestId,
+                taskId = updatedTask.taskId,
+                status = updatedTask.status,
+                quality = updatedTask.quality,
+                diamondCost = updatedTask.diamondCost,
+            )
+        }
+        if (shouldRefreshBalanceForTaskStatus(updatedTask.status)) {
+            refreshDiamondBalance()
+        }
+    }
+
     LaunchedEffect(profileEditingController.completionSerial) {
         if (profileEditingController.completionSerial == 0) return@LaunchedEffect
         val operation = profileEditingController.completedOperation ?: return@LaunchedEffect
@@ -633,9 +694,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         destination = ImageToVideoDestination.MyTasks
     }
 
+    fun refreshMyTasks(pollUnfinishedTasks: Boolean) {
+        shouldRefreshUnfinishedTaskStatus = pollUnfinishedTasks
+        isLoadingTaskHistory = true
+        taskHistoryError = null
+        taskHistoryRefreshSerial += 1
+    }
+
     fun navigateFromBottomNavigation(navigationIndex: Int) {
         val route = routeFromBottomNavigation(navigationIndex)
         val previousNavigation = selectedNavigation
+        setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
         analytics.track(
             name = "tab_click",
             parameters = mapOf(
@@ -663,6 +732,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     fun navigateFromBalanceBadge() {
         val route = routeFromBalanceBadgeClick()
+        setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
         if (shouldRefreshTopUp(selectedNavigation, route.selectedNavigation)) {
             topUpRefreshSerial += 1
         } else {
@@ -677,6 +747,27 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         templateEdgeHintRes = null
         selectedResultTask = null
         destination = route.destination
+    }
+
+    fun navigateToTopUpForInsufficientBalance() {
+        setPendingTopUpReturnRoute(
+            topUpReturnTargetForInsufficientBalance(
+                selectedNavigation = selectedNavigation,
+                destination = destination,
+            ),
+        )
+        if (shouldRefreshTopUp(selectedNavigation, 2)) {
+            topUpRefreshSerial += 1
+        } else {
+            topUpState = TopUpUiState(
+                isLoading = true,
+                diamondBalance = backendState.diamondBalance,
+            )
+        }
+        selectedNavigation = 2
+        templateEdgeHintRes = null
+        selectedResultTask = null
+        destination = ImageToVideoDestination.Templates
     }
 
     LaunchedEffect(analytics) {
@@ -752,10 +843,21 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(destination) {
+    LaunchedEffect(destination, taskHistoryRefreshSerial) {
         if (destination != ImageToVideoDestination.MyTasks) return@LaunchedEffect
         if (selectedResultTask != null) return@LaunchedEffect
+        val shouldPollUnfinished = shouldRefreshUnfinishedTaskStatus
+        shouldRefreshUnfinishedTaskStatus = false
         try {
+            if (shouldPollUnfinished) {
+                sessionTasks.filterNot { it.isFinished }.forEach { trackedTask ->
+                    runCatching {
+                        repository.getVisualGenerationTask(trackedTask.taskId)
+                    }.getOrNull()
+                        ?.toTrackedGenerationTask(trackedTask.title, previous = trackedTask)
+                        ?.let(::applyTrackedGenerationTaskUpdate)
+                }
+            }
             val resources = repository.generatedResources()
             val historyTasks = resources.map { resource ->
                 resource.toTrackedGenerationTask(defaultTaskTitle)
@@ -844,6 +946,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         if (topUpPaymentController.successSerial > 0) {
             topUpRefreshSerial += 1
             refreshDiamondBalance()
+            val returnRoute = routeAfterTopUpSuccess(pendingTopUpReturnRoute())
+            if (returnRoute != null) {
+                setPendingTopUpReturnRoute(null)
+                delay(1_200L)
+                selectedNavigation = returnRoute.selectedNavigation
+                selectedResultTask = null
+                destination = returnRoute.destination
+            }
         }
     }
 
@@ -855,27 +965,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     waitForNextPoll = { intervalSeconds -> delay(intervalSeconds * 1_000L) },
                     fetch = repository::getVisualGenerationTask,
                     onUpdate = { updatedTask ->
-                        sessionTasks = upsertTrackedGenerationTask(sessionTasks, updatedTask)
-                        if (updatedTask.isFinished && updatedTask.requestId.isNotBlank()) {
-                            generationEvents.terminalResult(
-                                context = GenerationAnalyticsContext(
-                                    templateId = updatedTask.templateId,
-                                    categoryId = updatedTask.categoryId,
-                                    modality = updatedTask.modality,
-                                    source = updatedTask.source,
-                                    quality = updatedTask.quality,
-                                    quotedDiamondCost = updatedTask.diamondCost,
-                                ),
-                                requestId = updatedTask.requestId,
-                                taskId = updatedTask.taskId,
-                                status = updatedTask.status,
-                                quality = updatedTask.quality,
-                                diamondCost = updatedTask.diamondCost,
-                            )
-                        }
-                        if (shouldRefreshBalanceForTaskStatus(updatedTask.status)) {
-                            refreshDiamondBalance()
-                        }
+                        applyTrackedGenerationTaskUpdate(updatedTask)
                     },
                 )
             }
@@ -1001,6 +1091,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     selectedNavigation = selectedNavigation,
                     onBack = { destination = ImageToVideoDestination.Templates },
                     onNavigationSelect = ::navigateFromBottomNavigation,
+                    onInsufficientBalanceTopUp = ::navigateToTopUpForInsufficientBalance,
                     diamondBalance = backendState.diamondBalance,
                     selectedTemplate = selectedGenerationTemplate,
                     trackedTasks = sessionTasks,
@@ -1027,6 +1118,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         errorMessage = taskHistoryError,
                         onBack = { destination = ImageToVideoDestination.Templates },
                         onOpenTask = { selectedResultTask = it },
+                        onRefresh = { refreshMyTasks(pollUnfinishedTasks = true) },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -1995,6 +2087,7 @@ internal fun ModuleGlyph(icon: ModuleIcon) {
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 internal fun MyTasksScreen(
     tasks: List<TrackedGenerationTask>,
@@ -2002,8 +2095,13 @@ internal fun MyTasksScreen(
     errorMessage: String?,
     onBack: () -> Unit,
     onOpenTask: (TrackedGenerationTask) -> Unit,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isLoading,
+        onRefresh = onRefresh,
+    )
     Column(
         modifier = modifier
             .statusBarsPadding()
@@ -2016,50 +2114,66 @@ internal fun MyTasksScreen(
             onBack = onBack,
         )
         Spacer(Modifier.height(14.dp))
-        if (isLoading) {
-            Text(
-                text = stringResource(R.string.task_history_loading),
-                color = AchatCyan,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(10.dp))
-        }
-        if (!errorMessage.isNullOrBlank()) {
-            Text(
-                text = errorMessage,
-                color = AchatPink,
-                fontSize = 10.sp,
-            )
-            Spacer(Modifier.height(10.dp))
-        }
-        if (tasks.isEmpty() && !isLoading && errorMessage.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                EmptyTasksCard(modifier = Modifier.padding(top = 142.dp))
-            }
-        } else if (tasks.isNotEmpty()) {
-            TemplateMediaPreloader(
-                videoTargets = tasks.myTaskVideoPreloadTargets(),
-                imageUrls = tasks.myTaskImagePrefetchUrls(),
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                tasks.forEach { task ->
-                    TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .pullRefresh(pullRefreshState),
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                if (isLoading) {
+                    Text(
+                        text = stringResource(R.string.task_history_loading),
+                        color = AchatCyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+                if (!errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = errorMessage,
+                        color = AchatPink,
+                        fontSize = 10.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+                if (shouldShowEmptyTasksCard(tasks.size, isLoading, errorMessage)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        EmptyTasksCard(modifier = Modifier.padding(top = 142.dp))
+                    }
+                } else if (tasks.isNotEmpty()) {
+                    TemplateMediaPreloader(
+                        videoTargets = tasks.myTaskVideoPreloadTargets(),
+                        imageUrls = tasks.myTaskImagePrefetchUrls(),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        tasks.forEach { task ->
+                            TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
+                        }
+                    }
+                } else {
+                    Spacer(Modifier.weight(1f))
                 }
             }
-        } else {
-            Spacer(Modifier.weight(1f))
+            PullRefreshIndicator(
+                refreshing = isLoading,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                backgroundColor = Color(0xF0080B12),
+                contentColor = AchatCyan,
+            )
         }
     }
 }
@@ -3678,6 +3792,7 @@ private fun UploadPhotoScreen(
     selectedNavigation: Int,
     onBack: () -> Unit,
     onNavigationSelect: (Int) -> Unit,
+    onInsufficientBalanceTopUp: () -> Unit,
     diamondBalance: Int,
     selectedTemplate: SelectedGenerationTemplate?,
     trackedTasks: List<TrackedGenerationTask>,
@@ -3694,8 +3809,9 @@ private fun UploadPhotoScreen(
     val generationAnalytics = remember(analytics, analyticsUserId) {
         GenerationAnalytics(analytics) { analyticsUserId }
     }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var uploadedResourceId by remember { mutableStateOf<String?>(null) }
+    var selectedImageUriString by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedImageUri = selectedImageUriString?.let(Uri::parse)
+    var uploadedResourceId by rememberSaveable { mutableStateOf<String?>(null) }
     var generationSubmissionKey by rememberSaveable { mutableStateOf<GenerationSubmissionKey?>(null) }
     var currentTask by remember { mutableStateOf<VisualGenerationTask?>(null) }
     var uploadInProgress by remember { mutableStateOf(false) }
@@ -3747,7 +3863,7 @@ private fun UploadPhotoScreen(
             return@rememberLauncherForActivityResult
         }
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
-        selectedImageUri = uri
+        selectedImageUriString = uri.toString()
         uploadedResourceId = null
         generationSubmissionKey = null
         currentTask = null
@@ -3910,7 +4026,7 @@ private fun UploadPhotoScreen(
                         val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message)
                         if (topUpRouteDelayMillis != null) {
                             delay(topUpRouteDelayMillis)
-                            onNavigationSelect(2)
+                            onInsufficientBalanceTopUp()
                         }
                     }
                     uploadInProgress = false

@@ -178,6 +178,9 @@ internal fun List<TrackedGenerationTask>.myTaskImagePrefetchUrls(): List<String>
 internal fun shouldShowMyTaskImageLoading(hasRenderedImage: Boolean, hasImageError: Boolean): Boolean =
     !hasRenderedImage && !hasImageError
 
+internal fun shouldShowEmptyTasksCard(taskCount: Int, isLoading: Boolean, errorMessage: String?): Boolean =
+    taskCount == 0 && !isLoading && errorMessage.isNullOrBlank()
+
 internal fun List<TrackedGenerationTask>.myTaskVideoPreloadTargets(): List<TemplateVideoPreloadTarget> =
     filter { it.canOpenResult && (it.mimeType.startsWith("video/") || it.modality == "video") }
         .mapNotNull { task ->

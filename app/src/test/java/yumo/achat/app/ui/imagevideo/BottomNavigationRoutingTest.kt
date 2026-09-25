@@ -27,4 +27,33 @@ class BottomNavigationRoutingTest {
         assertEquals(2, route.selectedNavigation)
         assertEquals(ImageToVideoDestination.Templates, route.destination)
     }
+
+    @Test
+    fun `manual top up entry does not create a return route`() {
+        assertEquals(null, topUpReturnTargetForManualEntry())
+    }
+
+    @Test
+    fun `insufficient balance top up entry returns to upload photo after payment success`() {
+        val returnTarget = topUpReturnTargetForInsufficientBalance(
+            selectedNavigation = 1,
+            destination = ImageToVideoDestination.UploadPhoto,
+        )
+
+        assertEquals(
+            BottomNavigationRoute(
+                selectedNavigation = 1,
+                destination = ImageToVideoDestination.UploadPhoto,
+            ),
+            returnTarget,
+        )
+        assertEquals(
+            BottomNavigationRoute(
+                selectedNavigation = 1,
+                destination = ImageToVideoDestination.UploadPhoto,
+            ),
+            routeAfterTopUpSuccess(returnTarget),
+        )
+        assertEquals(null, routeAfterTopUpSuccess(null))
+    }
 }
