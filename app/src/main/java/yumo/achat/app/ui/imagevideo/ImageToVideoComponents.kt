@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -305,19 +306,22 @@ private fun TemplatePreviewImage(
         is TemplatePreviewMedia.RemoteVideo -> {
             var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
             var hasPlaybackError by remember(media.url) { mutableStateOf(false) }
+            var retrySerial by remember(media.url) { mutableStateOf(0) }
             val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
             Box(modifier = modifier.background(Color.Black)) {
-                TemplatePreviewVideo(
-                    url = media.url,
-                    isPlaying = isPlaying,
-                    resizeMode = videoResizeMode,
-                    onFirstFrame = { hasRenderedFirstFrame = true },
-                    onPlaybackError = {
-                        hasPlaybackError = true
-                        playbackErrorCallback.value()
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                key(media.url, retrySerial) {
+                    TemplatePreviewVideo(
+                        url = media.url,
+                        isPlaying = isPlaying,
+                        resizeMode = videoResizeMode,
+                        onFirstFrame = { hasRenderedFirstFrame = true },
+                        onPlaybackError = {
+                            hasPlaybackError = true
+                            playbackErrorCallback.value()
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 AnimatedVisibility(
                     visible = media.posterUrl.isNotBlank() && shouldShowVideoPoster(hasRenderedFirstFrame),
                     exit = fadeOut(),
@@ -345,6 +349,30 @@ private fun TemplatePreviewImage(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     TemplateMediaLoadingIndicator()
+                }
+                if (shouldShowVideoRetry(hasPlaybackError)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0x66000000)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.template_feed_retry),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xCC111827))
+                                .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                                .clickable {
+                                    hasPlaybackError = false
+                                    hasRenderedFirstFrame = false
+                                    retrySerial += 1
+                                }
+                                .padding(horizontal = 18.dp, vertical = 10.dp),
+                        )
+                    }
                 }
             }
         }

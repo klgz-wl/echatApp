@@ -33,6 +33,8 @@ class TemplatePlaybackStateTest {
         assertTrue(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = false, hasMediaError = false))
         assertFalse(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = true, hasMediaError = false))
         assertFalse(shouldShowTemplateMediaLoading(hasRenderedRemoteContent = false, hasMediaError = true))
+        assertTrue(shouldShowVideoRetry(hasPlaybackError = true))
+        assertFalse(shouldShowVideoRetry(hasPlaybackError = false))
     }
 
     @Test

@@ -2387,11 +2387,26 @@ internal fun GenerationResultScreen(
                     )
                 } else if (task.canOpenResult && (task.mimeType.startsWith("video/") || task.modality == "video")) {
                     if (videoPlaybackFailed) {
-                        Text(
-                            text = stringResource(R.string.task_result_file_unavailable),
-                            color = AchatMuted,
-                            fontSize = 11.sp,
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = stringResource(R.string.task_result_file_unavailable),
+                                color = AchatMuted,
+                                fontSize = 11.sp,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                text = stringResource(R.string.template_feed_retry),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color(0xCC111827))
+                                    .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                                    .clickable { videoPlaybackFailed = false }
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                            )
+                        }
                     } else {
                         TemplatePreviewPanel(
                             media = TemplatePreviewMedia.RemoteVideo(

@@ -64,5 +64,7 @@ internal fun shouldShowTemplateMediaLoading(
     hasMediaError: Boolean,
 ): Boolean = !hasRenderedRemoteContent && !hasMediaError
 
+internal fun shouldShowVideoRetry(hasPlaybackError: Boolean): Boolean = hasPlaybackError
+
 internal fun shouldPlayVideo(requestedPlaying: Boolean, lifecycleStarted: Boolean): Boolean =
     requestedPlaying && lifecycleStarted

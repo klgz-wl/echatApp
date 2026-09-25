@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 import yumo.achat.app.ui.theme.AchatTheme
@@ -130,5 +131,7 @@ class MyTasksScreenTest {
         }
 
         composeRule.onNodeWithText("Result file unavailable, pull to refresh or try later.").assertIsDisplayed()
+        composeRule.onNodeWithText("RETRY").assertIsDisplayed().performClick()
+        composeRule.onNodeWithContentDescription("Selected template preview").assertIsDisplayed()
     }
 }
