@@ -321,6 +321,25 @@ internal data class TopUpUiState(
     val diamondBalance: Int = 0,
 )
 
+internal data class CurrencyBalanceSnapshot(
+    val backendState: AchatBackendUiState,
+    val topUpState: TopUpUiState,
+)
+
+internal fun applyCurrencyBalanceSnapshot(
+    backendState: AchatBackendUiState,
+    topUpState: TopUpUiState,
+    diamondBalance: Int,
+): CurrencyBalanceSnapshot = CurrencyBalanceSnapshot(
+    backendState = backendState.copy(diamondBalance = diamondBalance),
+    topUpState = topUpState.copy(diamondBalance = diamondBalance),
+)
+
+internal fun topUpHeaderDiamondBalance(
+    backendState: AchatBackendUiState,
+    topUpState: TopUpUiState,
+): Int = topUpState.diamondBalance
+
 internal sealed interface TopUpPurchaseState {
     data object Idle : TopUpPurchaseState
     data class Preparing(val productId: String) : TopUpPurchaseState
@@ -581,7 +600,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             try {
                 val currency = repository.userCurrencySnapshot()
                 if (shouldApplyCurrencySnapshot(requestSerial, diamondBalanceRefreshSerial)) {
-                    backendState = backendState.copy(diamondBalance = currency.diamondBalance)
+                    val updated = applyCurrencyBalanceSnapshot(
+                        backendState = backendState,
+                        topUpState = topUpState,
+                        diamondBalance = currency.diamondBalance,
+                    )
+                    backendState = updated.backendState
+                    topUpState = updated.topUpState
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -900,10 +925,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         )
         try {
             val catalog = repository.storeCatalog()
-            topUpState = TopUpUiState(
-                catalog = catalog,
-                diamondBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance,
+            val catalogBalance = catalog.userInfo?.currentDiamond ?: backendState.diamondBalance
+            val updated = applyCurrencyBalanceSnapshot(
+                backendState = backendState,
+                topUpState = TopUpUiState(
+                    catalog = catalog,
+                    diamondBalance = catalogBalance,
+                ),
+                diamondBalance = catalogBalance,
             )
+            backendState = updated.backendState
+            topUpState = updated.topUpState
             topUpPaymentController.retainAvailableProducts(catalog.products, catalog.userInfo)
             screenScope.launch {
                 val transactions = try {
@@ -1261,7 +1293,10 @@ private fun TemplateBrowserScreen(
             selectedProductId = selectedProductId,
             productSelectionEnabled = productSelectionEnabled,
             state = topUpState,
-            diamondBalance = backendState.diamondBalance,
+            diamondBalance = topUpHeaderDiamondBalance(
+                backendState = backendState,
+                topUpState = topUpState,
+            ),
             purchaseState = purchaseState,
             checkoutState = checkoutState,
             isReconciling = isReconciling,

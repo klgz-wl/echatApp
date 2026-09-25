@@ -35,6 +35,32 @@ class GenerationBalanceTest {
     }
 
     @Test
+    fun `currency refresh updates shared and top up balances together`() {
+        val currentBackend = AchatBackendUiState(diamondBalance = 10)
+        val currentTopUp = TopUpUiState(diamondBalance = 10)
+
+        val updated = applyCurrencyBalanceSnapshot(
+            backendState = currentBackend,
+            topUpState = currentTopUp,
+            diamondBalance = 42,
+        )
+
+        assertEquals(42, updated.backendState.diamondBalance)
+        assertEquals(42, updated.topUpState.diamondBalance)
+    }
+
+    @Test
+    fun `top up header uses top up state balance`() {
+        assertEquals(
+            42,
+            topUpHeaderDiamondBalance(
+                backendState = AchatBackendUiState(diamondBalance = 10),
+                topUpState = TopUpUiState(diamondBalance = 42),
+            ),
+        )
+    }
+
+    @Test
     fun `generation idempotency key is retained for same uploaded resource retry`() {
         val first = nextGenerationSubmissionKey(
             previous = null,
