@@ -53,6 +53,20 @@ class LegacyOrderRegistry @Inject constructor(private val storage: LegacyOrderSt
             LegacyRechargeMatch.FIRST
         }
     }
+
+    suspend fun rechargeFirstMatching(orderIds: Set<String>, userId: String): String? = lock.withLock {
+        if (orderIds.isEmpty()) return@withLock null
+        val records = storage.read()
+        val record = records.firstOrNull {
+            it.userId == userId && !it.notified && it.orderId in orderIds
+        } ?: return@withLock null
+        storage.write(records.map { if (it == record) it.copy(notified = true) else it })
+        record.orderId
+    }
+
+    suspend fun hasPending(userId: String): Boolean = lock.withLock {
+        storage.read().any { it.userId == userId && !it.notified }
+    }
 }
 
 /** 旧支付接口门面仅调用业务订单 API，不依赖 payment-service 的初始化、查单或事件接口。 */

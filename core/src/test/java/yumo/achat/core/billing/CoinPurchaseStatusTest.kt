@@ -21,4 +21,12 @@ class CoinPurchaseStatusTest {
             ),
         )
     }
+
+    @Test
+    fun `busy and pending purchases block a second purchase`() {
+        assertEquals(true, blocksNewCoinPurchase(CoinPurchaseStatus.BUSY))
+        assertEquals(true, blocksNewCoinPurchase(CoinPurchaseStatus.PENDING))
+        assertEquals(false, blocksNewCoinPurchase(CoinPurchaseStatus.COMPLETED))
+        assertEquals(false, blocksNewCoinPurchase(CoinPurchaseStatus.FAILED))
+    }
 }

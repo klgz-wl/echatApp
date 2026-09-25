@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import yumo.achat.core.backend.WalletTransaction
 import yumo.achat.core.payment.RechargeNotificationRoute
 
 class RechargeNoticeHandlingTest {
@@ -62,6 +63,49 @@ class RechargeNoticeHandlingTest {
     }
 
     @Test
+    fun `wallet fallback only uses purchase transaction business order ids`() {
+        val transactions = listOf(
+            walletTransaction("recharge", category = "purchase", relatedId = "order-1", relatedType = "payment_order"),
+            walletTransaction("refund", category = "refund", relatedId = "order-2", relatedType = "payment_order"),
+            walletTransaction("reward", category = "reward", relatedId = "order-3", relatedType = "task"),
+            walletTransaction(
+                "negative",
+                category = "purchase",
+                relatedId = "order-4",
+                relatedType = "payment_order",
+                type = "expense",
+                amount = -100,
+            ),
+        )
+
+        assertEquals(setOf("order-1"), legacyPaymentOrderIds(transactions))
+    }
+
+    @Test
+    fun `pending legacy wallet reconciliation retries until its order transaction appears`() = runBlocking {
+        var attempts = 0
+        val waits = mutableListOf<Long>()
+
+        val reconciled = reconcileLegacyWalletWithRetry(
+            maxAttempts = 4,
+            waitBeforeRetry = { waits += it },
+            loadTransactions = {
+                attempts += 1
+                if (attempts < 3) {
+                    listOf(walletTransaction("reward", "reward", "task-1", "task"))
+                } else {
+                    listOf(walletTransaction("recharge", "purchase", "order-1", "payment_order"))
+                }
+            },
+            reconcileOrderIds = { "order-1" in it },
+        )
+
+        assertTrue(reconciled)
+        assertEquals(3, attempts)
+        assertEquals(listOf(3_000L, 3_000L), waits)
+    }
+
+    @Test
     fun `recharge balance load retries transient failures with bounded delays`() = runBlocking {
         var attempts = 0
         val waits = mutableListOf<Long>()
@@ -97,4 +141,23 @@ class RechargeNoticeHandlingTest {
         assertNull(balance)
         assertEquals(3, attempts)
     }
+
+    private fun walletTransaction(
+        id: String,
+        category: String,
+        relatedId: String,
+        relatedType: String,
+        type: String = "income",
+        amount: Int = 100,
+    ) = WalletTransaction(
+        id = id,
+        type = type,
+        amount = amount,
+        description = id,
+        category = category,
+        createdAt = "2026-09-25T00:00:00Z",
+        balanceAfter = 100,
+        relatedId = relatedId,
+        relatedType = relatedType,
+    )
 }

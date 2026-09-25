@@ -48,6 +48,9 @@ data class WalletTransaction(
     val description: String?,
     val category: String?,
     val createdAt: String,
+    val balanceAfter: Int?,
+    val relatedId: String?,
+    val relatedType: String?,
 )
 
 data class StorePaymentProvider(

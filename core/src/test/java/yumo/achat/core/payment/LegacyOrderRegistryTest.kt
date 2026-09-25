@@ -15,6 +15,28 @@ class LegacyOrderRegistryTest {
         assertEquals(LegacyRechargeMatch.FIRST, registry.recharge("order-1", "user-1"))
         assertEquals(LegacyRechargeMatch.DUPLICATE, registry.recharge("order-1", "user-1"))
     }
+
+    @Test
+    fun `wallet reconciliation claims only an owned pending legacy order`() = runBlocking {
+        val registry = LegacyOrderRegistry(InMemoryLegacyOrderStorage())
+        registry.register(orderId = "order-1", userId = "user-1")
+        registry.register(orderId = "order-2", userId = "user-1")
+        registry.register(orderId = "order-3", userId = "user-2")
+
+        assertEquals(true, registry.hasPending(userId = "user-1"))
+
+        assertEquals(
+            "order-2",
+            registry.rechargeFirstMatching(setOf("order-2", "order-3"), userId = "user-1"),
+        )
+        assertEquals(
+            null,
+            registry.rechargeFirstMatching(setOf("order-2", "order-3"), userId = "user-1"),
+        )
+        assertEquals(true, registry.hasPending(userId = "user-1"))
+        registry.recharge("order-1", "user-1")
+        assertEquals(false, registry.hasPending(userId = "user-1"))
+    }
 }
 
 private class InMemoryLegacyOrderStorage : LegacyOrderStorage {

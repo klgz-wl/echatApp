@@ -495,8 +495,12 @@ class AchatBackendParsersTest {
                     "id": "tx-1",
                     "type": "top_up",
                     "amount": 100,
+                    "balance_before": 40,
+                    "balance_after": 140,
                     "description": "Recharge",
-                    "category": "diamond",
+                    "category": "purchase",
+                    "related_id": "order-1",
+                    "related_type": "payment_order",
                     "created_at": "2026-09-24T10:00:00Z"
                   }
                 ],
@@ -512,6 +516,9 @@ class AchatBackendParsersTest {
         assertEquals("top_up", transactions.single().type)
         assertEquals(100, transactions.single().amount)
         assertEquals("Recharge", transactions.single().description)
+        assertEquals(140, transactions.single().balanceAfter)
+        assertEquals("order-1", transactions.single().relatedId)
+        assertEquals("payment_order", transactions.single().relatedType)
         assertEquals("2026-09-24T10:00:00Z", transactions.single().createdAt)
     }
 

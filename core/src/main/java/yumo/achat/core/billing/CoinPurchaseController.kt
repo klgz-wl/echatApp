@@ -12,6 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class CoinPurchaseStatus { IDLE, BUSY, PENDING, COMPLETED, CANCELLED, FAILED }
+fun blocksNewCoinPurchase(status: CoinPurchaseStatus): Boolean =
+    status == CoinPurchaseStatus.BUSY || status == CoinPurchaseStatus.PENDING
+
 data class CoinPurchaseState(val epoch: String? = null, val status: CoinPurchaseStatus = CoinPurchaseStatus.IDLE,
     val failureStage: ConsumablePurchaseStage? = null, val revision: Long = 0,
     val price: Double? = null, val currency: String? = null)
@@ -38,6 +41,13 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
         try { PurchaseStepResult.Success(createOrder(session)) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { PurchaseStepResult.Failure() }
+    }
+
+    fun backendFulfilled(expectedEpoch: String?) {
+        val current = mutable.value
+        if (expectedEpoch != null && current.epoch == expectedEpoch && current.status == CoinPurchaseStatus.PENDING) {
+            mutable.value = current.copy(status = CoinPurchaseStatus.COMPLETED)
+        }
     }
 
     private suspend fun execute(activity: Activity, sku: String, expectedEpoch: String, source: String, packageId: String, flow: String,

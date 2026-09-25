@@ -4,7 +4,7 @@ import android.app.Activity
 import yumo.achat.core.analytics.*
 import yumo.achat.core.auth.SessionCoordinator
 import yumo.achat.core.billing.CoinPurchaseController
-import yumo.achat.core.billing.CoinPurchaseStatus
+import yumo.achat.core.billing.blocksNewCoinPurchase
 import yumo.achat.core.wallet.CoinProduct
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.merge
@@ -31,7 +31,9 @@ class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDis
         })
         val epoch = sessions.current?.epoch ?: return
         if (payments.state.value.busy || payments.state.value.checkoutVisible ||
-            payments.state.value.record?.stage == PaymentStage.OFFICIAL_READY || purchases.state.value.status == CoinPurchaseStatus.BUSY) return
+            payments.state.value.record?.stage == PaymentStage.OFFICIAL_READY ||
+            blocksNewCoinPurchase(purchases.state.value.status)
+        ) return
         scope.launch {
             if (sessions.current?.epoch != epoch || activity.isFinishing || activity.isDestroyed) return@launch
             dispatcher.dispatch(service = { service.buy(product, source) }, legacy = { legacy.buy(activity, product, source) })
@@ -68,6 +70,29 @@ class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDis
             // 无法确认归属时只刷新钱包，不把新流程通知误判为旧流程到账。
             payments.refreshWallet()
             RechargeNotificationRoute.Unknown
+        }
+    }
+
+    suspend fun reconcileLegacyWalletTransactions(orderIds: Set<String>): String? {
+        val session = sessions.current ?: return null
+        return try {
+            legacyOrders.rechargeFirstMatching(orderIds, session.userId)
+                ?.takeIf { sessions.current?.epoch == session.epoch }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun hasPendingLegacyOrder(): Boolean {
+        val session = sessions.current ?: return false
+        return try {
+            legacyOrders.hasPending(session.userId) && sessions.current?.epoch == session.epoch
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
         }
     }
 }

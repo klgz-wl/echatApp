@@ -17,6 +17,7 @@ import yumo.achat.core.billing.BillingRepository
 import yumo.achat.core.billing.CoinPurchaseController
 import yumo.achat.core.billing.CoinPurchaseState
 import yumo.achat.core.billing.CoinPurchaseStatus
+import yumo.achat.core.billing.blocksNewCoinPurchase
 import yumo.achat.core.backend.AuthSession
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreUserInfo
@@ -79,6 +80,14 @@ internal class TopUpPaymentViewModel @Inject constructor(
         viewModelScope.launch { router.launchOfficial(activity, route.record.key, epoch) }
     }
 
+    suspend fun reconcileLegacyWalletTransactions(orderIds: Set<String>): Boolean {
+        val orderId = router.reconcileLegacyWalletTransactions(orderIds) ?: return false
+        controller.applyRechargeNotice(RechargeNoticeAction.LegacySuccess, orderId)
+        return true
+    }
+
+    suspend fun hasPendingLegacyOrder(): Boolean = router.hasPendingLegacyOrder()
+
     fun startReconciliation() = Unit
 }
 
@@ -115,7 +124,8 @@ internal class CoreTopUpPaymentController(
         scope.launch {
             payments.state.collect { next ->
                 coreState = next
-                productSelectionLocked = corePaymentPresentation(next).locksProductSelection
+                productSelectionLocked = corePaymentPresentation(next).locksProductSelection ||
+                    blocksNewCoinPurchase(purchaseState.status)
                 next.record?.productId?.let { selectedProductId = it }
                 state = next.toTopUpPurchaseState()
                 checkoutState = next.toTopUpCheckoutState(purchaseState)
@@ -134,6 +144,8 @@ internal class CoreTopUpPaymentController(
         scope.launch {
             purchases.state.collect { next ->
                 purchaseState = next
+                productSelectionLocked = corePaymentPresentation(coreState).locksProductSelection ||
+                    blocksNewCoinPurchase(next.status)
                 checkoutState = coreState.toTopUpCheckoutState(next)
             }
         }
@@ -158,13 +170,14 @@ internal class CoreTopUpPaymentController(
     }
 
     fun selectProduct(productId: String?) {
-        if (corePaymentPresentation(coreState).locksProductSelection) return
+        if (productSelectionLocked) return
         selectedProductId = productId?.takeIf(products::containsKey)
     }
 
     fun prepare(activity: Activity) {
         scope.launch {
             sessions.synchronize()
+            if (blocksNewCoinPurchase(purchaseState.status)) return@launch
             val record = coreState.record
             if (record != null && corePaymentPresentation(coreState).canRetry) {
                 payments.retry(record.key)
@@ -194,6 +207,7 @@ internal class CoreTopUpPaymentController(
             RechargeNoticeAction.Ignore -> Unit
             RechargeNoticeAction.RefreshBalance -> rechargeRefreshSerial += 1
             RechargeNoticeAction.LegacySuccess -> {
+                purchases.backendFulfilled(sessions.current?.epoch)
                 checkoutState = TopUpCheckoutState.Succeeded(orderId.orEmpty())
                 successSerial += 1
             }

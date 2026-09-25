@@ -253,6 +253,9 @@ object AchatBackendParsers {
                         description = item.optNullableString("description"),
                         category = item.optNullableString("category"),
                         createdAt = item.optNullableString("created_at") ?: "",
+                        balanceAfter = item.optNullableInt("balance_after"),
+                        relatedId = item.optNullableString("related_id"),
+                        relatedType = item.optNullableString("related_type"),
                     ),
                 )
             }

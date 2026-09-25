@@ -1060,7 +1060,6 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(topUpPaymentController.successSerial) {
         if (topUpPaymentController.successSerial > 0) {
-            topUpRefreshSerial += 1
             if (!refreshRechargeBalance()) return@LaunchedEffect
             val returnRoute = routeAfterTopUpSuccess(pendingTopUpReturnRoute())
             if (returnRoute != null) {
@@ -1103,7 +1102,20 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             if (topUpPaymentController.checkoutState is TopUpCheckoutState.Succeeded) {
                 topUpPaymentController.retryVisibleSuccess()
             } else {
-                refreshDiamondBalance()
+                val maxAttempts = if (topUpPaymentViewModel.hasPendingLegacyOrder()) 20 else 1
+                val reconciled = reconcileLegacyWalletWithRetry(
+                    maxAttempts = maxAttempts,
+                    waitBeforeRetry = { delay(it) },
+                    loadTransactions = {
+                        repository.walletTransactions(pageSize = 20).also { transactions ->
+                            if (selectedNavigation == 2) {
+                                topUpState = topUpState.copy(transactions = transactions.take(5))
+                            }
+                        }
+                    },
+                    reconcileOrderIds = topUpPaymentViewModel::reconcileLegacyWalletTransactions,
+                )
+                if (!reconciled) refreshDiamondBalance()
             }
             awaitCancellation()
         }
