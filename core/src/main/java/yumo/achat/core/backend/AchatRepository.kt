@@ -52,7 +52,7 @@ class AchatRepository(
             }
             val videoTemplates = async {
                 loadTemplateResult("Unable to load video templates") {
-                    sessionManager.authenticated { token -> client.templates(token, "video", sortBy = "hot") }
+                    sessionManager.authenticated { token -> client.templates(token, "video", sortBy = "latest") }
                 }
             }
             val imageTemplates = async {

@@ -33,6 +33,30 @@ internal data class TransientMessage(
     val tone: TransientMessageTone = TransientMessageTone.Neutral,
 )
 
+internal data class TransientMessageVisualStyle(
+    val fontSizeSp: Int,
+    val horizontalPaddingDp: Int,
+    val verticalPaddingDp: Int,
+    val bold: Boolean,
+)
+
+internal fun transientMessageVisualStyle(tone: TransientMessageTone): TransientMessageVisualStyle =
+    if (tone == TransientMessageTone.Error) {
+        TransientMessageVisualStyle(
+            fontSizeSp = 14,
+            horizontalPaddingDp = 16,
+            verticalPaddingDp = 10,
+            bold = true,
+        )
+    } else {
+        TransientMessageVisualStyle(
+            fontSizeSp = 14,
+            horizontalPaddingDp = 12,
+            verticalPaddingDp = 6,
+            bold = false,
+        )
+    }
+
 internal suspend fun dismissTransientMessageAfterDelay(
     message: TransientMessage?,
     delayMillis: Long = TRANSIENT_MESSAGE_DURATION_MILLIS,
@@ -71,15 +95,19 @@ internal fun TransientMessageHost(
         TransientMessageTone.Success -> AchatCyan.copy(alpha = 0.56f)
         TransientMessageTone.Error -> AchatPink.copy(alpha = 0.62f)
     }
+    val visualStyle = transientMessageVisualStyle(visibleMessage.tone)
     Text(
         text = visibleMessage.text,
         color = Color.White,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontSize = visualStyle.fontSizeSp.sp,
+        fontWeight = if (visualStyle.bold) FontWeight.Bold else FontWeight.SemiBold,
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xB2080B12))
             .border(1.dp, accent, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(
+                horizontal = visualStyle.horizontalPaddingDp.dp,
+                vertical = visualStyle.verticalPaddingDp.dp,
+            ),
     )
 }

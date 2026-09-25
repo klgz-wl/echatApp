@@ -226,10 +226,16 @@ internal enum class TemplateSection {
     Image,
 }
 
-internal fun templateSortBy(section: TemplateSection, selectedTab: Int): String = when {
-    section == TemplateSection.Video && selectedTab == 0 -> "hot"
-    else -> "latest"
-}
+internal fun templateSortBy(@Suppress("UNUSED_PARAMETER") section: TemplateSection, @Suppress("UNUSED_PARAMETER") selectedTab: Int): String =
+    "latest"
+
+internal fun shouldShowTemplateTabs(section: TemplateSection): Boolean = section == TemplateSection.Image
+
+internal fun shouldShowTemplateBackendStatus(
+    isLoading: Boolean,
+    errorMessage: String?,
+    hasSelectedTemplate: Boolean,
+): Boolean = isLoading || errorMessage != null || !hasSelectedTemplate
 
 internal enum class TemplateRetryAction {
     Startup,
@@ -1501,11 +1507,13 @@ private fun TemplateBrowserScreen(
     ) {
         Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick)
         Spacer(Modifier.height(8.dp))
-        CategoryTabs(
-            section = section,
-            selectedTab = selectedTab,
-            onSelect = onTabSelect,
-        )
+        if (shouldShowTemplateTabs(section)) {
+            CategoryTabs(
+                section = section,
+                selectedTab = selectedTab,
+                onSelect = onTabSelect,
+            )
+        }
         TemplateBackendStatus(
             isLoading = templatesLoading,
             errorMessage = templateErrorMessage,
@@ -1589,11 +1597,16 @@ private fun TemplateFeedPager(
     }
 
     val scope = rememberCoroutineScope()
-    val initialPage = (currentTemplate - 1).coerceIn(0, templates.lastIndex)
-    val pagerState = rememberPagerState(initialPage = initialPage) { templates.size }
+    val pagerPageCount = templatePagerPageCount(templates.size)
+    val initialPage = templatePagerInitialPage(templates.size, currentTemplate)
+    val pagerState = rememberPagerState(initialPage = initialPage) { pagerPageCount }
 
     LaunchedEffect(currentTemplate, templates.size) {
-        val targetPage = (currentTemplate - 1).coerceIn(0, templates.lastIndex)
+        val targetPage = nearestTemplatePagerPage(
+            currentPage = pagerState.currentPage,
+            totalItems = templates.size,
+            targetIndex = currentTemplate,
+        )
         if (pagerState.currentPage != targetPage) {
             pagerState.scrollToPage(targetPage)
         }
@@ -1601,19 +1614,20 @@ private fun TemplateFeedPager(
 
     LaunchedEffect(pagerState, templates.size) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            onTemplatePageSelected(page + 1)
+            onTemplatePageSelected(templateFeedIndexForPagerPage(page, templates.size))
         }
     }
 
     VerticalPager(
         state = pagerState,
-        key = { page -> templatePagerKey(templates, page) },
+        key = { page -> "$page:${templatePagerKey(templates, Math.floorMod(page, templates.size))}" },
         beyondViewportPageCount = templatePagerPrecomposedPageCount(templates.size),
         modifier = modifier,
     ) { page ->
-        val template = templates[page]
+        val templateIndex = Math.floorMod(page, templates.size)
+        val template = templates[templateIndex]
         HeroCard(
-            currentPage = page + 1,
+            currentPage = templateIndex + 1,
             totalPages = templates.size,
             durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
             previewMedia = template.toPreviewMedia(),
@@ -1624,21 +1638,13 @@ private fun TemplateFeedPager(
             ),
             onPlayToggle = onPlayToggle,
             onPrevious = {
-                if (page == 0) {
-                    onMoveTemplate(TemplateFeedDirection.Previous)
-                } else {
-                    scope.launch {
-                        pagerState.animateScrollToPage(page - 1)
-                    }
+                scope.launch {
+                    pagerState.animateScrollToPage((page - 1).coerceAtLeast(0))
                 }
             },
             onNext = {
-                if (page == templates.lastIndex) {
-                    onMoveTemplate(TemplateFeedDirection.Next)
-                } else {
-                    scope.launch {
-                        pagerState.animateScrollToPage(page + 1)
-                    }
+                scope.launch {
+                    pagerState.animateScrollToPage((page + 1).coerceAtMost(pagerPageCount - 1))
                 }
             },
             enableSwipeGestures = false,
@@ -4342,10 +4348,10 @@ private fun TemplateBackendStatus(
     errorMessage: String?,
     selectedTemplate: VisualTemplate?,
 ) {
+    if (!shouldShowTemplateBackendStatus(isLoading, errorMessage, selectedTemplate != null)) return
     val statusText = when {
         isLoading -> stringResource(R.string.backend_loading_templates)
         errorMessage != null -> stringResource(R.string.backend_templates_offline)
-        selectedTemplate != null -> selectedTemplate.name
         else -> stringResource(R.string.backend_templates_placeholder)
     }
     if (statusText.isBlank()) {

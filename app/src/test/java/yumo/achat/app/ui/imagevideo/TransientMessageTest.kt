@@ -8,8 +8,21 @@ import org.junit.Test
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageTone
 import yumo.achat.app.ui.components.dismissTransientMessageAfterDelay
+import yumo.achat.app.ui.components.transientMessageVisualStyle
 
 class TransientMessageTest {
+    @Test
+    fun errorMessageUsesReadableEmphasizedTypography() {
+        val error = transientMessageVisualStyle(TransientMessageTone.Error)
+        val success = transientMessageVisualStyle(TransientMessageTone.Success)
+
+        assertEquals(14, error.fontSizeSp)
+        assertEquals(true, error.bold)
+        assertEquals(16, error.horizontalPaddingDp)
+        assertEquals(10, error.verticalPaddingDp)
+        assertEquals(14, success.fontSizeSp)
+    }
+
     @Test
     fun clearsCurrentMessageAfterDelay() = runBlocking {
         var currentMessage: TransientMessage? = TransientMessage(

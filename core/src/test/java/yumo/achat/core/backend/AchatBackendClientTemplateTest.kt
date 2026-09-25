@@ -9,15 +9,15 @@ import org.junit.Test
 
 class AchatBackendClientTemplateTest {
     @Test
-    fun `video templates send hot sort and omit empty category`() = withTemplateServer { client, query ->
+    fun `video templates send latest sort and omit empty category`() = withTemplateServer { client, query ->
         client.templates(
             token = "token-1",
             modality = "video",
-            sortBy = "hot",
+            sortBy = "latest",
             categoryId = null,
         )
 
-        assertTrue(query.get().contains("sort_by=hot"))
+        assertTrue(query.get().contains("sort_by=latest"))
         assertFalse(query.get().contains("category_id"))
     }
 

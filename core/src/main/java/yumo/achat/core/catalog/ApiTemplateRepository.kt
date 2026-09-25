@@ -20,7 +20,7 @@ class ApiTemplateRepository @Inject constructor(private val api: VisualGeneratio
         val categories = if (page == 1) api.categories(modality, session).requireData() else emptyList()
         if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
         val selected = categoryId?.takeIf { it.isNotBlank() && (page != 1 || categories.any { category -> category.id == it }) }
-        val sortBy = if (kind == MediaKind.VIDEO) "hot" else "latest"
+        val sortBy = "latest"
         val result = api.templates(modality, page, config.pageSize, selected, sortBy, session).requireData()
         if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
         if (result.page != page || result.pageSize <= 0 || result.total < 0 || categories.any { it.id.isBlank() }) throw ServiceFailure.InvalidResponse

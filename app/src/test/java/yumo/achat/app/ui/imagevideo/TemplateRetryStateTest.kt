@@ -11,10 +11,34 @@ import yumo.achat.core.backend.VisualTemplate
 class TemplateRetryStateTest {
     @Test
     fun `template tabs map to backend sort values`() {
-        assertEquals("hot", templateSortBy(TemplateSection.Video, selectedTab = 0))
+        assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 0))
         assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 1))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 0))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 1))
+    }
+
+    @Test
+    fun `video removes sort tabs while image keeps its mode tabs`() {
+        assertFalse(shouldShowTemplateTabs(TemplateSection.Video))
+        assertTrue(shouldShowTemplateTabs(TemplateSection.Image))
+    }
+
+    @Test
+    fun `loaded template does not show its name above media`() {
+        assertFalse(
+            shouldShowTemplateBackendStatus(
+                isLoading = false,
+                errorMessage = null,
+                hasSelectedTemplate = true,
+            ),
+        )
+        assertTrue(
+            shouldShowTemplateBackendStatus(
+                isLoading = true,
+                errorMessage = null,
+                hasSelectedTemplate = false,
+            ),
+        )
     }
 
     @Test

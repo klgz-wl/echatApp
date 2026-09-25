@@ -41,7 +41,7 @@ class TemplateRequestTest {
         repository.load(CatalogChannel.VIDEO, "category", page = 2)
         repository.load(CatalogChannel.IMAGE)
         val templates = requests.filter { it.encodedPath.endsWith("templates") }
-        assertEquals(listOf("hot", "hot", "hot", "hot", "hot", "latest"), templates.map { it.queryParameter("sort_by") })
+        assertEquals(List(6) { "latest" }, templates.map { it.queryParameter("sort_by") })
         assertTrue(templates.all { it.queryParameter("home_featured") == null })
         assertEquals(listOf("1", "2", "1", "1", "2", "1"), templates.map { it.queryParameter("page") })
         assertEquals(listOf(null, null, null, "category", "category", null), templates.map { it.queryParameter("category_id") })

@@ -1,9 +1,11 @@
 package yumo.achat.app.ui.imagevideo
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,8 +22,8 @@ class ImageToVideoScreenTest {
     @Test
     fun imageToVideoDesignIsDisplayed() {
         composeRule.onNodeWithText("Image To Video").assertIsDisplayed()
-        composeRule.onNodeWithText("Hot").assertIsDisplayed()
-        composeRule.onNodeWithText("New").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Hot").assertCountEquals(0)
+        composeRule.onAllNodesWithText("New").assertCountEquals(0)
         composeRule.onNodeWithText("VIDEO").assertIsDisplayed()
         composeRule.onNodeWithText("IMAGE").assertIsDisplayed()
         composeRule.onNodeWithText("TOP UP").assertIsDisplayed()
@@ -29,9 +31,9 @@ class ImageToVideoScreenTest {
     }
 
     @Test
-    fun newTabBecomesSelectedWhenTapped() {
-        composeRule.onNodeWithText("New").performClick()
-        composeRule.onNodeWithText("New").assertIsSelected()
+    fun videoDoesNotShowSortTabs() {
+        composeRule.onAllNodesWithText("Hot").assertCountEquals(0)
+        composeRule.onAllNodesWithText("New").assertCountEquals(0)
     }
 
     @Test
@@ -155,7 +157,7 @@ class ImageToVideoScreenTest {
         composeRule.onNodeWithContentDescription("Back to templates").performClick()
 
         composeRule.onNodeWithText("Image To Video").assertIsDisplayed()
-        composeRule.onNodeWithText("Hot").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Hot").assertCountEquals(0)
     }
 
 }

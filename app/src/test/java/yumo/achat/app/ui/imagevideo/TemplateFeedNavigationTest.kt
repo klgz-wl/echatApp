@@ -19,27 +19,42 @@ class TemplateFeedNavigationTest {
     }
 
     @Test
-    fun `next stays and reports edge at the end`() {
+    fun `next wraps to the beginning at the end`() {
         val result = moveTemplateFeedIndex(
             currentIndex = 3,
             totalItems = 3,
             direction = TemplateFeedDirection.Next,
         )
 
-        assertEquals(3, result.index)
-        assertTrue(result.reachedEdge)
+        assertEquals(1, result.index)
+        assertFalse(result.reachedEdge)
     }
 
     @Test
-    fun `previous stays and reports edge at the beginning`() {
+    fun `previous wraps to the end at the beginning`() {
         val result = moveTemplateFeedIndex(
             currentIndex = 1,
             totalItems = 3,
             direction = TemplateFeedDirection.Previous,
         )
 
-        assertEquals(1, result.index)
-        assertTrue(result.reachedEdge)
+        assertEquals(3, result.index)
+        assertFalse(result.reachedEdge)
+    }
+
+    @Test
+    fun `virtual pager maps circular pages to real template positions`() {
+        val initial = templatePagerInitialPage(totalItems = 3, currentIndex = 1)
+
+        assertEquals(1, templateFeedIndexForPagerPage(initial, totalItems = 3))
+        assertEquals(2, templateFeedIndexForPagerPage(initial + 1, totalItems = 3))
+        assertEquals(3, templateFeedIndexForPagerPage(initial - 1, totalItems = 3))
+        assertEquals(Int.MAX_VALUE, templatePagerPageCount(totalItems = 3))
+        assertEquals(1, templatePagerPageCount(totalItems = 1))
+        assertEquals(
+            initial,
+            nearestTemplatePagerPage(currentPage = 0, totalItems = 3, targetIndex = 1),
+        )
     }
 
     @Test
