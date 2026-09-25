@@ -2,6 +2,30 @@ package yumo.achat.app.ui.imagevideo
 
 import yumo.achat.core.backend.VisualTemplate
 
+internal const val TemplateAdjacentVideoPreloadBytes = 768L * 1024L
+internal const val TemplateCurrentVideoPreloadBytes = 2L * 1024L * 1024L
+
+internal data class TemplateVideoPreloadTarget(
+    val url: String,
+    val bytes: Long,
+)
+
+internal fun List<VisualTemplate>.videoPreviewPreloadTargets(selectedIndex: Int): List<TemplateVideoPreloadTarget> {
+    if (isEmpty()) {
+        return emptyList()
+    }
+
+    return listOf(
+        selectedIndex to TemplateCurrentVideoPreloadBytes,
+        selectedIndex + 1 to TemplateAdjacentVideoPreloadBytes,
+        selectedIndex - 1 to TemplateAdjacentVideoPreloadBytes,
+    ).mapNotNull { (index, bytes) ->
+        getOrNull(index)
+            ?.takeIf { template -> template.mimeType.startsWith("video/") && template.fileUrl.isNotBlank() }
+            ?.let { template -> TemplateVideoPreloadTarget(template.fileUrl, bytes) }
+    }.distinctBy { it.url }
+}
+
 internal fun List<VisualTemplate>.nearbyVideoPreviewUrls(selectedIndex: Int): List<String> {
     if (isEmpty()) {
         return emptyList()

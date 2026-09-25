@@ -26,7 +26,7 @@ class TrackedGenerationTaskTest {
                 resourceType = "generated",
                 modality = "image",
                 url = "https://example.test/generated.webp",
-                thumbnailUrl = null,
+                thumbnailUrl = "https://example.test/thumb.webp",
                 mimeType = "image/webp",
                 width = 720,
                 height = 1280,
@@ -39,6 +39,7 @@ class TrackedGenerationTaskTest {
         assertEquals("task-12345678", trackedTask.taskId)
         assertEquals("Rose template", trackedTask.title)
         assertEquals("https://example.test/generated.webp", trackedTask.resultUrl)
+        assertEquals("https://example.test/thumb.webp", trackedTask.thumbnailUrl)
         assertEquals("image/webp", trackedTask.mimeType)
         assertTrue(trackedTask.isFinished)
         assertTrue(trackedTask.canOpenResult)
@@ -123,6 +124,32 @@ class TrackedGenerationTaskTest {
     }
 
     @Test
+    fun `tracked task snapshots preserve processing video tasks for local restore`() {
+        val processingVideo = TrackedGenerationTask(
+            taskId = "task-video-processing",
+            title = "Video template",
+            modality = "video",
+            status = "processing",
+            resultUrl = null,
+            thumbnailUrl = null,
+            mimeType = "",
+            errorMessage = null,
+            pollIntervalSeconds = 7,
+            requestId = "request-1",
+            templateId = "template-video",
+            categoryId = "category-video",
+            quality = "fast",
+            diamondCost = 10,
+            source = "video",
+        )
+
+        val restored = decodeTrackedGenerationTasks(encodeTrackedGenerationTasks(listOf(processingVideo)))
+
+        assertEquals(listOf(processingVideo), restored)
+        assertFalse(restored.single().isFinished)
+    }
+
+    @Test
     fun `generated resource maps to successful tracked task`() {
         val resource = VisualResource(
             id = "generated-1",
@@ -132,7 +159,7 @@ class TrackedGenerationTaskTest {
             templateId = "template-1",
             templateName = "Rose portrait",
             url = "https://example.test/generated.webp",
-            thumbnailUrl = null,
+            thumbnailUrl = "https://example.test/generated-thumb.webp",
             mimeType = "image/webp",
             width = 720,
             height = 1280,
@@ -147,6 +174,52 @@ class TrackedGenerationTaskTest {
         assertEquals("Rose portrait", trackedTask.title)
         assertEquals("succeeded", trackedTask.status)
         assertEquals("https://example.test/generated.webp", trackedTask.resultUrl)
+        assertEquals("https://example.test/generated-thumb.webp", trackedTask.thumbnailUrl)
         assertTrue(trackedTask.canOpenResult)
+    }
+
+    @Test
+    fun `my tasks media prefetch prefers thumbnails and video result prefixes`() {
+        val image = TrackedGenerationTask(
+            taskId = "task-image",
+            title = "Image",
+            modality = "image",
+            status = "succeeded",
+            resultUrl = "https://example.test/full.webp",
+            thumbnailUrl = "https://example.test/thumb.webp",
+            mimeType = "image/webp",
+            errorMessage = null,
+        )
+        val video = TrackedGenerationTask(
+            taskId = "task-video",
+            title = "Video",
+            modality = "video",
+            status = "succeeded",
+            resultUrl = "https://example.test/video.mp4",
+            thumbnailUrl = "https://example.test/video-poster.webp",
+            mimeType = "video/mp4",
+            errorMessage = null,
+        )
+        val processing = image.copy(taskId = "task-processing", status = "processing", resultUrl = null)
+
+        assertEquals(
+            listOf(
+                "https://example.test/thumb.webp",
+                "https://example.test/full.webp",
+                "https://example.test/video-poster.webp",
+            ),
+            listOf(image, video, processing).myTaskImagePrefetchUrls(),
+        )
+        assertEquals(
+            listOf(TemplateVideoPreloadTarget("https://example.test/video.mp4", MyTaskVideoPreloadBytes)),
+            listOf(image, video, processing).myTaskVideoPreloadTargets(),
+        )
+    }
+
+    @Test
+    fun `my task image loading indicator hides after image success or error`() {
+        assertTrue(shouldShowMyTaskImageLoading(hasRenderedImage = false, hasImageError = false))
+        assertFalse(shouldShowMyTaskImageLoading(hasRenderedImage = true, hasImageError = false))
+        assertFalse(shouldShowMyTaskImageLoading(hasRenderedImage = false, hasImageError = true))
     }
 }

@@ -20,7 +20,7 @@ class LauncherIconResourceTest {
 
         assertTrue(manifest.contains("""android:icon="@mipmap/ic_launcher""""))
         assertTrue(manifest.contains("""android:roundIcon="@mipmap/ic_launcher_round""""))
-        assertTrue(Files.exists(mainRoot.resolve("res/drawable-nodpi/nexor_logo_wordmark.png")))
+        assertTrue(Files.exists(mainRoot.resolve("res/drawable-nodpi/zorv_logo_wordmark.png")))
         assertTrue(Files.exists(mainRoot.resolve("res/mipmap-anydpi-v26/ic_launcher.xml")))
         assertTrue(Files.exists(mainRoot.resolve("res/mipmap-anydpi-v26/ic_launcher_round.xml")))
         assertTrue(Files.exists(mainRoot.resolve("res/mipmap-xxxhdpi/ic_launcher.png")))
@@ -29,7 +29,7 @@ class LauncherIconResourceTest {
 
     @Test
     fun `launcher foreground keeps full logo artwork inside adaptive icon safe area`() {
-        val sourceLogo = ImageIO.read(mainRoot.resolve("res/drawable-nodpi/nexor_logo_wordmark.png").toFile())
+        val sourceLogo = ImageIO.read(mainRoot.resolve("res/drawable-nodpi/zorv_logo_wordmark.png").toFile())
         val foreground = ImageIO.read(mainRoot.resolve("res/mipmap-xxxhdpi/ic_launcher_foreground.png").toFile())
         val expected = sourceLogo.scaledIntoSafeLauncherCanvas(foreground.width, launcherSafeScale)
 

@@ -18,17 +18,17 @@ internal fun interface TemplateMediaPrefetchHandle {
 }
 
 internal interface TemplateMediaPrefetchCoordinator {
-    fun prefetchVideoPrefixes(context: Context, urls: List<String>): TemplateMediaPrefetchHandle
+    fun prefetchVideoPrefixes(context: Context, targets: List<TemplateVideoPreloadTarget>): TemplateMediaPrefetchHandle
     fun prefetchImages(context: Context, urls: List<String>): TemplateMediaPrefetchHandle
 }
 
 internal object DefaultTemplateMediaPrefetchCoordinator : TemplateMediaPrefetchCoordinator {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override fun prefetchVideoPrefixes(context: Context, urls: List<String>): TemplateMediaPrefetchHandle {
+    override fun prefetchVideoPrefixes(context: Context, targets: List<TemplateVideoPreloadTarget>): TemplateMediaPrefetchHandle {
         val session = TemplateVideoPreloadSession()
         val job = scope.launch {
-            TemplateVideoCache.preload(context.applicationContext, urls, session)
+            TemplateVideoCache.preload(context.applicationContext, targets, session)
         }
         return TemplateMediaPrefetchHandle {
             session.cancel()

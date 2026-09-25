@@ -2,6 +2,7 @@ package yumo.achat.app.ui.imagevideo
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -75,5 +76,31 @@ class MyTasksScreenTest {
         composeRule.onNodeWithText("Loading creations...").assertIsDisplayed()
         composeRule.onNodeWithText("Newest task").assertIsDisplayed()
         composeRule.onAllNodesWithText("NO TASKA YES").assertCountEquals(0)
+    }
+
+    @Test
+    fun generationResultScreenShowsOpenableVideoPreview() {
+        val task = TrackedGenerationTask(
+            taskId = "task-video-1",
+            title = "Video result",
+            modality = "video",
+            status = "succeeded",
+            resultUrl = "https://test.appjoly.com/generated/video.mp4",
+            mimeType = "video/mp4",
+            errorMessage = null,
+            thumbnailUrl = "https://test.appjoly.com/generated/poster.jpg",
+        )
+
+        composeRule.setContent {
+            AchatTheme {
+                GenerationResultScreen(
+                    task = task,
+                    onBack = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Video result").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Selected template preview").assertIsDisplayed()
     }
 }

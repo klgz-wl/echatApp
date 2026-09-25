@@ -6,21 +6,22 @@ import yumo.achat.core.backend.VisualTemplate
 
 class TemplateVideoPreloadTargetsTest {
     @Test
-    fun `preloads next and previous without competing for current video`() {
+    fun `preloads current video first then adjacent videos`() {
         val templates = listOf(
             template("previous", "https://example.test/previous.mp4", "video/mp4"),
             template("current", "https://example.test/current.mp4", "video/mp4"),
             template("next", "https://example.test/next.mp4", "video/mp4"),
         )
 
-        val urls = templates.nearbyVideoPreviewUrls(selectedIndex = 1)
+        val targets = templates.videoPreviewPreloadTargets(selectedIndex = 1)
 
         assertEquals(
             listOf(
-                "https://example.test/next.mp4",
-                "https://example.test/previous.mp4",
+                TemplateVideoPreloadTarget("https://example.test/current.mp4", TemplateCurrentVideoPreloadBytes),
+                TemplateVideoPreloadTarget("https://example.test/next.mp4", TemplateAdjacentVideoPreloadBytes),
+                TemplateVideoPreloadTarget("https://example.test/previous.mp4", TemplateAdjacentVideoPreloadBytes),
             ),
-            urls,
+            targets,
         )
     }
 
@@ -32,11 +33,14 @@ class TemplateVideoPreloadTargetsTest {
             template("last", "https://example.test/last.mp4", "video/mp4"),
         )
 
-        val urls = templates.nearbyVideoPreviewUrls(selectedIndex = 0)
+        val targets = templates.videoPreviewPreloadTargets(selectedIndex = 0)
 
         assertEquals(
-            listOf("https://example.test/next.mp4"),
-            urls,
+            listOf(
+                TemplateVideoPreloadTarget("https://example.test/current.mp4", TemplateCurrentVideoPreloadBytes),
+                TemplateVideoPreloadTarget("https://example.test/next.mp4", TemplateAdjacentVideoPreloadBytes),
+            ),
+            targets,
         )
     }
 

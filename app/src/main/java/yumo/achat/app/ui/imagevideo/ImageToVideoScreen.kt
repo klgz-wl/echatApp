@@ -118,6 +118,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import java.math.BigDecimal
@@ -412,6 +414,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { createAchatRepository(context) }
+    val localTaskStore = remember(context) { LocalGenerationTaskStore(context) }
     val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
     val attributionRuntime = remember(context) {
         if (AnalyticsConsent.granted(context)) AchatAttributionRuntime.get(context) else null
@@ -440,6 +443,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
     var sessionTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var serverHistoryTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
+    var localTaskStoreLoaded by remember { mutableStateOf(false) }
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
     var isLoadingTaskHistory by remember { mutableStateOf(false) }
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
@@ -468,6 +472,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             profileId = profile.id,
             profileAvatarUrl = profile.largeAvatarUrl ?: profile.avatarUrl,
         )
+    }
+
+    LaunchedEffect(localTaskStore) {
+        sessionTasks = mergeTrackedGenerationTasks(sessionTasks, localTaskStore.read())
+        localTaskStoreLoaded = true
+    }
+
+    LaunchedEffect(localTaskStoreLoaded, sessionTasks) {
+        if (localTaskStoreLoaded) {
+            localTaskStore.write(sessionTasks)
+        }
     }
 
     fun showProfileMessage(text: String, tone: TransientMessageTone) {
@@ -742,8 +757,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         if (selectedResultTask != null) return@LaunchedEffect
         try {
             val resources = repository.generatedResources()
-            serverHistoryTasks = resources.map { resource ->
+            val historyTasks = resources.map { resource ->
                 resource.toTrackedGenerationTask(defaultTaskTitle)
+            }
+            serverHistoryTasks = historyTasks
+            historyTasks.forEach { historyTask ->
+                if (sessionTasks.any { it.taskId == historyTask.taskId && !it.isFinished }) {
+                    sessionTasks = upsertTrackedGenerationTask(sessionTasks, historyTask)
+                }
             }
             taskHistoryError = null
             isLoadingTaskHistory = false
@@ -871,29 +892,6 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    if (backendState.isLoading || backendState.errorMessage != null) {
-        Box(
-            modifier = modifier.fillMaxSize().background(AchatDeepNavy),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = backendState.errorMessage ?: stringResource(R.string.backend_loading_templates),
-                    color = Color.White,
-                )
-                if (backendState.errorMessage != null) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.template_feed_retry),
-                        color = AchatCyan,
-                        modifier = Modifier.clickable { startupReloadSerial += 1 },
-                    )
-                }
-            }
-        }
-        return
     }
 
     TrackAnalyticsPage(
@@ -1212,8 +1210,8 @@ private fun TemplateBrowserScreen(
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
     val visiblePrice = visibleTemplatePrice(selectedTemplate)
-    val nearbyVideoUrls = if (section == TemplateSection.Video) {
-        templates.nearbyVideoPreviewUrls(selectedTemplateIndex)
+    val videoPreloadTargets = if (section == TemplateSection.Video) {
+        templates.videoPreviewPreloadTargets(selectedTemplateIndex)
     } else {
         emptyList()
     }
@@ -1253,7 +1251,7 @@ private fun TemplateBrowserScreen(
             awaitCancellation()
         }
     }
-    TemplateMediaPreloader(videoUrls = nearbyVideoUrls, imageUrls = nearbyImageUrls)
+    TemplateMediaPreloader(videoTargets = videoPreloadTargets, imageUrls = nearbyImageUrls)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1497,13 +1495,13 @@ internal fun LiveTemplatePlaceholderCard(
 
 @Composable
 internal fun TemplateMediaPreloader(
-    videoUrls: List<String>,
+    videoTargets: List<TemplateVideoPreloadTarget>,
     imageUrls: List<String>,
     coordinator: TemplateMediaPrefetchCoordinator = DefaultTemplateMediaPrefetchCoordinator,
 ) {
     val context = LocalContext.current
-    DisposableEffect(videoUrls, imageUrls, coordinator) {
-        val videoHandle = coordinator.prefetchVideoPrefixes(context, videoUrls)
+    DisposableEffect(videoTargets, imageUrls, coordinator) {
+        val videoHandle = coordinator.prefetchVideoPrefixes(context, videoTargets)
         val imageHandle = coordinator.prefetchImages(context, imageUrls)
         onDispose {
             videoHandle.cancel()
@@ -2045,6 +2043,10 @@ internal fun MyTasksScreen(
                 EmptyTasksCard(modifier = Modifier.padding(top = 142.dp))
             }
         } else if (tasks.isNotEmpty()) {
+            TemplateMediaPreloader(
+                videoTargets = tasks.myTaskVideoPreloadTargets(),
+                imageUrls = tasks.myTaskImagePrefetchUrls(),
+            )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2087,7 +2089,21 @@ private fun TaskStatusCard(task: TrackedGenerationTask, onOpen: () -> Unit) {
                 .border(1.dp, AchatCyan.copy(alpha = 0.42f), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            DiamondIcon(15.dp)
+            val thumbnailUrl = task.thumbnailUrl?.takeIf { it.isNotBlank() }
+                ?: task.resultUrl?.takeIf { task.canPreviewAsImage }
+            if (!thumbnailUrl.isNullOrBlank()) {
+                MyTaskProgressiveImage(
+                    imageUrl = thumbnailUrl,
+                    thumbnailUrl = null,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    widthPx = 160,
+                    heightPx = 160,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                DiamondIcon(15.dp)
+            }
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -2142,16 +2158,16 @@ private fun TaskStatusCard(task: TrackedGenerationTask, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun GenerationResultScreen(
+internal fun GenerationResultScreen(
     task: TrackedGenerationTask,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
+            .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         SecondaryHeader(
@@ -2195,10 +2211,23 @@ private fun GenerationResultScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (task.canPreviewAsImage) {
-                    AsyncImage(
-                        model = task.resultUrl,
+                    MyTaskProgressiveImage(
+                        imageUrl = task.resultUrl.orEmpty(),
+                        thumbnailUrl = task.thumbnailUrl,
                         contentDescription = stringResource(R.string.task_result_image_description),
                         contentScale = ContentScale.Fit,
+                        widthPx = TemplatePreviewWidthPx,
+                        heightPx = TemplatePreviewHeightPx,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else if (task.canOpenResult && (task.mimeType.startsWith("video/") || task.modality == "video")) {
+                    TemplatePreviewPanel(
+                        media = TemplatePreviewMedia.RemoteVideo(
+                            url = task.resultUrl.orEmpty(),
+                            posterUrl = task.thumbnailUrl.orEmpty(),
+                        ),
+                        durationSeconds = 0,
+                        isPlaying = true,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
@@ -2208,6 +2237,74 @@ private fun GenerationResultScreen(
                         fontSize = 11.sp,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MyTaskProgressiveImage(
+    imageUrl: String,
+    thumbnailUrl: String?,
+    contentDescription: String?,
+    contentScale: ContentScale,
+    widthPx: Int,
+    heightPx: Int,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val fullPainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(imageUrl)
+            .size(widthPx, heightPx)
+            .scale(coilScaleForContentScale(contentScale))
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .crossfade(120)
+            .build(),
+    )
+    val fullState = fullPainter.state
+    val hasRenderedFullImage = fullState is AsyncImagePainter.State.Success
+    val hasFullImageError = fullState is AsyncImagePainter.State.Error
+
+    Box(modifier = modifier.background(Color(0xFF080A13)), contentAlignment = Alignment.Center) {
+        if (!hasRenderedFullImage && !thumbnailUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(thumbnailUrl)
+                    .size(widthPx, heightPx)
+                    .scale(coilScaleForContentScale(contentScale))
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .crossfade(90)
+                    .build(),
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (hasRenderedFullImage) {
+            Image(
+                painter = fullPainter,
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (shouldShowMyTaskImageLoading(hasRenderedFullImage, hasFullImageError)) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0xAA080B12))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.5f), CircleShape)
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = AchatCyan,
+                    strokeWidth = 2.dp,
+                )
             }
         }
     }

@@ -16,7 +16,6 @@ import java.io.File
 import java.util.Collections
 
 private const val TemplateVideoCacheBytes = 120L * 1024L * 1024L
-private const val TemplateVideoPreloadBytes = 768L * 1024L
 
 @OptIn(UnstableApi::class)
 internal object TemplateVideoCache {
@@ -26,20 +25,20 @@ internal object TemplateVideoCache {
     fun mediaSourceFactory(context: Context): DefaultMediaSourceFactory =
         DefaultMediaSourceFactory(cacheDataSourceFactory(context))
 
-    fun preload(context: Context, urls: List<String>, session: TemplateVideoPreloadSession) {
+    fun preload(context: Context, targets: List<TemplateVideoPreloadTarget>, session: TemplateVideoPreloadSession) {
         val appContext = context.applicationContext
-        urls.filter { it.isNotBlank() }.forEach { url ->
+        targets.filter { it.url.isNotBlank() && it.bytes > 0 }.forEach { target ->
             if (session.isCancelled) return
-            if (!preloadUrls.add(url)) {
+            if (!preloadUrls.add(target.url)) {
                 return@forEach
             }
 
             val writer = CacheWriter(
                 cacheDataSourceFactory(appContext).createDataSource(),
                 DataSpec.Builder()
-                    .setUri(Uri.parse(url))
+                    .setUri(Uri.parse(target.url))
                     .setPosition(0)
-                    .setLength(TemplateVideoPreloadBytes)
+                    .setLength(target.bytes)
                     .build(),
                 null,
                 null,
@@ -47,7 +46,7 @@ internal object TemplateVideoCache {
             session.attach(writer)
             runCatching { writer.cache() }.also {
                 session.detach(writer)
-                preloadUrls.remove(url)
+                preloadUrls.remove(target.url)
             }
         }
     }

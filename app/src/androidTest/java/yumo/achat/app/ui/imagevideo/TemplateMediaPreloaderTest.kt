@@ -17,13 +17,13 @@ class TemplateMediaPreloaderTest {
     @Test
     fun changingTargetsAndLeavingCompositionCancelsPrefetchHandles() {
         val coordinator = FakeCoordinator()
-        var videoUrls by mutableStateOf(listOf("video-a"))
+        var videoTargets by mutableStateOf(listOf(TemplateVideoPreloadTarget("video-a", 1)))
         var visible by mutableStateOf(true)
 
         composeRule.setContent {
             if (visible) {
                 TemplateMediaPreloader(
-                    videoUrls = videoUrls,
+                    videoTargets = videoTargets,
                     imageUrls = listOf("image-a"),
                     coordinator = coordinator,
                 )
@@ -31,22 +31,25 @@ class TemplateMediaPreloaderTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.runOnUiThread { videoUrls = listOf("video-b") }
+        composeRule.runOnUiThread { videoTargets = listOf(TemplateVideoPreloadTarget("video-b", 1)) }
         composeRule.waitForIdle()
         assertTrue(coordinator.handles.take(2).all { it.cancelled })
 
         composeRule.runOnUiThread { visible = false }
         composeRule.waitForIdle()
         assertTrue(coordinator.handles.all { it.cancelled })
-        assertEquals(listOf("video-a", "video-b"), coordinator.videoCalls.flatten())
+        assertEquals(listOf("video-a", "video-b"), coordinator.videoCalls.flatten().map { it.url })
     }
 
     private class FakeCoordinator : TemplateMediaPrefetchCoordinator {
-        val videoCalls = mutableListOf<List<String>>()
+        val videoCalls = mutableListOf<List<TemplateVideoPreloadTarget>>()
         val handles = mutableListOf<FakeHandle>()
 
-        override fun prefetchVideoPrefixes(context: Context, urls: List<String>): TemplateMediaPrefetchHandle {
-            videoCalls += urls
+        override fun prefetchVideoPrefixes(
+            context: Context,
+            targets: List<TemplateVideoPreloadTarget>,
+        ): TemplateMediaPrefetchHandle {
+            videoCalls += targets
             return FakeHandle().also(handles::add)
         }
 
