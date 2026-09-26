@@ -2,10 +2,28 @@ package yumo.achat.core.backend
 
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AchatBackendParsersTest {
+    @Test
+    fun `template and resource pages preserve pagination metadata`() {
+        val templates = AchatBackendParsers.parseTemplatePage(
+            """{"code":0,"data":{"items":[],"page":2,"page_size":20,"total":45}}""",
+        )
+        val resources = AchatBackendParsers.parseVisualResourcePage(
+            """{"code":0,"data":{"items":[],"page":3,"page_size":10,"total":25}}""",
+        )
+
+        assertEquals(2, templates.page)
+        assertEquals(20, templates.pageSize)
+        assertEquals(45L, templates.total)
+        assertTrue(templates.hasMore)
+        assertEquals(3, resources.page)
+        assertFalse(resources.hasMore)
+    }
     @Test
     fun `parse profile preserves startup mode flag`() {
         val profile = AchatBackendParsers.parseUserProfile(

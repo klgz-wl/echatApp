@@ -110,6 +110,54 @@ class TemplateRetryStateTest {
     }
 
     @Test
+    fun `next template page appends without resetting existing items`() {
+        val first = template("video-1")
+        val second = template("video-2")
+        val state = AchatBackendUiState(videoTemplates = listOf(first), videoTemplatePage = 1)
+
+        val updated = state.withTemplateLoadResult(
+            modality = "video",
+            result = TemplateLoadResult(
+                templates = listOf(second),
+                errorMessage = null,
+                page = 2,
+                pageSize = 1,
+                total = 3L,
+            ),
+            append = true,
+        )
+
+        assertEquals(listOf(first, second), updated.videoTemplates)
+        assertEquals(2, updated.videoTemplatePage)
+        assertTrue(updated.videoTemplatesHasMore)
+    }
+
+    @Test
+    fun `pagination failure keeps list and exposes separate error`() {
+        val first = template("video-1")
+        val state = AchatBackendUiState(videoTemplates = listOf(first), videoTemplatePage = 1)
+
+        val updated = state.withTemplateLoadResult(
+            modality = "video",
+            result = TemplateLoadResult(emptyList(), "HTTP 503", page = 2),
+            append = true,
+        )
+
+        assertEquals(listOf(first), updated.videoTemplates)
+        assertEquals("HTTP 503", updated.videoPaginationErrorMessage)
+        assertNull(updated.videoTemplateErrorMessage)
+        assertFalse(
+            shouldAutoLoadNextTemplatePage(
+                hasItems = true,
+                atLastItem = true,
+                hasMore = true,
+                loading = false,
+                errorMessage = "HTTP 503",
+            ),
+        )
+    }
+
+    @Test
     fun `offline template failure does not use local visual fallback`() {
         assertFalse(
             shouldShowLocalTemplateFallback(

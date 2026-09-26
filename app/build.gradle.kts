@@ -277,7 +277,14 @@ tasks.register("verifyFormalRelease") {
 }
 
 tasks.configureEach {
-    if (mode == "FORMAL" && name in setOf("assembleProdRelease", "bundleProdRelease")) {
+    if (mode == "FORMAL" && name in setOf(
+            "assembleProdRelease",
+            "bundleProdRelease",
+            "packageProdRelease",
+            "packageProdReleaseBundle",
+            "signProdReleaseBundle",
+        )
+    ) {
         dependsOn("verifyProdReleaseRuntimeConfig", "verifyFormalRelease", "verifyCoreFullChainEvidence")
     }
 }
@@ -334,6 +341,14 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         )
         expected.forEach { (field, value) ->
             check("""$field = "$value""" in text) {
+                "prodRelease BuildConfig $field must be $value"
+            }
+        }
+        mapOf(
+            "ENABLE_SECURE_WINDOW" to true,
+            "ENABLE_REGION_RESTRICTION" to true,
+        ).forEach { (field, value) ->
+            check("""$field = $value""" in text) {
                 "prodRelease BuildConfig $field must be $value"
             }
         }

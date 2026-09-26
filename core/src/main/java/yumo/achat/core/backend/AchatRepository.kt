@@ -83,6 +83,10 @@ class AchatRepository(
                 imageTemplateErrorMessage = loadedImageTemplates.errorMessage,
                 videoCategories = videoCategories.await(),
                 imageCategories = imageCategories.await(),
+                videoTemplatePage = loadedVideoTemplates.page,
+                videoTemplatesHasMore = loadedVideoTemplates.page.toLong() * loadedVideoTemplates.pageSize < loadedVideoTemplates.total,
+                imageTemplatePage = loadedImageTemplates.page,
+                imageTemplatesHasMore = loadedImageTemplates.page.toLong() * loadedImageTemplates.pageSize < loadedImageTemplates.total,
             )
         }
     }
@@ -91,6 +95,8 @@ class AchatRepository(
         modality: String,
         sortBy: String,
         categoryId: String? = null,
+        page: Int = 1,
+        pageSize: Int = 20,
     ): TemplateLoadResult = withContext(Dispatchers.IO) {
         require(modality == "video" || modality == "image") { "Unsupported template modality" }
         loadTemplateResult("Unable to load $modality templates") {
@@ -100,6 +106,8 @@ class AchatRepository(
                     modality = modality,
                     sortBy = sortBy,
                     categoryId = categoryId,
+                    page = page,
+                    pageSize = pageSize,
                 )
             }
         }
@@ -217,7 +225,7 @@ class AchatRepository(
         }
     }
 
-    suspend fun generatedResources(page: Int = 1, pageSize: Int = 20): List<VisualResource> = withContext(Dispatchers.IO) {
+    suspend fun generatedResources(page: Int = 1, pageSize: Int = 20): PagedResult<VisualResource> = withContext(Dispatchers.IO) {
         sessionManager.authenticated { token ->
             client.visualResources(
                 token = token,

@@ -1,6 +1,8 @@
 package yumo.achat.app
 
 import android.os.Bundle
+import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -18,7 +20,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,6 +74,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (shouldEnableSecureWindow(BuildConfig.ENABLE_SECURE_WINDOW, BuildConfig.DEBUG)) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -82,8 +89,13 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(state.allowed) {
                     if (state.allowed) beginBusinessStartup()
                 }
+                BackHandler(enabled = !state.allowed) { finishAndRemoveTask() }
                 when {
-                    !state.allowed -> RegionGateScreen(state = state, onRetry = gate::check)
+                    !state.allowed -> RegionGateScreen(
+                        state = state,
+                        onRetry = gate::check,
+                        onExit = ::finishAndRemoveTask,
+                    )
                     else -> ImageToVideoScreen()
                 }
             }
@@ -131,7 +143,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit) {
+private fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit, onExit: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             if (state.busy) {
@@ -139,10 +151,25 @@ private fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit) {
                 Text(stringResource(R.string.region_checking))
             } else if (state.restricted) {
                 Text(stringResource(R.string.region_restricted))
+                RegionDiagnosticReference(state.diagnosticCode)
+                Button(onClick = onExit) { Text(stringResource(R.string.region_exit)) }
             } else if (state.error) {
-                Text(stringResource(R.string.region_unavailable))
-                Button(onClick = onRetry) { Text(stringResource(R.string.top_up_retry)) }
+                Text(stringResource(if (state.offline) R.string.region_offline else R.string.region_unavailable))
+                RegionDiagnosticReference(state.diagnosticCode)
+                Button(onClick = onRetry) { Text(stringResource(R.string.region_retry)) }
+                Button(onClick = onExit) { Text(stringResource(R.string.region_exit)) }
             }
         }
+    }
+}
+
+@Composable
+private fun RegionDiagnosticReference(code: String?) {
+    code?.let {
+        Text(
+            text = stringResource(R.string.region_reference, it),
+            color = Color.Gray,
+            fontSize = 13.sp,
+        )
     }
 }

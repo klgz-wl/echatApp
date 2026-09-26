@@ -180,10 +180,10 @@ object AchatBackendParsers {
         )
     }
 
-    fun parseTemplates(json: String): List<VisualTemplate> {
+    fun parseTemplatePage(json: String): PagedResult<VisualTemplate> {
         val data = dataObject(json)
         val items = data.opt("items") as? org.json.JSONArray ?: error("Missing or invalid template items")
-        return buildList {
+        val templates = buildList {
             for (index in 0 until items.length()) {
                 val item = items.getJSONObject(index)
                 val prices = item.optJSONObject("prices")
@@ -206,7 +206,15 @@ object AchatBackendParsers {
                 )
             }
         }
+        return PagedResult(
+            items = templates,
+            page = data.optInt("page", 1).coerceAtLeast(1),
+            pageSize = data.optInt("page_size", templates.size.coerceAtLeast(1)).coerceAtLeast(1),
+            total = data.optLong("total", templates.size.toLong()).coerceAtLeast(templates.size.toLong()),
+        )
     }
+
+    fun parseTemplates(json: String): List<VisualTemplate> = parseTemplatePage(json).items
 
     fun parseCategories(json: String): List<VisualCategory> {
         val data = dataArray(json)
@@ -229,15 +237,23 @@ object AchatBackendParsers {
         return parseVisualResourceObject(data)
     }
 
-    fun parseVisualResources(json: String): List<VisualResource> {
+    fun parseVisualResourcePage(json: String): PagedResult<VisualResource> {
         val data = dataObject(json)
-        val items = data.optJSONArray("items") ?: return emptyList()
-        return buildList {
+        val items = data.optJSONArray("items") ?: org.json.JSONArray()
+        val resources = buildList {
             for (index in 0 until items.length()) {
                 add(parseVisualResourceObject(items.getJSONObject(index)))
             }
         }
+        return PagedResult(
+            items = resources,
+            page = data.optInt("page", 1).coerceAtLeast(1),
+            pageSize = data.optInt("page_size", resources.size.coerceAtLeast(1)).coerceAtLeast(1),
+            total = data.optLong("total", resources.size.toLong()).coerceAtLeast(resources.size.toLong()),
+        )
     }
+
+    fun parseVisualResources(json: String): List<VisualResource> = parseVisualResourcePage(json).items
 
     fun parseWalletTransactions(json: String): List<WalletTransaction> {
         val data = dataObject(json)

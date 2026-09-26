@@ -198,7 +198,7 @@ class AchatBackendClient(
         categoryId: String? = null,
         page: Int = 1,
         pageSize: Int = 20,
-    ): List<VisualTemplate> {
+    ): PagedResult<VisualTemplate> {
         require(sortBy == "hot" || sortBy == "latest") { "Unsupported template sort: $sortBy" }
         val query = buildList {
             add("page=$page")
@@ -208,7 +208,7 @@ class AchatBackendClient(
                 add("category_id=${URLEncoder.encode(it, StandardCharsets.UTF_8.name())}")
             }
         }.joinToString("&")
-        return AchatBackendParsers.parseTemplates(
+        return AchatBackendParsers.parseTemplatePage(
             get("/api/v1/visual-generation/$modality/templates?$query", token),
         )
     }
@@ -240,14 +240,14 @@ class AchatBackendClient(
         pageSize: Int = 20,
         modality: String? = null,
         resourceType: String? = null,
-    ): List<VisualResource> {
+    ): PagedResult<VisualResource> {
         val query = buildList {
             add("page=$page")
             add("page_size=$pageSize")
             modality?.takeIf { it.isNotBlank() }?.let { add("modality=$it") }
             resourceType?.takeIf { it.isNotBlank() }?.let { add("resource_type=$it") }
         }.joinToString("&")
-        return AchatBackendParsers.parseVisualResources(
+        return AchatBackendParsers.parseVisualResourcePage(
             get("/api/v1/visual-generation/resources?$query", token),
         )
     }

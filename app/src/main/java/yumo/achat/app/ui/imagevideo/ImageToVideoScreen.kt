@@ -154,6 +154,7 @@ import yumo.achat.core.backend.VisualCategory
 import yumo.achat.core.backend.VisualGenerationTask
 import yumo.achat.core.backend.VisualTemplate
 import yumo.achat.core.backend.WalletTransaction
+import yumo.achat.core.backend.hasMore
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
@@ -270,6 +271,14 @@ internal data class AchatBackendUiState(
     val imageTemplatesLoading: Boolean = true,
     val videoTemplateErrorMessage: String? = null,
     val imageTemplateErrorMessage: String? = null,
+    val videoTemplatePage: Int = 1,
+    val imageTemplatePage: Int = 1,
+    val videoTemplatesHasMore: Boolean = false,
+    val imageTemplatesHasMore: Boolean = false,
+    val videoPaginationLoading: Boolean = false,
+    val imagePaginationLoading: Boolean = false,
+    val videoPaginationErrorMessage: String? = null,
+    val imagePaginationErrorMessage: String? = null,
     val videoCategories: List<VisualCategory> = emptyList(),
     val imageCategories: List<VisualCategory> = emptyList(),
 )
@@ -277,16 +286,29 @@ internal data class AchatBackendUiState(
 internal fun AchatBackendUiState.withTemplateLoadResult(
     modality: String,
     result: TemplateLoadResult,
+    append: Boolean = false,
 ): AchatBackendUiState = when (modality) {
     "video" -> copy(
-        videoTemplates = if (result.errorMessage == null) result.templates else videoTemplates,
-        videoTemplatesLoading = false,
-        videoTemplateErrorMessage = result.errorMessage,
+        videoTemplates = if (result.errorMessage == null) {
+            if (append) (videoTemplates + result.templates).distinctBy(VisualTemplate::id) else result.templates
+        } else videoTemplates,
+        videoTemplatesLoading = if (append) videoTemplatesLoading else false,
+        videoTemplateErrorMessage = if (append) videoTemplateErrorMessage else result.errorMessage,
+        videoTemplatePage = if (result.errorMessage == null) result.page else videoTemplatePage,
+        videoTemplatesHasMore = if (result.errorMessage == null) result.page.toLong() * result.pageSize < result.total else videoTemplatesHasMore,
+        videoPaginationLoading = false,
+        videoPaginationErrorMessage = if (append) result.errorMessage else null,
     )
     "image" -> copy(
-        imageTemplates = if (result.errorMessage == null) result.templates else imageTemplates,
-        imageTemplatesLoading = false,
-        imageTemplateErrorMessage = result.errorMessage,
+        imageTemplates = if (result.errorMessage == null) {
+            if (append) (imageTemplates + result.templates).distinctBy(VisualTemplate::id) else result.templates
+        } else imageTemplates,
+        imageTemplatesLoading = if (append) imageTemplatesLoading else false,
+        imageTemplateErrorMessage = if (append) imageTemplateErrorMessage else result.errorMessage,
+        imageTemplatePage = if (result.errorMessage == null) result.page else imageTemplatePage,
+        imageTemplatesHasMore = if (result.errorMessage == null) result.page.toLong() * result.pageSize < result.total else imageTemplatesHasMore,
+        imagePaginationLoading = false,
+        imagePaginationErrorMessage = if (append) result.errorMessage else null,
     )
     else -> error("Unsupported template modality")
 }
@@ -323,6 +345,14 @@ internal fun templateRetryAction(state: AchatBackendUiState, section: TemplateSe
 internal fun visibleTemplatePrice(template: VisualTemplate?): Int? = template?.displayPrice
 
 internal fun shouldAnimateLiveTemplatePlaceholder(isLoading: Boolean): Boolean = isLoading
+
+internal fun shouldAutoLoadNextTemplatePage(
+    hasItems: Boolean,
+    atLastItem: Boolean,
+    hasMore: Boolean,
+    loading: Boolean,
+    errorMessage: String?,
+): Boolean = hasItems && atLastItem && hasMore && !loading && errorMessage == null
 
 internal fun simulatedFeedbackAcknowledgement(): String = "Thanks for your feedback"
 
@@ -518,6 +548,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var selectedResultTask by remember { mutableStateOf<TrackedGenerationTask?>(null) }
     var isLoadingTaskHistory by remember { mutableStateOf(false) }
     var taskHistoryError by remember { mutableStateOf<String?>(null) }
+    var taskHistoryPage by remember { mutableIntStateOf(1) }
+    var taskHistoryHasMore by remember { mutableStateOf(false) }
+    var taskHistoryPaginationLoading by remember { mutableStateOf(false) }
+    var taskHistoryPaginationError by remember { mutableStateOf<String?>(null) }
     var taskHistoryRefreshSerial by remember { mutableIntStateOf(0) }
     var shouldRefreshUnfinishedTaskStatus by remember { mutableStateOf(false) }
     var templateEdgeHintRes by remember { mutableStateOf<Int?>(null) }
@@ -605,6 +639,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         section: TemplateSection,
         sortBy: String,
         categoryId: String? = null,
+        page: Int = 1,
+        append: Boolean = false,
     ) {
         val modality = if (section == TemplateSection.Video) "video" else "image"
         val requestSerial = when (section) {
@@ -612,14 +648,29 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             TemplateSection.Image -> ++imageTemplateRequestSerial
         }
         backendState = when (section) {
-            TemplateSection.Video -> backendState.copy(videoTemplatesLoading = true)
-            TemplateSection.Image -> backendState.copy(imageTemplatesLoading = true)
+            TemplateSection.Video -> if (append) {
+                backendState.copy(videoPaginationLoading = true, videoPaginationErrorMessage = null)
+            } else backendState.copy(
+                videoTemplatesLoading = true,
+                videoTemplatePage = 1,
+                videoTemplatesHasMore = false,
+                videoPaginationErrorMessage = null,
+            )
+            TemplateSection.Image -> if (append) {
+                backendState.copy(imagePaginationLoading = true, imagePaginationErrorMessage = null)
+            } else backendState.copy(
+                imageTemplatesLoading = true,
+                imageTemplatePage = 1,
+                imageTemplatesHasMore = false,
+                imagePaginationErrorMessage = null,
+            )
         }
         screenScope.launch {
             val result = repository.loadTemplates(
                 modality = modality,
                 sortBy = sortBy,
                 categoryId = categoryId,
+                page = page,
             )
             val isLatestRequest = when (section) {
                 TemplateSection.Video -> requestSerial == videoTemplateRequestSerial
@@ -631,6 +682,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             backendState = backendState.withTemplateLoadResult(
                 modality = modality,
                 result = result.copy(errorMessage = errorMessage),
+                append = append,
             )
         }
     }
@@ -644,6 +696,61 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             section = section,
             sortBy = templateSortBy(section, selectedTab),
         )
+    }
+
+    fun loadNextTemplatePage(section: TemplateSection) {
+        val page = when (section) {
+            TemplateSection.Video -> backendState.videoTemplatePage
+            TemplateSection.Image -> backendState.imageTemplatePage
+        }
+        val hasMore = when (section) {
+            TemplateSection.Video -> backendState.videoTemplatesHasMore
+            TemplateSection.Image -> backendState.imageTemplatesHasMore
+        }
+        val loading = when (section) {
+            TemplateSection.Video -> backendState.videoPaginationLoading
+            TemplateSection.Image -> backendState.imagePaginationLoading
+        }
+        val initialLoading = when (section) {
+            TemplateSection.Video -> backendState.videoTemplatesLoading
+            TemplateSection.Image -> backendState.imageTemplatesLoading
+        }
+        if (!hasMore || loading || initialLoading) return
+        reloadTemplates(
+            section = section,
+            sortBy = templateSortBy(section, selectedTab),
+            page = page + 1,
+            append = true,
+        )
+    }
+
+    fun loadMoreMyTasks() {
+        if (!taskHistoryHasMore || taskHistoryPaginationLoading) return
+        taskHistoryPaginationLoading = true
+        taskHistoryPaginationError = null
+        val refreshSerialAtStart = taskHistoryRefreshSerial
+        screenScope.launch {
+            try {
+                val page = repository.generatedResources(page = taskHistoryPage + 1)
+                if (refreshSerialAtStart != taskHistoryRefreshSerial || destination != ImageToVideoDestination.MyTasks) {
+                    return@launch
+                }
+                serverHistoryTasks = mergeTrackedGenerationTasks(
+                    serverHistoryTasks,
+                    page.items.map { it.toTrackedGenerationTask(defaultTaskTitle) },
+                )
+                taskHistoryPage = page.page
+                taskHistoryHasMore = page.hasMore
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (refreshSerialAtStart == taskHistoryRefreshSerial) {
+                    taskHistoryPaginationError = error.message ?: "Failed to load more task history"
+                }
+            } finally {
+                if (refreshSerialAtStart == taskHistoryRefreshSerial) taskHistoryPaginationLoading = false
+            }
+        }
     }
 
     fun refreshDiamondBalance() {
@@ -694,6 +801,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         selectedResultTask = null
         isLoadingTaskHistory = true
         taskHistoryError = null
+        taskHistoryPaginationLoading = false
+        taskHistoryPaginationError = null
+        taskHistoryRefreshSerial += 1
         selectedNavigation = route.selectedNavigation
         destination = route.destination
         if (trackedTask.isFinished && trackedTask.requestId.isNotBlank()) {
@@ -800,6 +910,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         selectedResultTask = null
         isLoadingTaskHistory = true
         taskHistoryError = null
+        taskHistoryPaginationLoading = false
+        taskHistoryPaginationError = null
+        taskHistoryRefreshSerial += 1
         destination = ImageToVideoDestination.MyTasks
     }
 
@@ -807,6 +920,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         shouldRefreshUnfinishedTaskStatus = pollUnfinishedTasks
         isLoadingTaskHistory = true
         taskHistoryError = null
+        taskHistoryPaginationLoading = false
+        taskHistoryPaginationError = null
         taskHistoryRefreshSerial += 1
     }
 
@@ -939,6 +1054,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 diamondBalance = homeData.currency?.diamondBalance ?: backendState.diamondBalance,
                 videoTemplates = if (applyStartupVideo) homeData.videoTemplates else backendState.videoTemplates,
                 imageTemplates = if (applyStartupImage) homeData.imageTemplates else backendState.imageTemplates,
+                videoTemplatePage = if (applyStartupVideo) homeData.videoTemplatePage else backendState.videoTemplatePage,
+                videoTemplatesHasMore = if (applyStartupVideo) homeData.videoTemplatesHasMore else backendState.videoTemplatesHasMore,
+                imageTemplatePage = if (applyStartupImage) homeData.imageTemplatePage else backendState.imageTemplatePage,
+                imageTemplatesHasMore = if (applyStartupImage) homeData.imageTemplatesHasMore else backendState.imageTemplatesHasMore,
                 videoTemplatesLoading = if (applyStartupVideo) false else backendState.videoTemplatesLoading,
                 imageTemplatesLoading = if (applyStartupImage) false else backendState.imageTemplatesLoading,
                 videoTemplateErrorMessage = if (applyStartupVideo) {
@@ -993,10 +1112,13 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 }
             }
             val resources = repository.generatedResources()
-            val historyTasks = resources.map { resource ->
+            val historyTasks = resources.items.map { resource ->
                 resource.toTrackedGenerationTask(defaultTaskTitle)
             }
             serverHistoryTasks = historyTasks
+            taskHistoryPage = resources.page
+            taskHistoryHasMore = resources.hasMore
+            taskHistoryPaginationError = null
             historyTasks.forEach { historyTask ->
                 if (sessionTasks.any { it.taskId == historyTask.taskId && !it.isFinished }) {
                     sessionTasks = upsertTrackedGenerationTask(sessionTasks, historyTask)
@@ -1243,6 +1365,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     isAvatarSaving = profileEditingController.avatarSaving,
                     localProfileAvatarUri = localProfileAvatarUri,
                     onTemplateRetry = ::retryTemplates,
+                    onLoadMoreTemplates = ::loadNextTemplatePage,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
                     productSelectionEnabled = !topUpPaymentController.productSelectionLocked,
@@ -1299,6 +1422,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                         onBack = { destination = ImageToVideoDestination.Templates },
                         onOpenTask = { selectedResultTask = it },
                         onRefresh = { refreshMyTasks(pollUnfinishedTasks = true) },
+                        hasMore = taskHistoryHasMore,
+                        paginationLoading = taskHistoryPaginationLoading,
+                        paginationError = taskHistoryPaginationError,
+                        onLoadMore = ::loadMoreMyTasks,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -1415,6 +1542,7 @@ private fun TemplateBrowserScreen(
     isAvatarSaving: Boolean,
     localProfileAvatarUri: Uri?,
     onTemplateRetry: (TemplateSection) -> Unit,
+    onLoadMoreTemplates: (TemplateSection) -> Unit,
     onNavigationSelect: (Int) -> Unit,
     onProductSelect: (String) -> Unit,
     onPreparePayment: () -> Unit,
@@ -1476,6 +1604,15 @@ private fun TemplateBrowserScreen(
     } else {
         backendState.videoTemplateErrorMessage
     }
+    val paginationLoading = if (section == TemplateSection.Image) {
+        backendState.imagePaginationLoading
+    } else backendState.videoPaginationLoading
+    val paginationErrorMessage = if (section == TemplateSection.Image) {
+        backendState.imagePaginationErrorMessage
+    } else backendState.videoPaginationErrorMessage
+    val templatesHasMore = if (section == TemplateSection.Image) {
+        backendState.imageTemplatesHasMore
+    } else backendState.videoTemplatesHasMore
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
@@ -1523,6 +1660,18 @@ private fun TemplateBrowserScreen(
             awaitCancellation()
         }
     }
+    LaunchedEffect(selectedTemplateIndex, templates.size, templatesHasMore, paginationLoading, paginationErrorMessage) {
+        if (shouldAutoLoadNextTemplatePage(
+                hasItems = templates.isNotEmpty(),
+                atLastItem = selectedTemplateIndex == templates.lastIndex,
+                hasMore = templatesHasMore,
+                loading = paginationLoading,
+                errorMessage = paginationErrorMessage,
+            )
+        ) {
+            onLoadMoreTemplates(section)
+        }
+    }
     TemplateMediaPreloader(videoTargets = videoPreloadTargets, imageUrls = nearbyImageUrls)
     Column(
         modifier = Modifier
@@ -1562,6 +1711,24 @@ private fun TemplateBrowserScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Spacer(Modifier.height(12.dp))
+        when {
+            paginationLoading -> Text(
+                text = stringResource(R.string.template_loading_more),
+                color = AchatCyan,
+                fontSize = 10.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            !paginationErrorMessage.isNullOrBlank() -> Text(
+                text = stringResource(R.string.template_load_more_retry),
+                color = AchatPink,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable { onLoadMoreTemplates(section) }
+                    .padding(6.dp),
+            )
+        }
         TemplateButton(
             price = visiblePrice,
             enabled = selectedGenerationTemplate != null,
@@ -2338,6 +2505,10 @@ internal fun MyTasksScreen(
     onBack: () -> Unit,
     onOpenTask: (TrackedGenerationTask) -> Unit,
     onRefresh: () -> Unit,
+    hasMore: Boolean = false,
+    paginationLoading: Boolean = false,
+    paginationError: String? = null,
+    onLoadMore: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pullRefreshState = rememberPullRefreshState(
@@ -2403,6 +2574,33 @@ internal fun MyTasksScreen(
                     ) {
                         tasks.forEach { task ->
                             TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
+                        }
+                        if (paginationLoading) {
+                            Text(
+                                text = stringResource(R.string.task_history_loading_more),
+                                color = AchatCyan,
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            )
+                        } else if (!paginationError.isNullOrBlank()) {
+                            Text(
+                                text = stringResource(R.string.task_history_load_more_retry),
+                                color = AchatPink,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .clickable(onClick = onLoadMore)
+                                    .padding(8.dp),
+                            )
+                        } else if (hasMore) {
+                            Text(
+                                text = stringResource(R.string.task_history_load_more),
+                                color = AchatCyan,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .clickable(onClick = onLoadMore)
+                                    .padding(8.dp),
+                            )
                         }
                     }
                 } else {
@@ -2631,9 +2829,12 @@ private fun MyTaskProgressiveImage(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    var retrySerial by remember(imageUrl) { mutableIntStateOf(0) }
     val fullPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(imageUrl)
+            .memoryCacheKey("$imageUrl#retry-$retrySerial")
+            .diskCacheKey(imageUrl)
             .size(widthPx, heightPx)
             .scale(coilScaleForContentScale(contentScale))
             .diskCachePolicy(CachePolicy.ENABLED)
@@ -2685,8 +2886,23 @@ private fun MyTaskProgressiveImage(
                 )
             }
         }
+        if (shouldShowMyTaskImageRetry(hasFullImageError)) {
+            Text(
+                text = stringResource(R.string.template_feed_retry),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xCC111827))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                    .clickable { retrySerial += 1 }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
     }
 }
+
+internal fun shouldShowMyTaskImageRetry(hasFullImageError: Boolean): Boolean = hasFullImageError
 
 @Composable
 private fun SecondaryHeader(

@@ -64,7 +64,23 @@ class FormalProdConfigurationTest {
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_REGION_RESTRICTION"))
+        assertEquals("true", prod.getProperty("build.boolean.ENABLE_SECURE_WINDOW"))
         assertEquals(2, Regex("REGION_LOOKUP_URL\\\" to \\\"https://api\\.country\\.is/").findAll(gradle).count())
+    }
+
+    @Test
+    fun `every prod release packaging task is protected`() {
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        listOf(
+            "assembleProdRelease",
+            "bundleProdRelease",
+            "packageProdRelease",
+            "packageProdReleaseBundle",
+            "signProdReleaseBundle",
+        ).forEach { task -> assert(gradle.contains("\"$task\"")) { "missing protected task: $task" } }
+        assert(gradle.contains("\"ENABLE_SECURE_WINDOW\" to true"))
+        assert(gradle.contains("\"ENABLE_REGION_RESTRICTION\" to true"))
     }
 
 }

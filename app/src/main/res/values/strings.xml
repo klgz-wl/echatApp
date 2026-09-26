@@ -1,7 +1,16 @@
 <resources>
     <string name="region_checking">Checking availability…</string>
-    <string name="region_unavailable">This service is unavailable in your current region or network.</string>
-    <string name="region_restricted">This service is not available in your region.</string>
+    <string name="region_unavailable">We couldn’t verify availability. Please try again.</string>
+    <string name="region_restricted">This app is not available in your region.</string>
+    <string name="region_offline">An internet connection is required. Please connect and try again.</string>
+    <string name="region_reference">Ref: %1$s</string>
+    <string name="region_retry">Retry</string>
+    <string name="region_exit">Exit</string>
+    <string name="template_loading_more">Loading more…</string>
+    <string name="template_load_more_retry">Couldn’t load more. Retry</string>
+    <string name="task_history_loading_more">Loading more…</string>
+    <string name="task_history_load_more_retry">Couldn’t load more. Retry</string>
+    <string name="task_history_load_more">Load more</string>
     <string name="analytics_consent_message">Allow analytics and attribution to improve the app and measure campaign performance.</string>
     <string name="analytics_consent_accept">ALLOW AND CONTINUE</string>
     <string name="analytics_consent_decline">DECLINE</string>

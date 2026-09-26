@@ -175,16 +175,30 @@ data class VisualCategory(
     val sortOrder: Int,
 )
 
+typealias PagedResult<T> = yumo.achat.core.visual.VisualPage<T>
+val <T> PagedResult<T>.hasMore: Boolean get() = page.toLong() * pageSize < total
+
 data class TemplateLoadResult(
     val templates: List<VisualTemplate>,
     val errorMessage: String?,
+    val page: Int = 1,
+    val pageSize: Int = templates.size.coerceAtLeast(1),
+    val total: Long = templates.size.toLong(),
 )
 
 internal suspend inline fun loadTemplateResult(
     fallbackMessage: String,
-    crossinline load: suspend () -> List<VisualTemplate>,
+    crossinline load: suspend () -> PagedResult<VisualTemplate>,
 ): TemplateLoadResult = try {
-    TemplateLoadResult(templates = load(), errorMessage = null)
+    load().let { page ->
+        TemplateLoadResult(
+            templates = page.items,
+            errorMessage = null,
+            page = page.page,
+            pageSize = page.pageSize,
+            total = page.total,
+        )
+    }
 } catch (error: CancellationException) {
     throw error
 } catch (error: Throwable) {
@@ -234,4 +248,8 @@ data class AchatHomeData(
     val imageTemplateErrorMessage: String?,
     val videoCategories: List<VisualCategory>,
     val imageCategories: List<VisualCategory>,
+    val videoTemplatePage: Int = 1,
+    val videoTemplatesHasMore: Boolean = false,
+    val imageTemplatePage: Int = 1,
+    val imageTemplatesHasMore: Boolean = false,
 )

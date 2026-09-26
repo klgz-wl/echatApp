@@ -10,7 +10,9 @@ import kotlinx.coroutines.runBlocking
 class TemplateLoadResultTest {
     @Test
     fun `successful empty response remains a genuine empty state`() = runBlocking {
-        val result = loadTemplateResult("Unable to load video templates") { emptyList() }
+        val result = loadTemplateResult("Unable to load video templates") {
+            PagedResult<VisualTemplate>(emptyList(), page = 1, pageSize = 20, total = 0L)
+        }
 
         assertEquals(emptyList<VisualTemplate>(), result.templates)
         assertNull(result.errorMessage)

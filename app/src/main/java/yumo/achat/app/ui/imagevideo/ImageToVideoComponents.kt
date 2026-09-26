@@ -37,6 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -140,13 +141,6 @@ internal fun HeroCard(
                 RoundedCornerShape(2.dp),
             ),
     ) {
-        TemplatePreviewImage(
-            media = previewMedia,
-            isPlaying = isPlaying,
-            contentDescription = portraitDescription,
-            onMediaErrorChanged = { mediaHasError = it },
-            modifier = Modifier.fillMaxSize(),
-        )
         if (enableSwipeGestures) {
             TemplateSwipeGestureLayer(
                 onPrevious = onPrevious,
@@ -154,6 +148,13 @@ internal fun HeroCard(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        TemplatePreviewImage(
+            media = previewMedia,
+            isPlaying = isPlaying,
+            contentDescription = portraitDescription,
+            onMediaErrorChanged = { mediaHasError = it },
+            modifier = Modifier.fillMaxSize(),
+        )
         if (shouldEnableHeroPlaybackToggle(mediaHasError)) {
             Box(
                 modifier = Modifier
@@ -351,6 +352,8 @@ private fun TemplatePreviewImage(
             var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
             var hasPlaybackError by remember(media.url) { mutableStateOf(false) }
             var retrySerial by remember(media.url) { mutableStateOf(0) }
+            var posterRetrySerial by remember(media.posterUrl) { mutableStateOf(0) }
+            var posterHasError by remember(media.posterUrl) { mutableStateOf(false) }
             val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
             Box(modifier = modifier.background(Color.Black)) {
                 key(media.url, retrySerial) {
@@ -358,7 +361,11 @@ private fun TemplatePreviewImage(
                         url = media.url,
                         isPlaying = isPlaying,
                         resizeMode = videoResizeMode,
-                        onFirstFrame = { hasRenderedFirstFrame = true },
+                        onFirstFrame = {
+                            hasRenderedFirstFrame = true
+                            posterHasError = false
+                            onMediaErrorChanged(false)
+                        },
                         onPlaybackError = {
                             hasPlaybackError = true
                             onMediaErrorChanged(true)
@@ -378,6 +385,8 @@ private fun TemplatePreviewImage(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(media.posterUrl)
+                            .memoryCacheKey("${media.posterUrl}#retry-$posterRetrySerial")
+                            .diskCacheKey(media.posterUrl)
                             .size(TemplatePreviewWidthPx, TemplatePreviewHeightPx)
                             .scale(coilScaleForContentScale(contentScale))
                             .crossfade(120)
@@ -385,6 +394,14 @@ private fun TemplatePreviewImage(
                         contentDescription = contentDescription,
                         contentScale = contentScale,
                         modifier = Modifier.fillMaxSize(),
+                        onSuccess = {
+                            posterHasError = false
+                            onMediaErrorChanged(false)
+                        },
+                        onError = {
+                            posterHasError = true
+                            onMediaErrorChanged(true)
+                        },
                     )
                 }
                 AnimatedVisibility(
@@ -422,6 +439,23 @@ private fun TemplatePreviewImage(
                                 .padding(horizontal = 18.dp, vertical = 10.dp),
                         )
                     }
+                } else if (posterHasError && !hasRenderedFirstFrame) {
+                    Text(
+                        text = stringResource(R.string.template_feed_retry),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xCC111827))
+                            .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                            .clickable {
+                                posterHasError = false
+                                onMediaErrorChanged(false)
+                                posterRetrySerial += 1
+                            }
+                            .padding(horizontal = 18.dp, vertical = 10.dp),
+                    )
                 }
             }
         }
@@ -546,6 +580,8 @@ internal fun MyTaskVideoPlayer(
     var positionMs by remember(url) { mutableStateOf(0L) }
     var durationMs by remember(url) { mutableStateOf(0L) }
     var controlsRevealed by remember(url) { mutableStateOf(true) }
+    var posterRetrySerial by remember(posterUrl) { mutableIntStateOf(0) }
+    var posterHasError by remember(posterUrl) { mutableStateOf(false) }
     val binding = remember(url) {
         val player = ExoPlayer.Builder(context)
             .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context))
@@ -629,10 +665,16 @@ internal fun MyTaskVideoPlayer(
             modifier = Modifier.fillMaxSize(),
         ) {
             AsyncImage(
-                model = posterUrl,
+                model = ImageRequest.Builder(context)
+                    .data(posterUrl)
+                    .memoryCacheKey("$posterUrl#retry-$posterRetrySerial")
+                    .diskCacheKey(posterUrl)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().background(Color.Black),
+                onSuccess = { posterHasError = false },
+                onError = { posterHasError = true },
             )
         }
         Box(
@@ -645,6 +687,23 @@ internal fun MyTaskVideoPlayer(
                     onClick = { controlsRevealed = true },
                 ),
         )
+        if (posterHasError && !hasRenderedFirstFrame) {
+            Text(
+                text = stringResource(R.string.template_feed_retry),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xCC111827))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                    .clickable {
+                        posterHasError = false
+                        posterRetrySerial += 1
+                    }
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+            )
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -653,7 +712,7 @@ internal fun MyTaskVideoPlayer(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)))),
         )
         AnimatedVisibility(
-            visible = !isPlaying || controlsRevealed,
+            visible = (!isPlaying || controlsRevealed) && !posterHasError,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.Center),
