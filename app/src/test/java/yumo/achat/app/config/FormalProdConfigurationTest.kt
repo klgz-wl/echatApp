@@ -23,21 +23,38 @@ class FormalProdConfigurationTest {
     fun `prod flavor uses formal zorv identity instead of dev reuse`() {
         val app = rootDir.resolve("config/app.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals("FORMAL", app.getProperty("kit.prod.mode"))
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
+        assertEquals("PhippenLautner@gmail.com", prod.getProperty("build.string.CONTACT_EMAIL"))
+        assertEquals(
+            2,
+            Regex("CORE_CDN_URL\\\" to \\\"https://cdn\\.zorv\\.date").findAll(gradle).count(),
+        )
+        assert(gradle.contains("requiredProdContactEmail"))
     }
 
     @Test
     fun `prod attribution configuration is distinct from dev`() {
         val dev = rootDir.resolve("config/dev.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertNotEquals(
             dev.getProperty("build.string.APPSFLYER_DEV_KEY"),
             prod.getProperty("build.string.APPSFLYER_DEV_KEY"),
         )
+        assertEquals(
+            "T4s7v9z0p2k6d5r8m1g3hqxcn4bwyj",
+            prod.getProperty("build.string.TD_APP_ID"),
+        )
+        assertNotEquals(
+            dev.getProperty("build.string.TD_APP_ID"),
+            prod.getProperty("build.string.TD_APP_ID"),
+        )
+        assert(gradle.contains("requiredProdThinkingDataAppId"))
     }
 
     @Test
@@ -60,12 +77,17 @@ class FormalProdConfigurationTest {
 
     @Test
     fun `formal prod region restriction has a real lookup endpoint`() {
+        val app = rootDir.resolve("config/app.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+        val blocked = app.getProperty("build.string.BLOCKED_REGION_CODES")
+            .split(',').map(String::trim).filter(String::isNotBlank).toSet()
 
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_REGION_RESTRICTION"))
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_SECURE_WINDOW"))
+        assertEquals(setOf("CN", "TW", "HK", "MO", "MY", "SG"), blocked)
         assertEquals(2, Regex("REGION_LOOKUP_URL\\\" to \\\"https://api\\.country\\.is/").findAll(gradle).count())
+        assert(gradle.contains("requiredBlockedRegionCodes"))
     }
 
     @Test

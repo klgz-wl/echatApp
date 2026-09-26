@@ -39,7 +39,7 @@ val flavorEndpoints = mapOf(
         "CORE_BASE_URL" to "https://release.appjoly.com/api/v1/",
         "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
         "CORE_STREAM_URL" to "wss://release.appjoly.com",
-        "CORE_CDN_URL" to "https://cdn.appjoly.com",
+        "CORE_CDN_URL" to "https://cdn.zorv.date",
         "REGION_LOOKUP_URL" to "https://api.country.is/",
     ),
 )
@@ -337,6 +337,7 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
             "ACHAT_API_BASE_URL" to "https://release.appjoly.com",
             "ACHAT_WS_URL" to "wss://release.appjoly.com/connection/websocket",
             "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
+            "CORE_CDN_URL" to "https://cdn.zorv.date",
             "PAYMENT_FLOW" to "SERVICE",
         )
         expected.forEach { (field, value) ->
@@ -351,6 +352,28 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
             check("""$field = $value""" in text) {
                 "prodRelease BuildConfig $field must be $value"
             }
+        }
+        val requiredBlockedRegionCodes = setOf("CN", "TW", "HK", "MO", "MY", "SG")
+        val generatedBlockedRegionCodes = Regex("""BLOCKED_REGION_CODES = \"([^\"]*)\"""")
+            .find(text)
+            ?.groupValues
+            ?.get(1)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotBlank)
+            ?.map(String::uppercase)
+            ?.toSet()
+            ?: emptySet()
+        check(generatedBlockedRegionCodes == requiredBlockedRegionCodes) {
+            "prodRelease blocked regions must be exactly $requiredBlockedRegionCodes"
+        }
+        val requiredProdThinkingDataAppId = "T4s7v9z0p2k6d5r8m1g3hqxcn4bwyj"
+        check("""TD_APP_ID = "$requiredProdThinkingDataAppId""" in text) {
+            "prodRelease ThinkingData app ID must match the confirmed formal project"
+        }
+        val requiredProdContactEmail = "PhippenLautner@gmail.com"
+        check("""CONTACT_EMAIL = "$requiredProdContactEmail""" in text) {
+            "prodRelease contact email must match the confirmed formal identity"
         }
         listOf(
             "ENABLE_FIREBASE_ANALYTICS",
