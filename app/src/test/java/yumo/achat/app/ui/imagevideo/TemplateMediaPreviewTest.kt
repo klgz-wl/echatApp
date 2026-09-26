@@ -12,6 +12,7 @@ class TemplateMediaPreviewTest {
         val media = template.toPreviewMedia()
 
         assertEquals(TemplatePreviewMedia.RemoteImage("https://example.test/template.webp"), media)
+        assertEquals(true, media.isUsableGenerationMedia())
     }
 
     @Test
@@ -34,12 +35,23 @@ class TemplateMediaPreviewTest {
     }
 
     @Test
-    fun `uses local placeholder when image url is blank`() {
+    fun `blank image url is unavailable instead of using local placeholder`() {
         val template = template(mimeType = "image/png", fileUrl = "")
 
         val media = template.toPreviewMedia()
 
-        assertEquals(TemplatePreviewMedia.LocalPlaceholder, media)
+        assertEquals(TemplatePreviewMedia.Unavailable, media)
+        assertEquals(false, media.isUsableGenerationMedia())
+    }
+
+    @Test
+    fun `unsupported media type is unavailable instead of using local placeholder`() {
+        val media = template(
+            mimeType = "application/octet-stream",
+            fileUrl = "https://example.test/template.bin",
+        ).toPreviewMedia()
+
+        assertEquals(TemplatePreviewMedia.Unavailable, media)
     }
 
     private fun template(mimeType: String, fileUrl: String, previewUrl: String = "") = VisualTemplate(

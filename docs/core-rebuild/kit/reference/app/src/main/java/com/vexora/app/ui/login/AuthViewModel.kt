@@ -3,9 +3,9 @@ package com.vexora.app.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vexora.app.analytics.AnalyticsHub
-import com.vexora.core.auth.*
-import com.vexora.core.config.AppConfiguration
-import com.vexora.core.config.AppMode
+import com.zorv.core.auth.*
+import com.zorv.core.config.AppConfiguration
+import com.zorv.core.config.AppMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*

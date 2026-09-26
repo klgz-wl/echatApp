@@ -26,6 +26,9 @@ class TemplatePlaybackStateTest {
     fun `video poster stays visible until first frame`() {
         assertTrue(shouldShowVideoPoster(hasRenderedFirstFrame = false))
         assertFalse(shouldShowVideoPoster(hasRenderedFirstFrame = true))
+        assertFalse(shouldShowVideoPoster(hasRenderedFirstFrame = false, hasPlaybackError = true))
+        assertTrue(shouldEnableHeroPlaybackToggle(hasMediaError = false))
+        assertFalse(shouldEnableHeroPlaybackToggle(hasMediaError = true))
     }
 
     @Test

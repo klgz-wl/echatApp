@@ -75,6 +75,82 @@ class AttributionReportDispatcherTest {
         assertEquals(3, attempts.get())
     }
 
+    @Test
+    fun `exhausted report retries on explicit foreground opportunity`() {
+        var attempts = 0
+        var online = false
+        val dispatcher = AttributionReportDispatcher(
+            attempts = 2,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            retryDelay = {},
+            report = { _, _ ->
+                attempts += 1
+                if (!online) error("offline")
+            },
+        )
+
+        dispatcher.updateSession(session("user-1"))
+        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
+        assertEquals(2, attempts)
+
+        online = true
+        dispatcher.retryPending()
+
+        assertEquals(3, attempts)
+    }
+
+    @Test
+    fun `successful digest prevents duplicate report after dispatcher recreation`() {
+        val store = MemoryAttributionDeliveryStore()
+        var reports = 0
+        fun dispatcher() = AttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            retryDelay = {},
+            report = { _, _ -> reports += 1 },
+            deliveryStore = store,
+        )
+        val snapshot = buildJsonObject { put("campaign", "spring"); put("media_source", "network") }
+        val sameSnapshotDifferentOrder = buildJsonObject { put("media_source", "network"); put("campaign", "spring") }
+
+        dispatcher().apply {
+            updateSession(session("user-1"))
+            updateSnapshot(sameSnapshotDifferentOrder)
+        }
+        dispatcher().apply {
+            updateSession(session("user-1"))
+            updateSnapshot(snapshot)
+        }
+
+        assertEquals(1, reports)
+    }
+
+    @Test
+    fun `failed digest persistence does not claim cross process delivery`() {
+        val store = object : AttributionDeliveryStore {
+            override fun wasReported(digest: String) = false
+            override fun markReported(digest: String) = false
+        }
+        var reports = 0
+        fun dispatcher() = AttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            retryDelay = {},
+            report = { _, _ -> reports += 1 },
+            deliveryStore = store,
+        )
+        val snapshot = buildJsonObject { put("campaign", "spring") }
+
+        repeat(2) {
+            dispatcher().apply {
+                updateSession(session("user-1"))
+                updateSnapshot(snapshot)
+            }
+        }
+
+        assertEquals(2, reports)
+    }
+
     private fun session(userId: String) = AuthSession(
         userId = userId,
         token = "token",

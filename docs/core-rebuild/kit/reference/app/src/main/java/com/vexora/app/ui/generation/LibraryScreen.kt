@@ -22,8 +22,8 @@ import com.vexora.app.R
 import com.vexora.app.ui.catalog.*
 import com.vexora.app.ui.components.*
 import com.vexora.app.ui.theme.*
-import com.vexora.core.catalog.TemplateMedia
-import com.vexora.core.visual.*
+import com.zorv.core.catalog.TemplateMedia
+import com.zorv.core.visual.*
 import kotlinx.serialization.Serializable
 
 @Serializable data class ProfilePreview(val nameResource: String, val avatarResource: String)

@@ -186,6 +186,18 @@ internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRo
 
 internal fun routeFromBalanceBadgeClick(): BottomNavigationRoute = routeFromBottomNavigation(2)
 
+internal fun balanceTopUpEntrySource(
+    selectedNavigation: Int,
+    destination: ImageToVideoDestination = ImageToVideoDestination.Templates,
+): String = if (destination == ImageToVideoDestination.UploadPhoto) "generation" else when (selectedNavigation) {
+    0 -> "video_balance"
+    1 -> "image_balance"
+    3 -> "profile_purchase"
+    else -> "main"
+}
+
+internal fun insufficientBalanceTopUpEntrySource(): String = "generation"
+
 internal fun topUpReturnTargetForManualEntry(): BottomNavigationRoute? = null
 
 internal fun topUpReturnTargetForInsufficientBalance(
@@ -295,10 +307,10 @@ internal fun AchatBackendUiState.withLoadedProfile(
 }
 
 internal fun shouldShowLocalTemplateFallback(
-    templates: List<VisualTemplate>,
-    isLoading: Boolean,
-    errorMessage: String?,
-): Boolean = templates.isEmpty() && !isLoading && errorMessage != null
+    @Suppress("UNUSED_PARAMETER") templates: List<VisualTemplate>,
+    @Suppress("UNUSED_PARAMETER") isLoading: Boolean,
+    @Suppress("UNUSED_PARAMETER") errorMessage: String?,
+): Boolean = false
 
 internal fun templateRetryAction(state: AchatBackendUiState, section: TemplateSection): TemplateRetryAction {
     val sectionHasNoLiveData = when (section) {
@@ -498,6 +510,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var pendingTopUpReturnNavigation by rememberSaveable { mutableIntStateOf(-1) }
     var pendingTopUpReturnDestination by rememberSaveable { mutableStateOf<String?>(null) }
+    var topUpEntrySource by rememberSaveable { mutableStateOf("main") }
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
     var sessionTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var serverHistoryTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
@@ -801,6 +814,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         val route = routeFromBottomNavigation(navigationIndex)
         val previousNavigation = selectedNavigation
         setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
+        if (navigationIndex == 2) topUpEntrySource = "main"
         analytics.track(
             name = "tab_click",
             parameters = mapOf(
@@ -833,6 +847,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     fun navigateFromBalanceBadge() {
         val route = routeFromBalanceBadgeClick()
         setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
+        topUpEntrySource = balanceTopUpEntrySource(selectedNavigation, destination)
         if (shouldRefreshTopUp(selectedNavigation, route.selectedNavigation)) {
             topUpRefreshSerial += 1
         } else {
@@ -850,6 +865,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
 
     fun navigateToTopUpForInsufficientBalance() {
+        topUpEntrySource = insufficientBalanceTopUpEntrySource()
         setPendingTopUpReturnRoute(
             topUpReturnTargetForInsufficientBalance(
                 selectedNavigation = selectedNavigation,
@@ -1144,6 +1160,9 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         pageName = analyticsPageName(destination, selectedNavigation, selectedResultTask != null),
         tracker = analytics,
         userId = backendState.profileId.takeIf(String::isNotBlank),
+        parameters = if (analyticsPageName(destination, selectedNavigation, selectedResultTask != null) == "purchase") {
+            mapOf("entry_source" to topUpEntrySource)
+        } else emptyMap(),
     )
 
     Box(
@@ -1233,7 +1252,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                     isReconciling = topUpPaymentController.reconciliationCount > 0,
                     onProductSelect = topUpPaymentController::selectProduct,
                     onPreparePayment = {
-                        (localContext as? Activity)?.let(topUpPaymentController::prepare)
+                        (localContext as? Activity)?.let { topUpPaymentController.prepare(it, topUpEntrySource) }
                     },
                     onTopUpRetry = { topUpRefreshSerial += 1 },
                     onBalanceClick = ::navigateFromBalanceBadge,
@@ -1460,7 +1479,6 @@ private fun TemplateBrowserScreen(
     val selectedTemplateIndex = if (templates.isEmpty()) 0 else (currentTemplate - 1) % templates.size
     val selectedTemplate = templates.getOrNull(selectedTemplateIndex)
     val navigationTotal = templates.size
-    val visiblePrice = visibleTemplatePrice(selectedTemplate)
     val videoPreloadTargets = if (section == TemplateSection.Video) {
         templates.videoPreviewPreloadTargets(selectedTemplateIndex)
     } else {
@@ -1468,18 +1486,21 @@ private fun TemplateBrowserScreen(
     }
     val nearbyImageUrls = templates.nearbyImagePreviewUrls(selectedTemplateIndex)
     val selectedGenerationTemplate = selectedTemplate?.let { template ->
+        val previewMedia = template.toPreviewMedia()
+        if (!previewMedia.isUsableGenerationMedia()) return@let null
         SelectedGenerationTemplate(
             templateId = template.id,
             modality = if (section == TemplateSection.Image) "image" else "video",
             quality = if (template.fastPrice != null) "fast" else "quality",
             title = template.name,
-            previewMedia = template.toPreviewMedia(),
+            previewMedia = previewMedia,
             durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
             categoryId = template.categoryId.orEmpty(),
             source = if (section == TemplateSection.Image) "image" else "video",
             quotedDiamondCost = template.displayPrice ?: 0,
         )
     }
+    val visiblePrice = selectedGenerationTemplate?.quotedDiamondCost
     val exposureLifecycle = LocalLifecycleOwner.current.lifecycle
     val exposedTemplates = remember(selectedNavigation, selectedTab) { mutableSetOf<String>() }
     DisposableEffect(exposureLifecycle, selectedNavigation, selectedTab) {
@@ -1530,11 +1551,6 @@ private fun TemplateBrowserScreen(
             currentTemplate = currentTemplate,
             isLoading = templatesLoading,
             errorMessage = templateErrorMessage,
-            showLocalFallback = shouldShowLocalTemplateFallback(
-                templates = templates,
-                isLoading = templatesLoading,
-                errorMessage = templateErrorMessage,
-            ),
             onRetry = { onTemplateRetry(section) },
             isPlaying = isPlaying,
             onPlayToggle = onPlayToggle,
@@ -1565,7 +1581,6 @@ private fun TemplateFeedPager(
     currentTemplate: Int,
     isLoading: Boolean,
     errorMessage: String?,
-    showLocalFallback: Boolean,
     onRetry: () -> Unit,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
@@ -1577,29 +1592,6 @@ private fun TemplateFeedPager(
     modifier: Modifier = Modifier,
 ) {
     if (templates.isEmpty()) {
-        if (showLocalFallback) {
-            Box(modifier = modifier) {
-                HeroCard(
-                    currentPage = 1,
-                    totalPages = 1,
-                    durationSeconds = 5,
-                    previewMedia = TemplatePreviewMedia.LocalPlaceholder,
-                    isPlaying = isPlaying,
-                    onPlayToggle = onPlayToggle,
-                    onPrevious = { onMoveTemplate(TemplateFeedDirection.Previous) },
-                    onNext = { onMoveTemplate(TemplateFeedDirection.Next) },
-                    enableSwipeGestures = false,
-                    edgeHint = edgeHint,
-                    onEdgeHintDismiss = onEdgeHintDismiss,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                HomeTaskStatusBadges(
-                    badges = homeTaskBadges,
-                    modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 14.dp),
-                )
-            }
-            return
-        }
         Box(modifier = modifier) {
             LiveTemplatePlaceholderCard(
                 isLoading = isLoading,

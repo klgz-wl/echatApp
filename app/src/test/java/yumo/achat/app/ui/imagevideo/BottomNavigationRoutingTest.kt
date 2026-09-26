@@ -29,6 +29,18 @@ class BottomNavigationRoutingTest {
     }
 
     @Test
+    fun `top up analytics preserves balance and generation entry sources`() {
+        assertEquals("video_balance", balanceTopUpEntrySource(0))
+        assertEquals("image_balance", balanceTopUpEntrySource(1))
+        assertEquals("profile_purchase", balanceTopUpEntrySource(3))
+        assertEquals(
+            "generation",
+            balanceTopUpEntrySource(1, ImageToVideoDestination.UploadPhoto),
+        )
+        assertEquals("generation", insufficientBalanceTopUpEntrySource())
+    }
+
+    @Test
     fun `manual top up entry does not create a return route`() {
         assertEquals(null, topUpReturnTargetForManualEntry())
     }

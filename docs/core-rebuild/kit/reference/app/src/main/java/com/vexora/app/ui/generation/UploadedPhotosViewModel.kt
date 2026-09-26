@@ -2,9 +2,9 @@ package com.vexora.app.ui.generation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.visual.UploadedPhoto
-import com.vexora.core.visual.UploadedPhotoRepository
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.visual.UploadedPhoto
+import com.zorv.core.visual.UploadedPhotoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job

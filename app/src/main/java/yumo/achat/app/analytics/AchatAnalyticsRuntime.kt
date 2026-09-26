@@ -28,6 +28,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 internal object AchatAnalyticsRuntime {
     @Volatile private var instance: AppAnalyticsHub? = null
@@ -52,6 +57,8 @@ internal object AchatAnalyticsRuntime {
             thinkingData = consentGranted && BuildConfig.ENABLE_THINKINGDATA,
             backend = consentGranted && BuildConfig.ENABLE_BACKEND_ANALYTICS,
         )
+        val attributionRuntime = if (policy.appsFlyer) AchatAttributionRuntime.get(context) else null
+        var firebaseCampaignSink: FirebaseAnalyticsSink? = null
         val sinks = buildList {
             if (consentGranted && (policy.firebase || BuildConfig.ENABLE_FIREBASE_CRASHLYTICS || BuildConfig.ENABLE_FIREBASE_MESSAGING)) {
                 add(
@@ -63,10 +70,9 @@ internal object AchatAnalyticsRuntime {
                             messagingEnabled = BuildConfig.ENABLE_FIREBASE_MESSAGING,
                         ),
                         analyticsEnabled = policy.firebase,
-                    ),
+                    ).also { firebaseCampaignSink = it },
                 )
             }
-            if (policy.appsFlyer) add(AchatAttributionRuntime.get(context).analyticsSink())
             if (policy.thinkingData) add(
                 ThinkingDataAnalytics(
                     context = context,
@@ -78,6 +84,8 @@ internal object AchatAnalyticsRuntime {
                     policy = policy,
                 ),
             )
+            // 数数必须先初始化并开启 AppsFlyer 身份分享，再允许 AF init/start。
+            attributionRuntime?.let { add(it.analyticsSink()) }
             if (policy.backend) add(
                 BackendHttpAnalyticsSink(
                     api = HttpEventApi(backendConfig.apiBaseUrl) {
@@ -94,6 +102,9 @@ internal object AchatAnalyticsRuntime {
                     identity = identity,
                     deviceId = storage::deviceId,
                     capacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
+                    store = SharedPreferencesBackendRequestStore(
+                        context.getSharedPreferences("${BuildConfig.ANALYTICS_STORAGE_NAME}_backend", Context.MODE_PRIVATE),
+                    ),
                 ),
             )
         }
@@ -116,8 +127,11 @@ internal object AchatAnalyticsRuntime {
                     "device_id" to storage.deviceId(),
                     "app_version" to identity.versionName,
                     "platform" to "android",
+                    "environment" to BuildConfig.FLAVOR,
                 )
             },
+            attributionSnapshots = attributionRuntime?.snapshots(),
+            campaignAttributionSink = firebaseCampaignSink,
         )
         val preferences = eventPreferences
         hub.foregroundAnalytics = ForegroundAnalytics(
@@ -144,6 +158,8 @@ internal class AppAnalyticsHub(
     private val queue: BusinessEventQueue,
     private val sinks: List<AnalyticsSink>,
     private val commonParameters: () -> Map<String, Any> = { emptyMap() },
+    private val attributionSnapshots: StateFlow<JsonObject?>? = null,
+    private val campaignAttributionSink: FirebaseAnalyticsSink? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : EventTracker {
     internal lateinit var foregroundAnalytics: ForegroundAnalytics
@@ -162,16 +178,22 @@ internal class AppAnalyticsHub(
                         "user_id" to event.userId.orEmpty(),
                     ),
                 )
+                var allAccepted = true
                 sinks.forEach { sink ->
                     synchronized(sinkLocks.getValue(sink)) {
-                        runCatching {
+                        val result = runCatching {
                             sink.identify(event.userId)
                             sink.event(event.name, values)
                         }
+                        allAccepted = allAccepted && result.isSuccess
                         runCatching { sink.identify(activeUserId) }
                     }
                 }
+                queue.confirm(event, accepted = allAccepted)
             }
+        }
+        if (attributionSnapshots != null && campaignAttributionSink != null) scope.launch {
+            attributionSnapshots.filterNotNull().collect(campaignAttributionSink::recordCampaignAttribution)
         }
     }
 
@@ -188,6 +210,7 @@ internal class AppAnalyticsHub(
 
     fun foreground(value: Boolean) {
         initialize()
+        if (value) sinks.filterIsInstance<BackendHttpAnalyticsSink>().forEach { it.retryPending() }
         if (::foregroundAnalytics.isInitialized) foregroundAnalytics.foreground(value)
     }
 
@@ -211,25 +234,26 @@ internal class BackendHttpAnalyticsSink(
     private val identity: ClientIdentity,
     private val deviceId: () -> String,
     capacity: Int = 256,
+    private val store: BackendRequestStore = MemoryBackendRequestStore(),
+    private val retryDelay: suspend () -> Unit = { delay(1_000L) },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : AnalyticsSink {
     @Volatile private var activeUserId: String? = null
-    private val requests = Channel<ReportEventRequest>(capacity)
+    private val maxPending = capacity
+    private val pendingLock = Any()
+    private val pending = store.read().toMutableList()
+    private val signals = Channel<Unit>(Channel.CONFLATED)
+    private val initialized = AtomicBoolean(false)
 
-    init {
+    override fun initialize() {
+        if (!initialized.compareAndSet(false, true)) return
         scope.launch {
-            for (request in requests) {
-                for (attempt in 0 until 3) {
-                    val accepted = runCatching { api.reportEvent(request) }.getOrNull()
-                        ?.let { it.isSuccessful && it.body()?.code == 0 } == true
-                    if (accepted) break
-                    if (attempt < 2) delay(1_000L)
-                }
+            for (ignored in signals) {
+                runCatching { drainPending() }
             }
         }
+        if (synchronized(pendingLock) { pending.isNotEmpty() }) signals.trySend(Unit)
     }
-
-    override fun initialize() = Unit
     override fun identify(userId: String?) {
         activeUserId = userId
     }
@@ -245,8 +269,72 @@ internal class BackendHttpAnalyticsSink(
             platform = "android",
             parameters = analyticsParameters(parameters).mapValues { it.value.toString() },
         )
-        requests.trySend(request)
+        synchronized(pendingLock) {
+            check(pending.size < maxPending) { "Backend analytics outbox is full" }
+            pending += request
+            check(store.write(pending.toList())) { "Backend analytics outbox persistence failed" }
+        }
+        signals.trySend(Unit)
     }
+
+    fun retryPending() { signals.trySend(Unit) }
+
+    private suspend fun drainPending() {
+        var remaining = synchronized(pendingLock) { pending.size }
+        while (remaining-- > 0) {
+            val request = synchronized(pendingLock) { pending.firstOrNull() } ?: return
+            var accepted = false
+            for (attempt in 0 until 3) {
+                accepted = runCatching { api.reportEvent(request) }.getOrNull()
+                    ?.let { it.isSuccessful && it.body()?.code == 0 } == true
+                if (accepted) break
+                if (attempt < 2) retryDelay()
+            }
+            if (!accepted) {
+                synchronized(pendingLock) {
+                    if (pending.firstOrNull() == request) {
+                        val rotated = pending.drop(1) + request
+                        if (store.write(rotated)) {
+                            pending.clear()
+                            pending.addAll(rotated)
+                        }
+                    }
+                }
+                continue
+            }
+            synchronized(pendingLock) {
+                val updated = pending.toMutableList().apply { remove(request) }
+                if (store.write(updated)) {
+                    pending.clear()
+                    pending.addAll(updated)
+                }
+            }
+        }
+    }
+}
+
+internal interface BackendRequestStore {
+    fun read(): List<ReportEventRequest>
+    fun write(values: List<ReportEventRequest>): Boolean
+}
+
+internal class MemoryBackendRequestStore : BackendRequestStore {
+    private var values = emptyList<ReportEventRequest>()
+    override fun read(): List<ReportEventRequest> = values
+    override fun write(values: List<ReportEventRequest>): Boolean { this.values = values; return true }
+}
+
+private class SharedPreferencesBackendRequestStore(
+    private val preferences: android.content.SharedPreferences,
+) : BackendRequestStore {
+    private val serializer = ListSerializer(ReportEventRequest.serializer())
+    override fun read(): List<ReportEventRequest> = preferences.getString(KEY, null)?.let {
+        runCatching { Json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
+    }.orEmpty()
+    override fun write(values: List<ReportEventRequest>): Boolean = preferences.edit()
+        .putString(KEY, Json.encodeToString(serializer, values))
+        .commit()
+    private companion object { const val KEY = "pending_requests" }
 }
 
 internal class HttpEventApi(

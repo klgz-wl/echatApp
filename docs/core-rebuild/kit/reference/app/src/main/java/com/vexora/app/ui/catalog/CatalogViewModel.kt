@@ -3,8 +3,8 @@ package com.vexora.app.ui.catalog
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.catalog.*
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.catalog.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*

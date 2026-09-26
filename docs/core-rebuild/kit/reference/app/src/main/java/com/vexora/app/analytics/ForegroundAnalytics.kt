@@ -1,7 +1,7 @@
 package com.vexora.app.analytics
 
 import android.os.SystemClock
-import com.vexora.core.analytics.AnalyticsConfiguration
+import com.zorv.core.analytics.AnalyticsConfiguration
 import kotlinx.coroutines.*
 import java.util.UUID
 import javax.inject.Inject

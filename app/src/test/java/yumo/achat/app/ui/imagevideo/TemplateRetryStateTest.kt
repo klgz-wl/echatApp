@@ -110,8 +110,8 @@ class TemplateRetryStateTest {
     }
 
     @Test
-    fun `offline template failure uses local visual fallback without synthetic price`() {
-        assertTrue(
+    fun `offline template failure does not use local visual fallback`() {
+        assertFalse(
             shouldShowLocalTemplateFallback(
                 templates = emptyList(),
                 isLoading = false,

@@ -57,7 +57,12 @@ internal fun templatePagerKey(templates: List<VisualTemplate>, page: Int): Strin
 internal fun shouldPlayTemplatePage(page: Int, currentPage: Int, requestedPlaying: Boolean): Boolean =
     requestedPlaying && page == currentPage
 
-internal fun shouldShowVideoPoster(hasRenderedFirstFrame: Boolean): Boolean = !hasRenderedFirstFrame
+internal fun shouldShowVideoPoster(
+    hasRenderedFirstFrame: Boolean,
+    hasPlaybackError: Boolean = false,
+): Boolean = !hasRenderedFirstFrame && !hasPlaybackError
+
+internal fun shouldEnableHeroPlaybackToggle(hasMediaError: Boolean): Boolean = !hasMediaError
 
 internal fun shouldShowTemplateMediaLoading(
     hasRenderedRemoteContent: Boolean,

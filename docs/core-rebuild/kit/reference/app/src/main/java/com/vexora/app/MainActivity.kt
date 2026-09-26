@@ -10,7 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.flowWithLifecycle
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
-import com.vexora.core.payment.*
+import com.zorv.core.payment.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -28,26 +28,26 @@ import com.vexora.app.ui.components.*
 import com.vexora.app.ui.login.*
 import com.vexora.app.ui.generation.*
 import com.vexora.app.ui.catalog.CatalogRoute
-import com.vexora.core.catalog.CatalogChannel
+import com.zorv.core.catalog.CatalogChannel
 import com.vexora.app.ui.navigation.MainTab
 import com.vexora.app.ui.navigation.selectMainTab
 import com.vexora.app.ui.navigation.MainNavigation
 import com.vexora.app.ui.theme.*
 import com.vexora.app.ui.web.WebScreen
 import com.vexora.app.ui.wallet.*
-import com.vexora.core.config.AppMode
+import com.zorv.core.config.AppMode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @javax.inject.Inject lateinit var appsFlyerProvider: dagger.Lazy<com.vexora.core.integration.appsflyer.AppsFlyerAnalytics>
+    @javax.inject.Inject lateinit var appsFlyerProvider: dagger.Lazy<com.zorv.core.integration.appsflyer.AppsFlyerAnalytics>
     @javax.inject.Inject lateinit var businessEventsProvider: dagger.Lazy<com.vexora.app.analytics.BusinessEventQueue>
     @javax.inject.Inject lateinit var foregroundAnalyticsProvider: dagger.Lazy<com.vexora.app.analytics.ForegroundAnalytics>
-    @javax.inject.Inject lateinit var billingProvider: dagger.Lazy<com.vexora.core.billing.BillingRepository>
-    @javax.inject.Inject lateinit var purchaseRouterProvider: dagger.Lazy<com.vexora.core.payment.PurchaseRouter>
-    @javax.inject.Inject lateinit var notificationsProvider: dagger.Lazy<com.vexora.core.wallet.RechargeNotifications>
+    @javax.inject.Inject lateinit var billingProvider: dagger.Lazy<com.zorv.core.billing.BillingRepository>
+    @javax.inject.Inject lateinit var purchaseRouterProvider: dagger.Lazy<com.zorv.core.payment.PurchaseRouter>
+    @javax.inject.Inject lateinit var notificationsProvider: dagger.Lazy<com.zorv.core.wallet.RechargeNotifications>
     @javax.inject.Inject lateinit var paymentsProvider: dagger.Lazy<PaymentCoordinator>
     private val foregroundAnalytics get() = foregroundAnalyticsProvider.get()
     private val billing get() = billingProvider.get()
@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
     val notifications get() = notificationsProvider.get()
     private val payments get() = paymentsProvider.get()
     private var businessStarted = false
-    fun purchase(product: com.vexora.core.wallet.CoinProduct, source: String) { if (businessStarted) purchaseRouter.buy(this, product, source) }
+    fun purchase(product: com.zorv.core.wallet.CoinProduct, source: String) { if (businessStarted) purchaseRouter.buy(this, product, source) }
     private fun businessForeground() {
         foregroundAnalytics.foreground(true); billing.onForeground(); notifications.setForeground(true); payments.foreground(true)
     }
@@ -136,11 +136,11 @@ private fun AppRoot(auth: AuthViewModel = hiltViewModel(), wallet: WalletViewMod
     var routedEpoch by rememberSaveable { mutableStateOf<String?>(null) }
     val openMedia: (String, String, Int, Int) -> Unit = { url, mime, width, height ->
         if (width >= 0 && height >= 0 && url.isNotBlank()) {
-            mediaJson = kotlinx.serialization.json.Json.encodeToString(com.vexora.core.catalog.TemplateMedia.serializer(), com.vexora.core.catalog.TemplateMedia(url, width, height, true, mime))
+            mediaJson = kotlinx.serialization.json.Json.encodeToString(com.zorv.core.catalog.TemplateMedia.serializer(), com.zorv.core.catalog.TemplateMedia(url, width, height, true, mime))
             controller.navigate("media")
         }
     }
-    val openTask: (com.vexora.core.visual.GenerationRequest) -> Unit = { request ->
+    val openTask: (com.zorv.core.visual.GenerationRequest) -> Unit = { request ->
         val result = request.task?.takeIf { it.status == "succeeded" }?.resource
         if (result != null) openMedia(result.url, result.mimeType, result.width, result.height)
         else if (request.task == null) {
@@ -149,7 +149,7 @@ private fun AppRoot(auth: AuthViewModel = hiltViewModel(), wallet: WalletViewMod
         } else { taskKey = request.key; controller.navigate("task") }
     }
     var openingHomeNotice by remember { mutableStateOf(false) }
-    val openHomeNotice: (com.vexora.core.visual.GenerationRequest) -> Unit = { request ->
+    val openHomeNotice: (com.zorv.core.visual.GenerationRequest) -> Unit = { request ->
         if (!openingHomeNotice) {
             openingHomeNotice = true
             scope.launch {
@@ -257,7 +257,7 @@ private fun AppRoot(auth: AuthViewModel = hiltViewModel(), wallet: WalletViewMod
         }
         composable("media") {
             com.vexora.app.analytics.TrackPage("media")
-            val media = remember(mediaJson) { mediaJson?.let { kotlinx.serialization.json.Json.decodeFromString<com.vexora.core.catalog.TemplateMedia>(it) } }
+            val media = remember(mediaJson) { mediaJson?.let { kotlinx.serialization.json.Json.decodeFromString<com.zorv.core.catalog.TemplateMedia>(it) } }
             MediaScreen(media) { if (controller.currentDestination?.route == "media") controller.popBackStack() }
         }
         composable("settings") { com.vexora.app.analytics.TrackPage("settings"); com.vexora.app.ui.settings.SettingsRoute({ controller.popBackStack() }, web) }

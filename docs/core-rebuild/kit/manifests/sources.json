@@ -4,42 +4,42 @@
     {
       "source": "app/src/main/java/com/vexora/app/MainActivity.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/MainActivity.kt",
-      "sha256": "b98082666d99f871de37aca9f9346a6b606056c8921987d9c7ddf06e19759888"
+      "sha256": "971ed6b463d769d84c77bbb429c7f5356776957ec33372dbce37d024c681b3e1"
     },
     {
       "source": "app/src/main/java/com/vexora/app/VexoraApp.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/VexoraApp.kt",
-      "sha256": "6174229bad5f38d8bc6e5c5d69d5fd3314f676c29cc57721617899ab418b3a4a"
+      "sha256": "ed9c39a49b8ea215e98c86fee2aeec2972a92a437ae9207dec163b967ff1e2d2"
     },
     {
       "source": "app/src/main/java/com/vexora/app/analytics/AnalyticsHub.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/analytics/AnalyticsHub.kt",
-      "sha256": "0735a31f5bb968859dff102d93d1eb43c9cc32c3393d53f628b1155e61db69b1"
+      "sha256": "45265b25747c6817defa1793262a52065d351297e3682eab3fb6c43690793bc5"
     },
     {
       "source": "app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/analytics/BusinessEventQueue.kt",
-      "sha256": "ba1a6c955cd147b038b34c1c0962bbb8a7cf95cf4913be334021316b9bf73d75"
+      "sha256": "32ed7ed41a0a6f61b3362aee05f096456ad7aa2ee1ab0c6777e21aeacb926f28"
     },
     {
       "source": "app/src/main/java/com/vexora/app/analytics/FirebaseAnalyticsSink.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/analytics/FirebaseAnalyticsSink.kt",
-      "sha256": "5a0a33875cb7e802ce16b5c439b59a3119ef236b2fe5a872225b771b9b7d8f49"
+      "sha256": "2c8234314f20b2ff8e2c11a0c54baef1d43207a24113bf298a23d4a844995f7b"
     },
     {
       "source": "app/src/main/java/com/vexora/app/analytics/ForegroundAnalytics.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/analytics/ForegroundAnalytics.kt",
-      "sha256": "d078c5eb5beaf12e343b0fa7c870e128cdcc336d583ec4cc83704c2cdffb1702"
+      "sha256": "2c641a46146e9d923df1d9d6be604240f7218ab362194e102e4c40af30151162"
     },
     {
       "source": "app/src/main/java/com/vexora/app/analytics/PageAnalytics.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/analytics/PageAnalytics.kt",
-      "sha256": "2561c10fb464a74bfe5df6776607a51b55866a821562a8d9c5581e48c9756703"
+      "sha256": "35b06ab6a0f8f595846dedfdcd9563191000ae1f679511c61c33efe075098037"
     },
     {
       "source": "app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/di/ConfigurationModule.kt",
-      "sha256": "af31519dd6cc204ec39acd468f03ba8bb693520719cacf9496633b42c888641a"
+      "sha256": "aef3e119a3b0735e7dbbc56a82df222b5a41ba6e8e16ed3aced2f4053fec6fd7"
     },
     {
       "source": "app/src/main/java/com/vexora/app/media/LegacyWebpDecoder.kt",
@@ -49,87 +49,87 @@
     {
       "source": "app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/catalog/CatalogViewModel.kt",
-      "sha256": "fd25758f18a1968c489c9adeb015bb11c0f9b45fc93692c7415e9f56a9266495"
+      "sha256": "03816c7a38c5492f86bb7a1916b7c01227c8c57d8f3c91f655e827222f143af9"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/generation/GenerationViewModel.kt",
-      "sha256": "b7df653d7c4cbfe933e58bd8c3271dded81adb794b40c1476ccead32029ff1c1"
+      "sha256": "15ede7e04fffa91fd0d17ea386a11a31cac717d9202c497f363f1e0be4fe09ec"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/generation/LibraryScreen.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/generation/LibraryScreen.kt",
-      "sha256": "99619d6753569e5080105d5e19e2524cdd061cacd1fdf5f41ec0cf050ff1d6d4"
+      "sha256": "846821009a5e688db3070861e64b82a6a6f1daad122e0935a6c89d3e2db1b3a1"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosSheet.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosSheet.kt",
-      "sha256": "bdaadb6591b5de1f35a59994aa998d7ae8dc8f7f35cbddae510e037f8ed6840c"
+      "sha256": "92eafc5da233713fe68250c92620fc30a824bbd80282a1669e23e3bfe3676a27"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/generation/UploadedPhotosViewModel.kt",
-      "sha256": "14c52ed976d792ae6d93d4cb6b15b51ffc6e7c85b26fb06a314e947a35a59184"
+      "sha256": "3e52654e99ffa11330cdfef3c0a273161aa01a873dafd90a23984a1750ab51b2"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/generation/VisualLibraryViewModel.kt",
-      "sha256": "334f084f98f847de15c5640940805587330eef2fb3123f7093969c998dd52c37"
+      "sha256": "97886adf00a2a1438b24a284f293fbd444d3e2b9a7bd3fa7d25fa74ec5e33d0f"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/login/AuthViewModel.kt",
-      "sha256": "34564677b8d66404070cfafd99f1a3030a4fcdf8054422832eeac387c242f5cf"
+      "sha256": "789308c3c7f91b80f511bd8a2c3e0c604f629c215a04204360a23328d65f5958"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/login/DeviceRegionSource.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/login/DeviceRegionSource.kt",
-      "sha256": "ff60d419c22c67989123a9e1b45a7e95252192a0d51074e741094ff00052b908"
+      "sha256": "35f1f0b8c5db4021bb3607cc79ca8b8931d1f01b6afd786374f9d91ffe6055f9"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/login/RegionGateViewModel.kt",
-      "sha256": "f44ce430a9fb0b2e3be031f817ef1b2861d2d7de69c6c3e0b55ffd3b2bc79f7e"
+      "sha256": "3104cfe8d268d7a1c16711fa54b209fe2840a1b2657fa0a8b729f9d142f45662"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/login/RegionNetwork.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/login/RegionNetwork.kt",
-      "sha256": "da1183cfdd13477e62c6d7c696475338d4d64fd42ef1f17a301e5fdac9260d51"
+      "sha256": "185c9a5bae6eea2d76dc9e0232c8305a7ae4f66b24d08b58f1922ec0cfdd0612"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/login/StartupConfiguration.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/login/StartupConfiguration.kt",
-      "sha256": "a18aa4681cc4404149b20959f249be87337d9a0764ef00744dcf5ab4d13292b1"
+      "sha256": "01ddf9fdeca2ffbcf5c13d5d24622c8f323f4c3d1a3194747c917ec3bd01b130"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/settings/SettingsViewModel.kt",
-      "sha256": "abc8c14af1834f5f910da7d8b692743ea9ca71f880e679c31dab6abdbcab7340"
+      "sha256": "aeef250691fef186abe0770012908ec7bc818d84d8a2dee6cf9b8b9bae644b9a"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/wallet/PaymentScreen.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/wallet/PaymentScreen.kt",
-      "sha256": "8267022ecb92d64861f6a6227b415d3910ce764d5163fac37f78c4f3f476d48d"
+      "sha256": "def975bddc22bf2dc704995d679dbc406a331ee09b870ac10a463153a42d7333"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/wallet/PaymentViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/wallet/PaymentViewModel.kt",
-      "sha256": "6213bd32364f8dc7b67fb32b767536dffdfd75c461d8410633d5d90aeea246ac"
+      "sha256": "adbc502331e365d266847e326e6feb83ae4ec89f091fb946ea6a2bb49432aa0c"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/wallet/TransactionAmount.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/wallet/TransactionAmount.kt",
-      "sha256": "f49e84e936cb480a8418878715ea4632e05cca6053a35bb9f82c25a7994cce41"
+      "sha256": "7a6b7423a9354e067be1d7fe65990f231f59ffc5b70c399ec37fb31296c1fe51"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/wallet/WalletScreens.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/wallet/WalletScreens.kt",
-      "sha256": "ff5c538c7b086bd21067b69965ff6a1149fdbadd530f3e7f0852e23104aefd25"
+      "sha256": "a92c85bc1082b5207ba5b6389acbf5f93f2d5d8dda25a5b075a3527649350b70"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt",
       "destination": "reference/app/src/main/java/com/vexora/app/ui/wallet/WalletViewModel.kt",
-      "sha256": "d4d4be85dff2df7731b43d2894e7678d13902f40732e08ea24e5de483c8d2c78"
+      "sha256": "80fc7a076f04fe9ba88b97bf1608d634a4a75fb1a718f79624a5c3d358769eb7"
     },
     {
       "source": "app/src/main/java/com/vexora/app/ui/web/WebScreen.kt",
@@ -149,452 +149,452 @@
     {
       "source": "core/consumer-rules.pro",
       "destination": "reference/core/consumer-rules.pro",
-      "sha256": "71d1460f4339618db96173de2af83fcfba1c15515dd96645bfb8b039e0364056"
+      "sha256": "46d2d7557750374477839d014a817d3ae0c6a079bf0ce6534567dc617efffcb7"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
-      "sha256": "7f06c53946e0f4da8ef1d1292163fccc57e72b7c441e9b2e2eb853e03a432cd6"
+      "source": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt",
+      "sha256": "144f0ded4bbee9122996d18382679798bda0b0875676e8b3eb84342aa2868819"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
-      "sha256": "1d53c3f3718f7a05aa910c15b099c3ee040cabe41ee36b0023c0e54ef6e7ed17"
+      "source": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt",
+      "sha256": "411b541e1c9c9c3a63921fe71fba06adae43e0ffc33319aa56d42c02d328a65f"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/analytics/EventApi.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/analytics/EventApi.kt",
-      "sha256": "c40b9e005b849095a3b2eed9bb969d9a1921c305335e1f590990e389064af07b"
+      "source": "core/src/main/java/com/zorv/core/analytics/EventApi.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/analytics/EventApi.kt",
+      "sha256": "2e497cd54cf8ac2f00a995be235412e6c11288629f5917513ea07375108d78fb"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
-      "sha256": "3efe0e6b7d64eddfedc6bad49f10c7a29fb5f8b027131f22bc93b4e555ea5dc7"
+      "source": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
+      "sha256": "deda90bc7a5a020ac3055a736e2d90850209a173d3cd50922bdd733cc7ab7cd0"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt",
-      "sha256": "6bf6b9d5feee1361e9b3cf3dd0bc794752384f41decb4ac8621390b7fad1a3df"
+      "source": "core/src/main/java/com/zorv/core/attribution/AttributionCoordinator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/attribution/AttributionCoordinator.kt",
+      "sha256": "5c677b869f78b1b8d32fd2b27f2340594fb40c56c7ba3a271b146734bcd05eb3"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
-      "sha256": "993ceb6b05da0315c4aafa196f7c01ea9edb4fd5fa12e463d3b94310adf58eb4"
+      "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
+      "sha256": "2fa75995e4d45f7a6ed40c1e229e2caaab862b1f7b194bb039d29c9db96ec2a0"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
-      "sha256": "198034b16bd7064637e4e584a02eaf5db605a97ccc1f6c9d8dc7a0eaad169121"
+      "source": "core/src/main/java/com/zorv/core/attribution/AttributionReports.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/attribution/AttributionReports.kt",
+      "sha256": "f8fef66313ec88b5e51c4f36ac65db894a640ecc498f0402c2990603f90656df"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
-      "sha256": "8dae3bf72a187f9c974e9d8c43f2e1b0c5fc843d6f8e50e5ff0066341b72ea12"
+      "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
+      "sha256": "0315385abef4b4681b06f74355dee5f556dd5cfc7758759334499d0ee4180a6c"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
-      "sha256": "2fc224d021ffc6a8bb64bc67663b19ec07682ba4c313176c5284acb214015875"
+      "source": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/auth/AuthRepository.kt",
+      "sha256": "f503f12d00d7a720131e47c0b40f2a7a231c9a7600fc94d77b1a1a5c73ab1996"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt",
-      "sha256": "ee5712de94fd5b72ddecfaebec1a6ba56d3750edce3e81726696bd2a29a6c846"
+      "source": "core/src/main/java/com/zorv/core/auth/PreferenceSessionStorage.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/auth/PreferenceSessionStorage.kt",
+      "sha256": "35891cc3bae3ee1e7fd14d826d02fa5a342ac57de6c07128271a227324f069c8"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
-      "sha256": "6fba5a98e3bd7097959688fc67bd3ae6883930550a6d51cc97b1ae09fa124aad"
+      "source": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt",
+      "sha256": "a39b7c3bddf3e00ccccf35d124737778cb0c574c870e959c97dffe7b947a9150"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
-      "sha256": "4bf22c7878d09dda42c9f88c9cac2c5dfb6ff4632fd52750ebbec4284651d560"
+      "source": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
+      "sha256": "1fcb8f5e117fb8d131d01df7e0dcbf140a04134f1c617dbe8212fa9d19c2d77e"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt",
-      "sha256": "43084827b81f3bf994c2b8c0e1bd550ac37b1e5d83a29c2d51c948421918b455"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt",
+      "sha256": "477980ff7c015f82f82ce8e8cfecd85b5f372bafffb4dba274d0a1668da959ba"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt",
-      "sha256": "2ab772d2204edbd5c7b8da4c48e46bdb7f7d370f52e444b4f48471262097d43f"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingConnectionState.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingConnectionState.kt",
+      "sha256": "95606cf61729c2b88b9ce39624881b5c4adc0814b60d1ca0d21c3ba91ec40fe6"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingManager.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingManager.kt",
-      "sha256": "641540b55e9e836f25290d1d2d6724f988bd13175f5a0d92b53ff19c63e09a64"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingManager.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingManager.kt",
+      "sha256": "4b7ff22372108e2d30cbdebd74e42d49433ab1b3c1455044fb43dfb7daf2bc6d"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
-      "sha256": "37a6066a0ef8e2cd9fb79510cf2ff5c954f8061a0b6bff191cf96c1068d8603e"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingProduct.kt",
+      "sha256": "32425501857e2c7a9d6e7f8f2bd9c91c28f3adabd837f31b479735dcbda4a31a"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
-      "sha256": "8b6fa4d36ae8bfe2d06576c2a5ec35ee19599b4688c28b8ce9831f8d4688f87b"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingProductType.kt",
+      "sha256": "e39c7cfe522b217f6f8486010611a3237837c9013cb1671a15d913c7f2d9887c"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
-      "sha256": "e9557b382134886921fef99fa145aca1a8a7a0d591fc69cfbaf7dc1cd3a41b0c"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
+      "sha256": "b2176d172aa3bd7592af3ec644e2d97a52269a1646a9055192a7367af9cce924"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
-      "sha256": "8734be7596f03b62245285f086dd2078bc8f3750e6f3b34eda474e53e1c7567d"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt",
+      "sha256": "e91e5a9ea43d164ffccc23104a9a3ad3c145e4bc1e9a23adbf7f6dbd4a0df9ed"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/BillingRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/BillingRepository.kt",
-      "sha256": "31f2254587a006439c5d807574730aac431e88d9253a617baedbe6da4fd551d7"
+      "source": "core/src/main/java/com/zorv/core/billing/BillingRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/BillingRepository.kt",
+      "sha256": "3ed89efd89af5459dce464ffabddd52c4b578920ef13fa413e6cf30e8aef512a"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
-      "sha256": "57935a117bce69ffbb1ac53ba00123edccd833ebf3b28b671a65dd2dbe6f94ac"
+      "source": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt",
+      "sha256": "050984b7aae8ccdd9af1ad6aae27bb7831df4bf98bf6d7225cc222a4f5170163"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
-      "sha256": "da49274868095bb249c5eb8ad8bb55eae723b07147600e080d38d33fb676aa6e"
+      "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
+      "sha256": "dc9c4e0bae3e78fe5994eec8fbe56dd053676fbc4236ca9ba2ce780ad9f3abdf"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
-      "sha256": "9e35e690874906e9a35ed88d85f763f0c7091d07f22884e245f8453cf82334fa"
+      "source": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt",
+      "sha256": "ea69b59874deb8a9eb4cc47de77d0e36a74fa9cca461325d8f95393f4ac34e0e"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt",
-      "sha256": "5f92aa6d9bcd78ab7134af400f80afae61e8ddfd435e2dbd292c993ecfaf97c8"
+      "source": "core/src/main/java/com/zorv/core/billing/PurchaseFulfillmentCoordinator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/PurchaseFulfillmentCoordinator.kt",
+      "sha256": "3afbece44687d6ee7b08ea16185e51a6b7ca8fdf07d13e68c7adb5a74026796f"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
-      "sha256": "d8027e4af7c7cbc94e873967dc9df760bc9cb9ed65ba5d53b79cf88b4491648f"
+      "source": "core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt",
+      "sha256": "d2b9f8b11418dad3c75b8725984ceef0f53f64676301ab41cbc908c922dab37c"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
-      "sha256": "1e46ba37a2b70cbf195f2a8c38487f024e13de52f88602dcad7e7fe8125ae371"
+      "source": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt",
+      "sha256": "2a3e972a59bd042fa4d9d7812d20bafa66890003e7dd91e1623bc02b9631a82e"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/catalog/PreviewMediaType.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/catalog/PreviewMediaType.kt",
-      "sha256": "7c1320b293b78da56b238f29d81d7167f6074cab1bf0c2ad8bf39253dcbdc703"
+      "source": "core/src/main/java/com/zorv/core/catalog/PreviewMediaType.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/catalog/PreviewMediaType.kt",
+      "sha256": "49791e1e22f2f6e4ae71a137a31d925adaa6c7261d3d541b8d084174a2558e16"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
-      "sha256": "40a5a7ffd7f072a7455e4b6da71899a37f927af36db685b4589cd07005b74dc9"
+      "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
+      "sha256": "4124734fbf6d5bce63dd7b47c00addf10eca08a52c33ecd50b38b544c569b1e0"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
-      "sha256": "784d783862c71843505e887b49273284bd1944218a3ba5f310f1c7d44022e2c0"
+      "source": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/config/AppConfiguration.kt",
+      "sha256": "37a0170e567f54431bbe19f965919513cb4adfe1726974a32e28ca234f151a0e"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/config/ClientIdentity.kt",
-      "sha256": "474a097ce51af08afccf7f416b519faaad5063aafc46a1f4a7164b6bed4e9e11"
+      "source": "core/src/main/java/com/zorv/core/config/ClientIdentity.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/config/ClientIdentity.kt",
+      "sha256": "1b7938437248e944feb8629f661104653e91b4e360556633d47b77775b0434fe"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
-      "sha256": "eed24cb098cf44af89ecec15f39a6b3ffa505ca136a1f0a8334506d26b9df901"
+      "source": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
+      "sha256": "02c580e6fa1448fb4e396fd93a5d52ce9c25b5aa3aa84a91c83e135a82461e04"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/network/ApiModels.kt",
-      "sha256": "04b9083c42fface677be38a5fbb49224a33a8a4f0d5a1a60610b07980cd9503e"
+      "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/network/ApiModels.kt",
+      "sha256": "6cc58004e1ebab89080d0a62c57cfba1d4837755689036cf11caf2fd1abb4ad3"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/network/HttpLogging.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/network/HttpLogging.kt",
-      "sha256": "062559a244a2932013d5d4fd02bd11cde3fd049022d65998c8aaae51d0be8e15"
+      "source": "core/src/main/java/com/zorv/core/network/HttpLogging.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/network/HttpLogging.kt",
+      "sha256": "40c307a6eae70f775ef8a3ae9540beec3657052e95079629b64caf300c4880c8"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/network/NetworkModule.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/network/NetworkModule.kt",
-      "sha256": "8cb1a5922b92e40a265e0169b4428ecab609af5997e046afd909e5adaf789aba"
+      "source": "core/src/main/java/com/zorv/core/network/NetworkModule.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/network/NetworkModule.kt",
+      "sha256": "5cb48ac4b453f5131cf9a1ef178b8208c81fce912ccb4932d05d7e33d01fa45b"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/network/PaymentHttpClient.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/network/PaymentHttpClient.kt",
-      "sha256": "0f0b14009d3b9d4480a44c73f34fc9dd689f56b1ad94d359d288faad9049fc2f"
+      "source": "core/src/main/java/com/zorv/core/network/PaymentHttpClient.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/network/PaymentHttpClient.kt",
+      "sha256": "59c40cdcd4f061b2fc66c29180e266ba7cb80232dfb62b80eab02004759c0669"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt",
-      "sha256": "cc29054e9a7eef421675639a1feba99e1af60831e365012490bdf6e6185baf50"
+      "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentFlow.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/LegacyPaymentFlow.kt",
+      "sha256": "9613630fdf2f7d39a25686de8a637ae0d0941e9da892c9b66dfd3f90909e9528"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
-      "sha256": "20bef4ff68ab851561b8c5e49a3f9287ad732da7fb81c4515704cbfd5555c666"
+      "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
+      "sha256": "93350fc26be3a5b4225ea51d7ad737850a080a4c9064e4e5790812ba89126258"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
-      "sha256": "5c76e550f2187c57b0beb1bb7229e60c6035964f2ed1e168c454d546520ea177"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
+      "sha256": "dfdcf110097c4c598f7d675717bb8630bf69c871983e2a015a13943e2a78e24d"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt",
-      "sha256": "bc3342fbc5e62aeafafe102afba10120f31b386558b8cf66b17b25fe2660d350"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentCoordinator.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentCoordinator.kt",
+      "sha256": "6173691126254e45581768a35d637be1b71ee557cfdb2c21a3a92ed0e223ab7d"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
-      "sha256": "3736fe8eb7a3fb8cb208131f64b2be62dae73b2b926bb9cf187fb85192e46a88"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
+      "sha256": "b1b90241453c67820e388fe711cc8cd28e6cfe8bc61a5648b38a836f93b97fb8"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
-      "sha256": "c2b6ec0fe4053f3768a7abdef6c85a2dfa54a610bb1ac24033fd63cb203a22ea"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt",
+      "sha256": "9231a169176318a156d8a0f632a2a6de2745d1a6e83195f8009402a8545a942b"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
-      "sha256": "699c102677e860442aed6d66c1b4d82ea49b32946005c21f237ced2761be8015"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt",
+      "sha256": "119c2d0fe8d69d8b21caa6561e4d0dd0908c9c6a28b09fa91662f4a3693e1541"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
-      "sha256": "b6c3628bfabf84dad28430f19c095954175163568abbcd198f0e076633f9f495"
+      "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
+      "sha256": "ee756b5094769aece6b64b443145d05b95bc2e42784485511baf7e679f1f8916"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
-      "sha256": "1e0a5602d857ab614b20f55ad53edf4ffe5fdac1b824d1aed54ead41a471a142"
+      "source": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt",
+      "sha256": "38d15b15e9befbbc9ee06d65df7940dc8c7afa46259d46ff8e2677f8478e47ac"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt",
-      "sha256": "bf8c1691702dd2c388c9bd7c43e2413305b5642c7abf7a2871f084a9c6fb979d"
+      "source": "core/src/main/java/com/zorv/core/payment/PurchaseRouter.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/PurchaseRouter.kt",
+      "sha256": "f271f7a47bc37c7c9999f3a5d3e5c81c570e4063264f54e1636af913407977d8"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt",
-      "sha256": "a1189a995f4897e9910a9e1c18db69fdc764d1371ef3f37f082da91452e99745"
+      "source": "core/src/main/java/com/zorv/core/payment/ServicePaymentFlow.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/payment/ServicePaymentFlow.kt",
+      "sha256": "c62c087f883c1fcb7b81d4d2c0905fe51859b571ec0af666ee788ae71a393d17"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt",
-      "sha256": "57f5eef683e13d507b9239f60816a524b159b88d09adfe376d063869ad7f80fe"
+      "source": "core/src/main/java/com/zorv/core/region/CountryIsRegionSource.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/region/CountryIsRegionSource.kt",
+      "sha256": "03762eacf537cbbf187e980302eeb80edcb4449045b7de41af11fe8a569d6820"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/region/RegionAccess.kt",
-      "sha256": "62f2f4c1633ee68734fd64f38a651e4bb2737c6b37da3460b9be46ead4378d93"
+      "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/region/RegionAccess.kt",
+      "sha256": "5cd4320f3266704aaa917a5f409c87beda495d788e9182d5945caa9ddbeaf83c"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
-      "sha256": "3e8169f5ed28340a46a8298d7b3dfd072a24174acbe2a301948c9c7348b43df3"
+      "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
+      "sha256": "70c4e7b40d750f505ce438c2d8d3218a58a13ca4cc5fb2eb8909b2c1c262d4d7"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
-      "sha256": "5e8d8c0f2f26a7c8ea34675597ba714aaf1cccf8832a6de52ef194aea8a3a67a"
+      "source": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt",
+      "sha256": "6a8dee1fd8c139ef4f2f82d2bdf0ba7b1bfe9d8483bde0c23b08119c6b141610"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
-      "sha256": "727f6a560d026b55e8b4bef0d3d1bc9bcb3e8b60a11b931dda5b5d0485d94236"
+      "source": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
+      "sha256": "b737f31c42ddc869ebfd36e187ba28301b4b3a6750384b907de5cb9447f3622e"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
-      "sha256": "88edcc269b805f95e8e111d94d383e0e6865c9840df26ac0c6125fbc8395acba"
+      "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
+      "sha256": "bf5e65a4cfc4ec631dda79107f3138432658b2b865ce78fb8c32d0f74c61bad4"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
-      "sha256": "909e44b543d66d6ca097a22674689f1b8d0352c19e2769bde5a54cb13e9997bb"
+      "source": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt",
+      "sha256": "92eb5987020a8cfed5163240ba133b1b4ce02a6bc9c2a58ff284f291bd751c20"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt",
-      "sha256": "c4d229b805e289bfd438356d7f61e3b68077e36db46c0271b99f2cecfd388868"
+      "source": "core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt",
+      "sha256": "973cf6b5cd7850743ad576880cf89d72394fb065fa6781cfe5277ebd6bcca8d0"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
-      "sha256": "ee2dd21725fb6856eabf0172418a5e1a36a832e0a06b2862f8c5c7512e40f6ea"
+      "source": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt",
+      "sha256": "8a31a34e1bdecea02d192dee67c8c21adf5d0b67b2fd736ad5446ffab13c5d71"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
-      "sha256": "505cee9631ed4a26d07e17c5b34e6bc17d4e5fc2793e75f9731a8c7c1ad4aee3"
+      "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
+      "sha256": "cd71e2874fb43364d9cb25ea25fb2bf0192a3d42344965e70de0df2edeb73f51"
     },
     {
-      "source": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
-      "destination": "reference/core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
-      "sha256": "609d38aeceaefe47d59d4f93d7ac69c9e74e1f3825e0a8809be8f79ddfb140e6"
+      "source": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt",
+      "destination": "reference/core/src/main/java/com/zorv/core/wallet/WalletRepository.kt",
+      "sha256": "eb1c60f221d358f16eac1f456d1a04b67916a9c047578418f07f55230957fce8"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/analytics/BackendAnalyticsSinkTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/analytics/BackendAnalyticsSinkTest.kt",
-      "sha256": "cf5aeffb0d52fa5c813609e762ac32381027e055cbbc906e0c56be0183c68878"
+      "source": "core/src/test/java/com/zorv/core/analytics/BackendAnalyticsSinkTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/analytics/BackendAnalyticsSinkTest.kt",
+      "sha256": "d96eef17668da81cc453bebe5a9edf4bab25ab6c65cbeb23cb74bc3c4340842d"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/analytics/EventTrackerTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/analytics/EventTrackerTest.kt",
-      "sha256": "a3cc1446c6e2bf187ca16ce6dc6a47137bed2c52794bac3d9a7e1d941c63c4cb"
+      "source": "core/src/test/java/com/zorv/core/analytics/EventTrackerTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/analytics/EventTrackerTest.kt",
+      "sha256": "4d204fb0aca56821721ce064129ea37316560fbb94343b932066e68eb1fe6fd9"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/analytics/RecordingTracker.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/analytics/RecordingTracker.kt",
-      "sha256": "c1efddd43cb9ee7c388a16745e74f3cf0e037f460c67a212446a07216afef4ce"
+      "source": "core/src/test/java/com/zorv/core/analytics/RecordingTracker.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/analytics/RecordingTracker.kt",
+      "sha256": "0fdf552dd66d8dbf3d27c45b1f0aa27076d045a3531024c6b674bbbb4a3248f8"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/attribution/AttributionCoordinatorTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/attribution/AttributionCoordinatorTest.kt",
-      "sha256": "a3f049408b7bfbc5b53be4d27f70f3073ded5b64235eedbd9a55da387db31a82"
+      "source": "core/src/test/java/com/zorv/core/attribution/AttributionCoordinatorTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/attribution/AttributionCoordinatorTest.kt",
+      "sha256": "f5a3128f7d56bf87fa8bf18db41dcb5de09e6f7995bbfacf4d2d981c4da1c31a"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/attribution/AttributionReportsTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/attribution/AttributionReportsTest.kt",
-      "sha256": "ceb37642a85c8de3a59f1333a55313191982a5ea6cc3d50c6f4d875ae0e58796"
+      "source": "core/src/test/java/com/zorv/core/attribution/AttributionReportsTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/attribution/AttributionReportsTest.kt",
+      "sha256": "5516cc304f407c2e7f03c455afb57225c0cecaed6e9a719ea69f477e232d0271"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/auth/AnonymousStartupTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/auth/AnonymousStartupTest.kt",
-      "sha256": "b84679d96972154e003f6edef5fd41a1d22a836345222c4bb1d67d847ab3a137"
+      "source": "core/src/test/java/com/zorv/core/auth/AnonymousStartupTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/auth/AnonymousStartupTest.kt",
+      "sha256": "da7d3b38526cbdddfd2ee7af3b987c85e778f5b70e80beebd61693b7d8a2562b"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/auth/AuthRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/auth/AuthRepositoryTest.kt",
-      "sha256": "a87f12ffd9580f3031168307a299319edb3e72f7537ef50ad00803bf64700e61"
+      "source": "core/src/test/java/com/zorv/core/auth/AuthRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/auth/AuthRepositoryTest.kt",
+      "sha256": "f828116e3d5ada2efec661e24f4cf588035f55f6e4ec1628756eb922406b4887"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/auth/SessionCoordinatorTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/auth/SessionCoordinatorTest.kt",
-      "sha256": "c84279ef5d07f14cf9ab07502f1001a4e939d9cf75923d018cf7c14a48983e5a"
+      "source": "core/src/test/java/com/zorv/core/auth/SessionCoordinatorTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/auth/SessionCoordinatorTest.kt",
+      "sha256": "cb3659648b102bd823db6f353802885ae6d1688b5d86ffa570c628e469825d09"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/auth/UserProfileRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/auth/UserProfileRepositoryTest.kt",
-      "sha256": "31f02829d5b320614f558224305f8e59818c2b4e8b1bef570a5d2a06cea6ad75"
+      "source": "core/src/test/java/com/zorv/core/auth/UserProfileRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/auth/UserProfileRepositoryTest.kt",
+      "sha256": "46b09c49f77ffcd971be348f0499b4ede111bbc53bfe04d192254e864248e855"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/billing/BillingPurchaseAdmissionTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/billing/BillingPurchaseAdmissionTest.kt",
-      "sha256": "0724d7dcb0534d86018a4bb7ff6564c26ff0e0950c5c957760beab82af5514f7"
+      "source": "core/src/test/java/com/zorv/core/billing/BillingPurchaseAdmissionTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/billing/BillingPurchaseAdmissionTest.kt",
+      "sha256": "d8d73f07cd4672b53133a92c0f6c3f26bb040df66e4df8f499e463f38063acda"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/billing/ConsumablePurchaseOrchestratorTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/billing/ConsumablePurchaseOrchestratorTest.kt",
-      "sha256": "6fd2365cae11af0f9beaabc88a9a44fae3323fb1092d4abb932c0b4abfab2811"
+      "source": "core/src/test/java/com/zorv/core/billing/ConsumablePurchaseOrchestratorTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/billing/ConsumablePurchaseOrchestratorTest.kt",
+      "sha256": "f313cc421b35201099d647e736f2c61e685a6ebca69cb12ec99368e6f29a5546"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/billing/PendingPurchaseRegistryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/billing/PendingPurchaseRegistryTest.kt",
-      "sha256": "3fe30969049ab7477f6d487a3f0a5ffbcb47ebc391fdae561ee082ce096417da"
+      "source": "core/src/test/java/com/zorv/core/billing/PendingPurchaseRegistryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/billing/PendingPurchaseRegistryTest.kt",
+      "sha256": "75ea1abb9df70bec0ef6021924276d058bd4d01ecd24e9c2c0680e6de43a8d7e"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/billing/PurchaseFulfillmentCoordinatorTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/billing/PurchaseFulfillmentCoordinatorTest.kt",
-      "sha256": "9c76dc57fde7643673950d26bf70805b674761076272b8348f7313a8aad03bb1"
+      "source": "core/src/test/java/com/zorv/core/billing/PurchaseFulfillmentCoordinatorTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/billing/PurchaseFulfillmentCoordinatorTest.kt",
+      "sha256": "70c7b139a0671e41e67a8a02debeef0d5337d349743a3e4e9d996dcde475faca"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/billing/PurchaseRequestCoordinatorTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/billing/PurchaseRequestCoordinatorTest.kt",
-      "sha256": "25745cfc31b8abf221cfe54845e9c1770d0f0dd8fcb28131717de4ac7bd90211"
+      "source": "core/src/test/java/com/zorv/core/billing/PurchaseRequestCoordinatorTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/billing/PurchaseRequestCoordinatorTest.kt",
+      "sha256": "f22f7ea476c645cffb690ff93f4c43b0fc36d2dc52eaee190892724dae34fbb0"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/catalog/ApiTemplateRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/catalog/ApiTemplateRepositoryTest.kt",
-      "sha256": "2e54f83876e23361ec4beb0881af500ba231fe0a5f30ec1643edd704da086180"
+      "source": "core/src/test/java/com/zorv/core/catalog/ApiTemplateRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/catalog/ApiTemplateRepositoryTest.kt",
+      "sha256": "f532916e4f559d9fef372fba95c3a7b9998093977a9c4a5f1df359ea00b22517"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/catalog/PreviewMediaTypeTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/catalog/PreviewMediaTypeTest.kt",
-      "sha256": "1de794b3ae79ff1b4b65cd422218a36d145b8f21e72df648d3b2e7ca5f25730f"
+      "source": "core/src/test/java/com/zorv/core/catalog/PreviewMediaTypeTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/catalog/PreviewMediaTypeTest.kt",
+      "sha256": "25c476433131598f14719047f1572a382014a19ac4b0c545753a70657df5b012"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/catalog/TemplateMediaTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/catalog/TemplateMediaTest.kt",
-      "sha256": "1fd74750446fb0f1c8b3209b0a7d4920f5619fd7676f688fe2b7ff695ad12d6e"
+      "source": "core/src/test/java/com/zorv/core/catalog/TemplateMediaTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/catalog/TemplateMediaTest.kt",
+      "sha256": "55e3b2614c69bb829d24984d65e977550fa60bd659d33c46a80d7d0a42d250e3"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/catalog/TemplateRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/catalog/TemplateRepositoryTest.kt",
-      "sha256": "b8fb03d1e28e57c02937f2b8cd0d9a3843ed94db5ec4c6a14ec6c7378ea24974"
+      "source": "core/src/test/java/com/zorv/core/catalog/TemplateRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/catalog/TemplateRepositoryTest.kt",
+      "sha256": "54b6725212ad28e2df3fad339e79b55a2769ed658ef53491130f925876c92df1"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/catalog/TemplateRequestTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/catalog/TemplateRequestTest.kt",
-      "sha256": "c6e42d040974fd2e5bcc02983f7e1ed71a5e434a56a5b8713136bfdc9e8e449d"
+      "source": "core/src/test/java/com/zorv/core/catalog/TemplateRequestTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/catalog/TemplateRequestTest.kt",
+      "sha256": "a30f89817ba00d668b0cbeac4903a3f480716c72f6f4773eaedfca94cf61037e"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/network/HttpLoggingTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/network/HttpLoggingTest.kt",
-      "sha256": "767714d6a6b2e98d664ddab83159bdb2374e029b80118e9ccad42fea20e2ddc2"
+      "source": "core/src/test/java/com/zorv/core/network/HttpLoggingTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/network/HttpLoggingTest.kt",
+      "sha256": "e289b88864b913d9d1e342986cea5d52d7f0c24e16f0cd543ef77d4049c910e0"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/network/PaymentSessionTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/network/PaymentSessionTest.kt",
-      "sha256": "55b35614807c6ce8c99040a56483bfc89f4ad77641fdbee4bd684a91c8eaf4cb"
+      "source": "core/src/test/java/com/zorv/core/network/PaymentSessionTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/network/PaymentSessionTest.kt",
+      "sha256": "f0f1f440f1979ddaca269d470cefcd5435bc3567c62c4964f90f6492be2737b0"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/payment/PaymentContractTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/payment/PaymentContractTest.kt",
-      "sha256": "28ee8535018bc6b22b40071b89516330788d96e693a2debd7c1e9d8b9634e328"
+      "source": "core/src/test/java/com/zorv/core/payment/PaymentContractTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/payment/PaymentContractTest.kt",
+      "sha256": "71033ff64801ccc90c3d364e314ed6d1c009e1c2931f3cc959ba5eecee7b7942"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/payment/PaymentEngineTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/payment/PaymentEngineTest.kt",
-      "sha256": "b69cf8b3da153f61b9aa6ff8d65c77cfb3cc9d26cc7fda728a7b1da997ecce0b"
+      "source": "core/src/test/java/com/zorv/core/payment/PaymentEngineTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/payment/PaymentEngineTest.kt",
+      "sha256": "d2b189b14c446d1e323ea4a672ac9fd5eb4316fada113d62ca17f7449cd02bb9"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/payment/PaymentRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/payment/PaymentRepositoryTest.kt",
-      "sha256": "4e74986fe1660b36dec2221ecef590ada43a3bb12af3047d9ac208fa64a200c8"
+      "source": "core/src/test/java/com/zorv/core/payment/PaymentRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/payment/PaymentRepositoryTest.kt",
+      "sha256": "c803a83a88a8a3f796950a10ddf3e1d63d0f5730effe463b59ca58d6116aa621"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/payment/PurchaseFlowTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/payment/PurchaseFlowTest.kt",
-      "sha256": "cb69d5e1c24fc9b0d06ca7a659e9c48a6c7b0fb6fe73bc3e2e686e88b098cb08"
+      "source": "core/src/test/java/com/zorv/core/payment/PurchaseFlowTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/payment/PurchaseFlowTest.kt",
+      "sha256": "1fe8af84cfa202d9e48873d9d7851752d199024f8030e274653bb1dac35c26f0"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/region/RegionAccessTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/region/RegionAccessTest.kt",
-      "sha256": "dfc21d198facb8439bb6d00d35183f1eac8dde86fa27c424dea52d084a7e7b55"
+      "source": "core/src/test/java/com/zorv/core/region/RegionAccessTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/region/RegionAccessTest.kt",
+      "sha256": "609e8b03c019e466c43be79cd1b7cf816f09d21d3cb300fc91cadd824f5f46ad"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/visual/GenerationRequestRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/visual/GenerationRequestRepositoryTest.kt",
-      "sha256": "822966cd370089780ff21a47e19ecabc17a5af10162ed7b53f0e3d53fa52092c"
+      "source": "core/src/test/java/com/zorv/core/visual/GenerationRequestRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/visual/GenerationRequestRepositoryTest.kt",
+      "sha256": "1c0332f2cfd6085d4f4ee374f9b4adcbb528ea0b7ecaebdcbd23b1a158d78917"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/visual/UploadedPhotoRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/visual/UploadedPhotoRepositoryTest.kt",
-      "sha256": "c141ada4fd9a12a4eaf7a081389761ff3298c94d570ed7a623eddd1336ff6dbb"
+      "source": "core/src/test/java/com/zorv/core/visual/UploadedPhotoRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/visual/UploadedPhotoRepositoryTest.kt",
+      "sha256": "9d98b3fffc863b82c33b5b71655bbe8ec239a6073d3bb8eb6204c4b21efb8011"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/visual/VisualLibraryRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/visual/VisualLibraryRepositoryTest.kt",
-      "sha256": "fe511da2718529e2056357148b4ba2131893fe2d5860e9d147e7ad8c7986ef10"
+      "source": "core/src/test/java/com/zorv/core/visual/VisualLibraryRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/visual/VisualLibraryRepositoryTest.kt",
+      "sha256": "0d907eb77f06a1454f695dcdf762018891ec4135e9d08983c52b70e08381b7aa"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/wallet/CoinDisplayTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/wallet/CoinDisplayTest.kt",
-      "sha256": "426c3c6378ae1212de42fcd0cb88da66a89ba0171df744c0588408c89912a526"
+      "source": "core/src/test/java/com/zorv/core/wallet/CoinDisplayTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/wallet/CoinDisplayTest.kt",
+      "sha256": "3a91d566c7f63264a42d93e2e866487e3e2db720375beeec177c40d9c5ec7343"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/wallet/WalletOrderRequestTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/wallet/WalletOrderRequestTest.kt",
-      "sha256": "20f81e2ae633a6a62cff10f798bb065a5882b12303c0119458195be9c3ca48e1"
+      "source": "core/src/test/java/com/zorv/core/wallet/WalletOrderRequestTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/wallet/WalletOrderRequestTest.kt",
+      "sha256": "ba16203db975bb5b310f7935743a6a3c17b04fb5d24670382629e604c605e15f"
     },
     {
-      "source": "core/src/test/java/com/vexora/core/wallet/WalletRepositoryTest.kt",
-      "destination": "reference/core/src/test/java/com/vexora/core/wallet/WalletRepositoryTest.kt",
-      "sha256": "316e5940d6f5307554348394be05a213721152288d9f625cc43cfc69e538b92e"
+      "source": "core/src/test/java/com/zorv/core/wallet/WalletRepositoryTest.kt",
+      "destination": "reference/core/src/test/java/com/zorv/core/wallet/WalletRepositoryTest.kt",
+      "sha256": "d1354b897f08dbbaca5f8ed7f65e2368f60f772e089aba53b76d935f4f9f56df"
     },
     {
       "source": "integration/analytics-appsflyer/build.gradle.kts",
@@ -602,24 +602,24 @@
       "sha256": "bb7d7cbc426c87dd956d734b5b7a0260ad1f5331102afcf66b295d014c52e41c"
     },
     {
-      "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt",
-      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt",
-      "sha256": "e1f169e6e087a9f8134ec2b72cf263febdf4817833bbe6dc9fef6ca986311e2f"
+      "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerAnalytics.kt",
+      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerAnalytics.kt",
+      "sha256": "9fadf891d7506d70b6f4c4f164cd759df051b1b286d4de19832df1af55dd93fd"
     },
     {
-      "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt",
-      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt",
-      "sha256": "2aeb94f838015ee6a8e815c49984b9abd8a992b0d831c26caaec2376837d8949"
+      "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt",
+      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt",
+      "sha256": "786a531b2c873e747edd40f712c580cebd7cedd747d9bad1fa10b9ef5cf821b3"
     },
     {
-      "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
-      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
-      "sha256": "7198591e51eca8d3c87b1ed63a1b62a62f0ad586cc6705ce12fdcc5e7c9eedfe"
+      "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt",
+      "destination": "reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt",
+      "sha256": "1e0e44fce013f8e001b2cc6560c2c7b5f66c6ac00f91c59334d8bef4de8e0276"
     },
     {
-      "source": "integration/analytics-appsflyer/src/test/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStartTest.kt",
-      "destination": "reference/integration/analytics-appsflyer/src/test/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStartTest.kt",
-      "sha256": "29f4cfdb5b01ef49c249471f13f7e9008e2395189f83f07a91d0379776e9ba61"
+      "source": "integration/analytics-appsflyer/src/test/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStartTest.kt",
+      "destination": "reference/integration/analytics-appsflyer/src/test/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStartTest.kt",
+      "sha256": "f1435edf67f0b2ce34ab9780bc29ae87b9387904a2f8386d2d4dd876f4a7ce08"
     },
     {
       "source": "integration/analytics-thinkingdata/build.gradle.kts",
@@ -627,14 +627,14 @@
       "sha256": "62d2bc7030f8dc9091de5023f9950d5726896a6b7bbc6760717a50c9aa5296ba"
     },
     {
-      "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
-      "destination": "reference/integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
-      "sha256": "356d7322efdcb8926dde6f0ded5234a196c233c6bc8f93128f1d40aa302976f3"
+      "source": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
+      "destination": "reference/integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
+      "sha256": "a19dc7ef17dc85a18e6ac0362598e7ba84e45a198893c362c6b0aeb08f106e41"
     },
     {
-      "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt",
-      "destination": "reference/integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt",
-      "sha256": "fbf8402aae90f1214fe2dfe92575392b692cfbbf479017b09e121425fd653c09"
+      "source": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt",
+      "destination": "reference/integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt",
+      "sha256": "8441368ea9fc4ee6a1bd8ea9384bb07cfc01cbd9377d9ad3e4afa5dc29195095"
     },
     {
       "source": "app/src/main/assets/config/catalog_sources.json",
@@ -744,7 +744,7 @@
     {
       "source": "app/proguard-rules.pro",
       "destination": "reference/app/proguard-rules.pro",
-      "sha256": "046ecc7e8e63b7e23b2c5aa0832702aaa79f60b209018e4d754b18dd25ba2a07"
+      "sha256": "fb17166a4648b1643c013d0af97709c538d187b044434292b1f049da622920bd"
     },
     {
       "source": "app/src/main/AndroidManifest.xml",
@@ -759,7 +759,7 @@
     {
       "source": "config/app.properties",
       "destination": "config/dev/app.properties",
-      "sha256": "daef4107af5815be41333af4f58470ab41244fd72b2eba65fd182a98c464c1ce"
+      "sha256": "63e0d476a01b595c54196e00b105b75e879c7d8d2f40a0b3c5c7a7cbc9527a68"
     },
     {
       "source": "config/dev.properties",

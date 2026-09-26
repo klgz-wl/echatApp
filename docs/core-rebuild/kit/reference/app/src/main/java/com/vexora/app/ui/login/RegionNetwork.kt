@@ -3,7 +3,7 @@ package com.vexora.app.ui.login
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import com.vexora.core.region.RegionNetworkSource
+import com.zorv.core.region.RegionNetworkSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 

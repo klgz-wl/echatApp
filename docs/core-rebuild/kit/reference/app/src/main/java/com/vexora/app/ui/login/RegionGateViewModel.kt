@@ -2,10 +2,10 @@ package com.vexora.app.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.region.RegionAccess
-import com.vexora.core.region.RegionRestrictedException
-import com.vexora.core.region.RegionUnavailableException
-import com.vexora.core.region.RegionOfflineException
+import com.zorv.core.region.RegionAccess
+import com.zorv.core.region.RegionRestrictedException
+import com.zorv.core.region.RegionUnavailableException
+import com.zorv.core.region.RegionOfflineException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

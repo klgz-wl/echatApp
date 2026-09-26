@@ -2,9 +2,9 @@ package com.vexora.app.ui.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.wallet.*
-import com.vexora.core.billing.*
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.wallet.*
+import com.zorv.core.billing.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
@@ -14,13 +14,13 @@ import javax.inject.Inject
 data class WalletUiState(val wallet: WalletSnapshot = WalletSnapshot(), val balanceBusy: Boolean = false,
     val productsBusy: Boolean = false, val recordsBusy: Boolean = false,
     val balanceError: Throwable? = null, val productsError: Throwable? = null, val recordsError: Throwable? = null,
-    val payment: com.vexora.core.payment.PaymentViewState = com.vexora.core.payment.PaymentViewState(),
+    val payment: com.zorv.core.payment.PaymentViewState = com.zorv.core.payment.PaymentViewState(),
     val selectedId: String? = null, val purchase: CoinPurchaseState = CoinPurchaseState())
 
 @HiltViewModel
 class WalletViewModel @Inject constructor(private val repository: WalletRepository,
     private val sessions: SessionCoordinator,
-    private val purchases: CoinPurchaseController, private val payments: com.vexora.core.payment.PaymentCoordinator, val displayConfig: CoinDisplayConfiguration) : ViewModel() {
+    private val purchases: CoinPurchaseController, private val payments: com.zorv.core.payment.PaymentCoordinator, val displayConfig: CoinDisplayConfiguration) : ViewModel() {
     private val mutable = MutableStateFlow(WalletUiState())
     val state = mutable.asStateFlow()
     private var lastRecordsRefresh = false
@@ -33,7 +33,7 @@ class WalletViewModel @Inject constructor(private val repository: WalletReposito
         }
         viewModelScope.launch {
             combine(purchases.state, payments.state, sessions.state) { value, payment, session ->
-                val owned = payment.takeIf { it.epoch == session?.epoch } ?: com.vexora.core.payment.PaymentViewState()
+                val owned = payment.takeIf { it.epoch == session?.epoch } ?: com.zorv.core.payment.PaymentViewState()
                 val official = if (value.epoch == session?.epoch) value else CoinPurchaseState()
                 val purchase = if (owned.busy) official.copy(status = CoinPurchaseStatus.BUSY) else official
                 owned to purchase

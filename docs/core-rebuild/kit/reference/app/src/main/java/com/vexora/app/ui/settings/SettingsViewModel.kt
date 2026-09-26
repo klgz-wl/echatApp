@@ -1,7 +1,7 @@
 package com.vexora.app.ui.settings
 
 import androidx.lifecycle.ViewModel
-import com.vexora.core.config.AppConfiguration
+import com.zorv.core.config.AppConfiguration
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 

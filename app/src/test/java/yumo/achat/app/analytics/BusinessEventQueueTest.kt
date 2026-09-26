@@ -17,6 +17,7 @@ class BusinessEventQueueTest {
         val store = MemoryDedupeStore()
         val first = BusinessEventQueue(capacity = 8, dedupeLimit = 10, dedupeStore = store)
         first.track("generate_result", userId = "user-1", onceKey = "task-1")
+        first.confirm(withTimeout(1_000) { first.events.first() }, accepted = true)
 
         val second = BusinessEventQueue(capacity = 8, dedupeLimit = 10, dedupeStore = store)
         second.track("generate_result", userId = "user-1", onceKey = "task-1")
@@ -24,6 +25,19 @@ class BusinessEventQueueTest {
 
         val event = withTimeout(1_000) { second.events.first() }
         assertEquals("user-2", event.userId)
+    }
+
+    @Test
+    fun `unconfirmed terminal event remains retryable after queue recreation`() = runBlocking {
+        val store = MemoryDedupeStore()
+        val first = BusinessEventQueue(capacity = 8, dedupeLimit = 10, dedupeStore = store)
+        first.track("generate_result", userId = "user-1", onceKey = "task-1")
+        withTimeout(1_000) { first.events.first() }
+
+        val second = BusinessEventQueue(capacity = 8, dedupeLimit = 10, dedupeStore = store)
+        second.track("generate_result", userId = "user-1", onceKey = "task-1")
+
+        assertEquals("generate_result", withTimeout(1_000) { second.events.first() }.name)
     }
 
     @Test

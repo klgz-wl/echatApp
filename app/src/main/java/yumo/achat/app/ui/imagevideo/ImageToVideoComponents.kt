@@ -112,6 +112,7 @@ internal fun HeroCard(
     )
     val controlInteractionSource = remember { MutableInteractionSource() }
     var controlsRevealed by remember(previewMedia) { mutableStateOf(false) }
+    var mediaHasError by remember(previewMedia) { mutableStateOf(false) }
     val showPlaybackControls = shouldShowPlaybackControls(
         isPlaying = isPlaying,
         controlsRevealed = controlsRevealed,
@@ -143,6 +144,7 @@ internal fun HeroCard(
             media = previewMedia,
             isPlaying = isPlaying,
             contentDescription = portraitDescription,
+            onMediaErrorChanged = { mediaHasError = it },
             modifier = Modifier.fillMaxSize(),
         )
         if (enableSwipeGestures) {
@@ -152,15 +154,17 @@ internal fun HeroCard(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = controlInteractionSource,
-                    indication = null,
-                    onClick = { handlePlayToggle() },
-                ),
-        )
+        if (shouldEnableHeroPlaybackToggle(mediaHasError)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = controlInteractionSource,
+                        indication = null,
+                        onClick = { handlePlayToggle() },
+                    ),
+            )
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -257,11 +261,13 @@ private fun TemplatePreviewImage(
     contentScale: ContentScale = ContentScale.Crop,
     videoResizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
     onPlaybackError: () -> Unit = {},
+    onMediaErrorChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val placeholder = painterResource(R.drawable.hero_portrait)
     when (media) {
         TemplatePreviewMedia.LocalPlaceholder -> {
+            LaunchedEffect(media) { onMediaErrorChanged(false) }
             Image(
                 painter = placeholder,
                 contentDescription = contentDescription,
@@ -270,11 +276,26 @@ private fun TemplatePreviewImage(
             )
         }
 
+        TemplatePreviewMedia.Unavailable -> {
+            LaunchedEffect(media) { onMediaErrorChanged(true) }
+            Box(modifier = modifier.background(Color(0xFF080A13)), contentAlignment = Alignment.Center) {
+                Text(
+                    text = stringResource(R.string.template_media_unavailable),
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
         is TemplatePreviewMedia.RemoteImage -> {
             val context = LocalContext.current
+            var retrySerial by remember(media.url) { mutableStateOf(0) }
             val painter = rememberAsyncImagePainter(
                 model = ImageRequest.Builder(context)
                     .data(media.url)
+                    .memoryCacheKey("${media.url}#retry-$retrySerial")
+                    .diskCacheKey(media.url)
                     .size(TemplatePreviewWidthPx, TemplatePreviewHeightPx)
                     .scale(coilScaleForContentScale(contentScale))
                     .crossfade(150)
@@ -283,10 +304,11 @@ private fun TemplatePreviewImage(
             val imageState = painter.state
             val hasRenderedRemoteContent = imageState is AsyncImagePainter.State.Success
             val hasImageError = imageState is AsyncImagePainter.State.Error
+            LaunchedEffect(media.url, hasImageError) { onMediaErrorChanged(hasImageError) }
 
             Box(modifier = modifier.background(Color(0xFF080A13))) {
                 Image(
-                    painter = if (hasImageError) placeholder else painter,
+                    painter = painter,
                     contentDescription = contentDescription,
                     contentScale = contentScale,
                     modifier = Modifier.fillMaxSize(),
@@ -301,6 +323,26 @@ private fun TemplatePreviewImage(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     TemplateMediaLoadingIndicator()
+                }
+                if (hasImageError) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0x99080A13)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.template_feed_retry),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xCC111827))
+                                .border(1.dp, AchatCyan.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                                .clickable { retrySerial += 1 }
+                                .padding(horizontal = 18.dp, vertical = 10.dp),
+                        )
+                    }
                 }
             }
         }
@@ -319,13 +361,17 @@ private fun TemplatePreviewImage(
                         onFirstFrame = { hasRenderedFirstFrame = true },
                         onPlaybackError = {
                             hasPlaybackError = true
+                            onMediaErrorChanged(true)
                             playbackErrorCallback.value()
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
                 AnimatedVisibility(
-                    visible = media.posterUrl.isNotBlank() && shouldShowVideoPoster(hasRenderedFirstFrame),
+                    visible = media.posterUrl.isNotBlank() && shouldShowVideoPoster(
+                        hasRenderedFirstFrame = hasRenderedFirstFrame,
+                        hasPlaybackError = hasPlaybackError,
+                    ),
                     exit = fadeOut(),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -370,6 +416,7 @@ private fun TemplatePreviewImage(
                                 .clickable {
                                     hasPlaybackError = false
                                     hasRenderedFirstFrame = false
+                                    onMediaErrorChanged(false)
                                     retrySerial += 1
                                 }
                                 .padding(horizontal = 18.dp, vertical = 10.dp),

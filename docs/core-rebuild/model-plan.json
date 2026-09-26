@@ -643,7 +643,7 @@
         },
         {
           "name": "payment",
-          "type": "com.vexora.core.payment.PaymentViewState",
+          "type": "com.zorv.core.payment.PaymentViewState",
           "serial_name": "payment"
         },
         {
@@ -718,7 +718,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
       "target_type": "yumo.achat.core.analytics.AnalyticsPolicy",
       "target_file": "core/src/main/java/yumo/achat/core/analytics/AnalyticsSink.kt",
       "extension_files": [
@@ -765,7 +765,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
       "target_type": "yumo.achat.core.analytics.PendingEvent",
       "target_file": "core/src/main/java/yumo/achat/core/analytics/BackendAnalyticsSink.kt",
       "extension_files": [
@@ -812,7 +812,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:17:ReportEventRequest",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/EventApi.kt:17:ReportEventRequest",
       "target_type": "yumo.achat.core.analytics.ReportEventRequest",
       "target_file": "core/src/main/java/yumo/achat/core/analytics/EventApi.kt",
       "extension_files": [
@@ -879,7 +879,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
       "target_type": "yumo.achat.core.analytics.AnalyticsConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/analytics/EventTracker.kt",
       "extension_files": [
@@ -926,7 +926,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:10:LoginAttribution",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:10:LoginAttribution",
       "target_type": "yumo.achat.core.attribution.LoginAttribution",
       "target_file": "core/src/main/java/yumo/achat/core/attribution/AttributionModels.kt",
       "extension_files": [
@@ -1033,7 +1033,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:26:Success",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:26:Success",
       "target_type": "yumo.achat.core.attribution.Success",
       "target_file": "core/src/main/java/yumo/achat/core/attribution/AttributionModels.kt",
       "extension_files": [
@@ -1065,7 +1065,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
       "target_type": "yumo.achat.core.attribution.AttributionConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/attribution/AttributionModels.kt",
       "extension_files": [
@@ -1112,7 +1112,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
       "target_type": "yumo.achat.core.auth.StartupConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/auth/AnonymousStartup.kt",
       "extension_files": [
@@ -1144,7 +1144,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:16:Session",
+      "source_id": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt:16:Session",
       "target_type": "yumo.achat.core.auth.Session",
       "target_file": "core/src/main/java/yumo/achat/core/auth/SessionCoordinator.kt",
       "extension_files": [
@@ -1196,7 +1196,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:18:UserProfile",
+      "source_id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:18:UserProfile",
       "target_type": "yumo.achat.core.auth.UserProfile",
       "target_file": "core/src/main/java/yumo/achat/core/auth/UserProfileRepository.kt",
       "extension_files": [
@@ -1228,7 +1228,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:26:ProfileMode",
+      "source_id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:26:ProfileMode",
       "target_type": "yumo.achat.core.auth.ProfileMode",
       "target_file": "core/src/main/java/yumo/achat/core/auth/UserProfileRepository.kt",
       "extension_files": [
@@ -1265,7 +1265,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
       "target_type": "yumo.achat.core.billing.BillingConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingConfiguration.kt",
       "extension_files": [
@@ -1302,7 +1302,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:3:BillingProduct",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:3:BillingProduct",
       "target_type": "yumo.achat.core.billing.BillingProduct",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingProduct.kt",
       "extension_files": [
@@ -1379,7 +1379,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
       "target_type": "yumo.achat.core.billing.SubscriptionOfferDetails",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingProduct.kt",
       "extension_files": [
@@ -1426,7 +1426,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:23:PricingPhase",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:23:PricingPhase",
       "target_type": "yumo.achat.core.billing.PricingPhase",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingProduct.kt",
       "extension_files": [
@@ -1478,7 +1478,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:3:BillingPurchase",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:3:BillingPurchase",
       "target_type": "yumo.achat.core.billing.BillingPurchase",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingPurchase.kt",
       "extension_files": [
@@ -1560,7 +1560,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:28:BillingResult",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:28:BillingResult",
       "target_type": "yumo.achat.core.billing.BillingResult",
       "target_file": "core/src/main/java/yumo/achat/core/billing/BillingPurchase.kt",
       "extension_files": [
@@ -1607,7 +1607,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
+      "source_id": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
       "target_type": "yumo.achat.core.billing.CoinPurchaseState",
       "target_file": "core/src/main/java/yumo/achat/core/billing/CoinPurchaseController.kt",
       "extension_files": [
@@ -1654,7 +1654,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
       "target_type": "yumo.achat.core.billing.Success",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1686,7 +1686,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
       "target_type": "yumo.achat.core.billing.Pending",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1718,7 +1718,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
       "target_type": "yumo.achat.core.billing.Failure",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1755,7 +1755,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
       "target_type": "yumo.achat.core.billing.Success$Variant2",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1787,7 +1787,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
       "target_type": "yumo.achat.core.billing.Failure$Variant2",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1829,7 +1829,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
       "target_type": "yumo.achat.core.billing.Pending$Variant2",
       "target_file": "core/src/main/java/yumo/achat/core/billing/ConsumablePurchaseOrchestrator.kt",
       "extension_files": [
@@ -1861,7 +1861,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
+      "source_id": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
       "target_type": "yumo.achat.core.billing.PendingPurchaseRecord",
       "target_file": "core/src/main/java/yumo/achat/core/billing/PendingPurchaseRegistry.kt",
       "extension_files": [
@@ -1913,7 +1913,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
       "target_type": "yumo.achat.core.catalog.CatalogConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/ApiTemplateRepository.kt",
       "extension_files": [
@@ -1950,7 +1950,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:12:TemplateCategory",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:12:TemplateCategory",
       "target_type": "yumo.achat.core.catalog.TemplateCategory",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -1997,7 +1997,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:13:TemplateMedia",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:13:TemplateMedia",
       "target_type": "yumo.achat.core.catalog.TemplateMedia",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -2049,7 +2049,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:30:TemplatePrices",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:30:TemplatePrices",
       "target_type": "yumo.achat.core.catalog.TemplatePrices",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -2086,7 +2086,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:37:Template",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:37:Template",
       "target_type": "yumo.achat.core.catalog.Template",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -2193,7 +2193,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
       "target_type": "yumo.achat.core.catalog.TemplateCatalog",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -2245,7 +2245,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:52:CatalogFixture",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:52:CatalogFixture",
       "target_type": "yumo.achat.core.catalog.CatalogFixture",
       "target_file": "core/src/main/java/yumo/achat/core/catalog/TemplateRepository.kt",
       "extension_files": [
@@ -2287,7 +2287,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:5:AccountRules",
+      "source_id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:5:AccountRules",
       "target_type": "yumo.achat.core.config.AccountRules",
       "target_file": "core/src/main/java/yumo/achat/core/config/AppConfiguration.kt",
       "extension_files": [
@@ -2334,7 +2334,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:14:AppConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:14:AppConfiguration",
       "target_type": "yumo.achat.core.config.AppConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/config/AppConfiguration.kt",
       "extension_files": [
@@ -2386,7 +2386,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt:3:ClientIdentity",
+      "source_id": "core/src/main/java/com/zorv/core/config/ClientIdentity.kt:3:ClientIdentity",
       "target_type": "yumo.achat.core.config.ClientIdentity",
       "target_file": "core/src/main/java/yumo/achat/core/config/ClientIdentity.kt",
       "extension_files": [
@@ -2428,7 +2428,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
       "target_type": "yumo.achat.core.config.CoreRuntimeConfig",
       "target_file": "core/src/main/java/yumo/achat/core/config/CoreRuntimeConfig.kt",
       "extension_files": [
@@ -2470,7 +2470,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
       "target_type": "yumo.achat.core.config.NetworkConfig",
       "target_file": "core/src/main/java/yumo/achat/core/config/CoreRuntimeConfig.kt",
       "extension_files": [
@@ -2512,7 +2512,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
       "target_type": "yumo.achat.core.config.StorageConfig",
       "target_file": "core/src/main/java/yumo/achat/core/config/CoreRuntimeConfig.kt",
       "extension_files": [
@@ -2549,7 +2549,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
       "target_type": "yumo.achat.core.config.DiagnosticsConfig",
       "target_file": "core/src/main/java/yumo/achat/core/config/CoreRuntimeConfig.kt",
       "extension_files": [
@@ -2586,7 +2586,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:11:ApiResponse",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:11:ApiResponse",
       "target_type": "yumo.achat.core.network.ApiResponse",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2628,7 +2628,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:26:LoginRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:26:LoginRequest",
       "target_type": "yumo.achat.core.network.LoginRequest",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2690,7 +2690,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:30:AnonymousRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:30:AnonymousRequest",
       "target_type": "yumo.achat.core.network.AnonymousRequest",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2742,7 +2742,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:33:GoogleRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:33:GoogleRequest",
       "target_type": "yumo.achat.core.network.GoogleRequest",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2799,7 +2799,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:37:RefreshRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:37:RefreshRequest",
       "target_type": "yumo.achat.core.network.RefreshRequest",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2831,7 +2831,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:39:AuthResponse",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:39:AuthResponse",
       "target_type": "yumo.achat.core.network.AuthResponse",
       "target_file": "core/src/main/java/yumo/achat/core/network/ApiModels.kt",
       "extension_files": [
@@ -2873,7 +2873,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
+      "source_id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
       "target_type": "yumo.achat.core.payment.LegacyPaymentOrder",
       "target_file": "core/src/main/java/yumo/achat/core/payment/LegacyPaymentRepository.kt",
       "extension_files": [
@@ -2915,7 +2915,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:14:PaymentEnvelope",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:14:PaymentEnvelope",
       "target_type": "yumo.achat.core.payment.PaymentEnvelope",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -2952,7 +2952,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
       "target_type": "yumo.achat.core.payment.InitializePaymentRequest",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -2984,7 +2984,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:18:PaymentSdkParams",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:18:PaymentSdkParams",
       "target_type": "yumo.achat.core.payment.PaymentSdkParams",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3016,7 +3016,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:19:InitializedPayment",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:19:InitializedPayment",
       "target_type": "yumo.achat.core.payment.InitializedPayment",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3088,7 +3088,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
       "target_type": "yumo.achat.core.payment.PaymentOrderStatus",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3130,7 +3130,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:50:PaymentClientEvent",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:50:PaymentClientEvent",
       "target_type": "yumo.achat.core.payment.PaymentClientEvent",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3207,7 +3207,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
       "target_type": "yumo.achat.core.payment.PaymentEventReceipt",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3239,7 +3239,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:72:PaymentConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:72:PaymentConfiguration",
       "target_type": "yumo.achat.core.payment.PaymentConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentContract.kt",
       "extension_files": [
@@ -3306,7 +3306,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:21:PaymentViewState",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:21:PaymentViewState",
       "target_type": "yumo.achat.core.payment.PaymentViewState",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentEngine.kt",
       "extension_files": [
@@ -3358,7 +3358,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
       "target_type": "yumo.achat.core.payment.QueuedPaymentEvent",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentEventQueue.kt",
       "extension_files": [
@@ -3410,7 +3410,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:14:PaymentRecord",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:14:PaymentRecord",
       "target_type": "yumo.achat.core.payment.PaymentRecord",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PaymentStorage.kt",
       "extension_files": [
@@ -3507,7 +3507,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
       "target_type": "yumo.achat.core.payment.PurchaseFlowConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/payment/PurchaseFlow.kt",
       "extension_files": [
@@ -3539,7 +3539,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
       "target_type": "yumo.achat.core.region.RegionAccessConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/region/RegionAccess.kt",
       "extension_files": [
@@ -3586,7 +3586,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:13:LocalRegion",
+      "source_id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:13:LocalRegion",
       "target_type": "yumo.achat.core.region.LocalRegion",
       "target_file": "core/src/main/java/yumo/achat/core/region/RegionAccess.kt",
       "extension_files": [
@@ -3623,7 +3623,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
+      "source_id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
       "target_type": "yumo.achat.core.visual.SourcePhoto",
       "target_file": "core/src/main/java/yumo/achat/core/visual/GenerationRequestRepository.kt",
       "extension_files": [
@@ -3675,7 +3675,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
+      "source_id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
       "target_type": "yumo.achat.core.visual.GenerationRequest",
       "target_file": "core/src/main/java/yumo/achat/core/visual/GenerationRequestRepository.kt",
       "extension_files": [
@@ -3752,7 +3752,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
       "target_type": "yumo.achat.core.visual.GenerationConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/visual/PrivateGenerationStorage.kt",
       "extension_files": [
@@ -3789,7 +3789,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
+      "source_id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
       "target_type": "yumo.achat.core.visual.UploadedPhoto",
       "target_file": "core/src/main/java/yumo/achat/core/visual/UploadedPhotoRepository.kt",
       "extension_files": [
@@ -3851,7 +3851,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:11:VisualCategory",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:11:VisualCategory",
       "target_type": "yumo.achat.core.visual.VisualCategory",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -3893,7 +3893,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:12:VisualPage",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:12:VisualPage",
       "target_type": "yumo.achat.core.visual.VisualPage",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -3940,7 +3940,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
       "target_type": "yumo.achat.core.visual.VisualTemplate",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -4004,7 +4004,7 @@
         },
         {
           "name": "prices",
-          "type": "com.vexora.core.catalog.TemplatePrices?",
+          "type": "com.zorv.core.catalog.TemplatePrices?",
           "serial_name": "prices"
         },
         {
@@ -4042,7 +4042,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:21:VisualResult",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:21:VisualResult",
       "target_type": "yumo.achat.core.visual.VisualResult",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -4099,7 +4099,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:23:VisualTask",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:23:VisualTask",
       "target_type": "yumo.achat.core.visual.VisualTask",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -4201,7 +4201,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:31:VisualResource",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:31:VisualResource",
       "target_type": "yumo.achat.core.visual.VisualResource",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualGenerationApi.kt",
       "extension_files": [
@@ -4288,7 +4288,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
       "target_type": "yumo.achat.core.visual.VisualPollingConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/visual/VisualLibraryRepository.kt",
       "extension_files": [
@@ -4335,7 +4335,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
       "target_type": "yumo.achat.core.wallet.CoinDisplayConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/CoinDisplayConfiguration.kt",
       "extension_files": [
@@ -4367,7 +4367,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
       "target_type": "yumo.achat.core.wallet.RechargeNotice",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/RechargeNotifications.kt",
       "extension_files": [
@@ -4409,7 +4409,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
       "target_type": "yumo.achat.core.wallet.RechargeStreamConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/RechargeNotifications.kt",
       "extension_files": [
@@ -4466,7 +4466,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:14:CoinProduct",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:14:CoinProduct",
       "target_type": "yumo.achat.core.wallet.CoinProduct",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4563,7 +4563,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:31:ProductsResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:31:ProductsResponse",
       "target_type": "yumo.achat.core.wallet.ProductsResponse",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4595,7 +4595,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:32:CurrencyResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:32:CurrencyResponse",
       "target_type": "yumo.achat.core.wallet.CurrencyResponse",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4632,7 +4632,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:35:CoinTransaction",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:35:CoinTransaction",
       "target_type": "yumo.achat.core.wallet.CoinTransaction",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4689,7 +4689,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:38:TransactionsResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:38:TransactionsResponse",
       "target_type": "yumo.achat.core.wallet.TransactionsResponse",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4736,7 +4736,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:40:CreateOrderRequest",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:40:CreateOrderRequest",
       "target_type": "yumo.achat.core.wallet.CreateOrderRequest",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4778,7 +4778,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:42:CreatedOrder",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:42:CreatedOrder",
       "target_type": "yumo.achat.core.wallet.CreatedOrder",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4820,7 +4820,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:55:WalletConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:55:WalletConfiguration",
       "target_type": "yumo.achat.core.wallet.WalletConfiguration",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletApi.kt",
       "extension_files": [
@@ -4862,7 +4862,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:14:WalletSnapshot",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt:14:WalletSnapshot",
       "target_type": "yumo.achat.core.wallet.WalletSnapshot",
       "target_file": "core/src/main/java/yumo/achat/core/wallet/WalletRepository.kt",
       "extension_files": [
@@ -4919,7 +4919,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
+      "source_id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
       "target_type": "yumo.achat.core.integration.appsflyer.AppsFlyerConfig",
       "target_file": "integration/analytics-appsflyer/src/main/java/yumo/achat/core/integration/appsflyer/AppsFlyerConfig.kt",
       "extension_files": [
@@ -4966,7 +4966,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
+      "source_id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
       "target_type": "yumo.achat.core.integration.appsflyer.AttributionStartStatus",
       "target_file": "integration/analytics-appsflyer/src/main/java/yumo/achat/core/integration/appsflyer/ForegroundAttributionStart.kt",
       "extension_files": [
@@ -5003,7 +5003,7 @@
       "structure_frozen": true
     },
     {
-      "source_id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
+      "source_id": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
       "target_type": "yumo.achat.core.integration.thinkingdata.ThinkingDataConfig",
       "target_file": "integration/analytics-thinkingdata/src/main/java/yumo/achat/core/integration/thinkingdata/ThinkingDataConfig.kt",
       "extension_files": [
@@ -5159,7 +5159,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
       "target_types": [
         "yumo.achat.core.analytics.AnalyticsPolicy"
       ],
@@ -5167,7 +5167,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
       "target_types": [
         "yumo.achat.core.analytics.PendingEvent"
       ],
@@ -5175,7 +5175,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:17:ReportEventRequest",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/EventApi.kt:17:ReportEventRequest",
       "target_types": [
         "yumo.achat.core.analytics.ReportEventRequest"
       ],
@@ -5183,7 +5183,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
       "target_types": [
         "yumo.achat.core.analytics.AnalyticsConfiguration"
       ],
@@ -5191,7 +5191,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:10:LoginAttribution",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:10:LoginAttribution",
       "target_types": [
         "yumo.achat.core.attribution.LoginAttribution"
       ],
@@ -5199,7 +5199,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:26:Success",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:26:Success",
       "target_types": [
         "yumo.achat.core.attribution.Success"
       ],
@@ -5207,7 +5207,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
       "target_types": [
         "yumo.achat.core.attribution.AttributionConfiguration"
       ],
@@ -5215,7 +5215,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
       "target_types": [
         "yumo.achat.core.auth.StartupConfiguration"
       ],
@@ -5223,7 +5223,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:16:Session",
+      "source_id": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt:16:Session",
       "target_types": [
         "yumo.achat.core.auth.Session"
       ],
@@ -5231,7 +5231,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:18:UserProfile",
+      "source_id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:18:UserProfile",
       "target_types": [
         "yumo.achat.core.auth.UserProfile"
       ],
@@ -5239,7 +5239,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:26:ProfileMode",
+      "source_id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:26:ProfileMode",
       "target_types": [
         "yumo.achat.core.auth.ProfileMode"
       ],
@@ -5247,7 +5247,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
       "target_types": [
         "yumo.achat.core.billing.BillingConfiguration"
       ],
@@ -5255,7 +5255,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:3:BillingProduct",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:3:BillingProduct",
       "target_types": [
         "yumo.achat.core.billing.BillingProduct"
       ],
@@ -5263,7 +5263,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
       "target_types": [
         "yumo.achat.core.billing.SubscriptionOfferDetails"
       ],
@@ -5271,7 +5271,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:23:PricingPhase",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:23:PricingPhase",
       "target_types": [
         "yumo.achat.core.billing.PricingPhase"
       ],
@@ -5279,7 +5279,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:3:BillingPurchase",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:3:BillingPurchase",
       "target_types": [
         "yumo.achat.core.billing.BillingPurchase"
       ],
@@ -5287,7 +5287,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:28:BillingResult",
+      "source_id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:28:BillingResult",
       "target_types": [
         "yumo.achat.core.billing.BillingResult"
       ],
@@ -5295,7 +5295,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
+      "source_id": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
       "target_types": [
         "yumo.achat.core.billing.CoinPurchaseState"
       ],
@@ -5303,7 +5303,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
       "target_types": [
         "yumo.achat.core.billing.Success"
       ],
@@ -5311,7 +5311,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
       "target_types": [
         "yumo.achat.core.billing.Pending"
       ],
@@ -5319,7 +5319,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
       "target_types": [
         "yumo.achat.core.billing.Failure"
       ],
@@ -5327,7 +5327,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
       "target_types": [
         "yumo.achat.core.billing.Success$Variant2"
       ],
@@ -5335,7 +5335,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
       "target_types": [
         "yumo.achat.core.billing.Failure$Variant2"
       ],
@@ -5343,7 +5343,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
+      "source_id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
       "target_types": [
         "yumo.achat.core.billing.Pending$Variant2"
       ],
@@ -5351,7 +5351,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
+      "source_id": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
       "target_types": [
         "yumo.achat.core.billing.PendingPurchaseRecord"
       ],
@@ -5359,7 +5359,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
       "target_types": [
         "yumo.achat.core.catalog.CatalogConfiguration"
       ],
@@ -5367,7 +5367,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:12:TemplateCategory",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:12:TemplateCategory",
       "target_types": [
         "yumo.achat.core.catalog.TemplateCategory"
       ],
@@ -5375,7 +5375,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:13:TemplateMedia",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:13:TemplateMedia",
       "target_types": [
         "yumo.achat.core.catalog.TemplateMedia"
       ],
@@ -5383,7 +5383,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:30:TemplatePrices",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:30:TemplatePrices",
       "target_types": [
         "yumo.achat.core.catalog.TemplatePrices"
       ],
@@ -5391,7 +5391,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:37:Template",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:37:Template",
       "target_types": [
         "yumo.achat.core.catalog.Template"
       ],
@@ -5399,7 +5399,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
       "target_types": [
         "yumo.achat.core.catalog.TemplateCatalog"
       ],
@@ -5407,7 +5407,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:52:CatalogFixture",
+      "source_id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:52:CatalogFixture",
       "target_types": [
         "yumo.achat.core.catalog.CatalogFixture"
       ],
@@ -5415,7 +5415,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:5:AccountRules",
+      "source_id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:5:AccountRules",
       "target_types": [
         "yumo.achat.core.config.AccountRules"
       ],
@@ -5423,7 +5423,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:14:AppConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:14:AppConfiguration",
       "target_types": [
         "yumo.achat.core.config.AppConfiguration"
       ],
@@ -5431,7 +5431,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt:3:ClientIdentity",
+      "source_id": "core/src/main/java/com/zorv/core/config/ClientIdentity.kt:3:ClientIdentity",
       "target_types": [
         "yumo.achat.core.config.ClientIdentity"
       ],
@@ -5439,7 +5439,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
       "target_types": [
         "yumo.achat.core.config.CoreRuntimeConfig"
       ],
@@ -5447,7 +5447,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
       "target_types": [
         "yumo.achat.core.config.NetworkConfig"
       ],
@@ -5455,7 +5455,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
       "target_types": [
         "yumo.achat.core.config.StorageConfig"
       ],
@@ -5463,7 +5463,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
+      "source_id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
       "target_types": [
         "yumo.achat.core.config.DiagnosticsConfig"
       ],
@@ -5471,7 +5471,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:11:ApiResponse",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:11:ApiResponse",
       "target_types": [
         "yumo.achat.core.network.ApiResponse"
       ],
@@ -5479,7 +5479,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:26:LoginRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:26:LoginRequest",
       "target_types": [
         "yumo.achat.core.network.LoginRequest"
       ],
@@ -5487,7 +5487,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:30:AnonymousRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:30:AnonymousRequest",
       "target_types": [
         "yumo.achat.core.network.AnonymousRequest"
       ],
@@ -5495,7 +5495,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:33:GoogleRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:33:GoogleRequest",
       "target_types": [
         "yumo.achat.core.network.GoogleRequest"
       ],
@@ -5503,7 +5503,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:37:RefreshRequest",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:37:RefreshRequest",
       "target_types": [
         "yumo.achat.core.network.RefreshRequest"
       ],
@@ -5511,7 +5511,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:39:AuthResponse",
+      "source_id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:39:AuthResponse",
       "target_types": [
         "yumo.achat.core.network.AuthResponse"
       ],
@@ -5519,7 +5519,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
+      "source_id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
       "target_types": [
         "yumo.achat.core.payment.LegacyPaymentOrder"
       ],
@@ -5527,7 +5527,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:14:PaymentEnvelope",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:14:PaymentEnvelope",
       "target_types": [
         "yumo.achat.core.payment.PaymentEnvelope"
       ],
@@ -5535,7 +5535,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
       "target_types": [
         "yumo.achat.core.payment.InitializePaymentRequest"
       ],
@@ -5543,7 +5543,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:18:PaymentSdkParams",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:18:PaymentSdkParams",
       "target_types": [
         "yumo.achat.core.payment.PaymentSdkParams"
       ],
@@ -5551,7 +5551,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:19:InitializedPayment",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:19:InitializedPayment",
       "target_types": [
         "yumo.achat.core.payment.InitializedPayment"
       ],
@@ -5559,7 +5559,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
       "target_types": [
         "yumo.achat.core.payment.PaymentOrderStatus"
       ],
@@ -5567,7 +5567,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:50:PaymentClientEvent",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:50:PaymentClientEvent",
       "target_types": [
         "yumo.achat.core.payment.PaymentClientEvent"
       ],
@@ -5575,7 +5575,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
       "target_types": [
         "yumo.achat.core.payment.PaymentEventReceipt"
       ],
@@ -5583,7 +5583,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:72:PaymentConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:72:PaymentConfiguration",
       "target_types": [
         "yumo.achat.core.payment.PaymentConfiguration"
       ],
@@ -5591,7 +5591,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:21:PaymentViewState",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:21:PaymentViewState",
       "target_types": [
         "yumo.achat.core.payment.PaymentViewState"
       ],
@@ -5599,7 +5599,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
       "target_types": [
         "yumo.achat.core.payment.QueuedPaymentEvent"
       ],
@@ -5607,7 +5607,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:14:PaymentRecord",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:14:PaymentRecord",
       "target_types": [
         "yumo.achat.core.payment.PaymentRecord"
       ],
@@ -5615,7 +5615,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
       "target_types": [
         "yumo.achat.core.payment.PurchaseFlowConfiguration"
       ],
@@ -5623,7 +5623,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
       "target_types": [
         "yumo.achat.core.region.RegionAccessConfiguration"
       ],
@@ -5631,7 +5631,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:13:LocalRegion",
+      "source_id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:13:LocalRegion",
       "target_types": [
         "yumo.achat.core.region.LocalRegion"
       ],
@@ -5639,7 +5639,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
+      "source_id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
       "target_types": [
         "yumo.achat.core.visual.SourcePhoto"
       ],
@@ -5647,7 +5647,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
+      "source_id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
       "target_types": [
         "yumo.achat.core.visual.GenerationRequest"
       ],
@@ -5655,7 +5655,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
       "target_types": [
         "yumo.achat.core.visual.GenerationConfiguration"
       ],
@@ -5663,7 +5663,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
+      "source_id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
       "target_types": [
         "yumo.achat.core.visual.UploadedPhoto"
       ],
@@ -5671,7 +5671,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:11:VisualCategory",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:11:VisualCategory",
       "target_types": [
         "yumo.achat.core.visual.VisualCategory"
       ],
@@ -5679,7 +5679,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:12:VisualPage",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:12:VisualPage",
       "target_types": [
         "yumo.achat.core.visual.VisualPage"
       ],
@@ -5687,7 +5687,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
       "target_types": [
         "yumo.achat.core.visual.VisualTemplate"
       ],
@@ -5695,7 +5695,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:21:VisualResult",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:21:VisualResult",
       "target_types": [
         "yumo.achat.core.visual.VisualResult"
       ],
@@ -5703,7 +5703,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:23:VisualTask",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:23:VisualTask",
       "target_types": [
         "yumo.achat.core.visual.VisualTask"
       ],
@@ -5711,7 +5711,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:31:VisualResource",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:31:VisualResource",
       "target_types": [
         "yumo.achat.core.visual.VisualResource"
       ],
@@ -5719,7 +5719,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
       "target_types": [
         "yumo.achat.core.visual.VisualPollingConfiguration"
       ],
@@ -5727,7 +5727,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
       "target_types": [
         "yumo.achat.core.wallet.CoinDisplayConfiguration"
       ],
@@ -5735,7 +5735,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
       "target_types": [
         "yumo.achat.core.wallet.RechargeNotice"
       ],
@@ -5743,7 +5743,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
       "target_types": [
         "yumo.achat.core.wallet.RechargeStreamConfiguration"
       ],
@@ -5751,7 +5751,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:14:CoinProduct",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:14:CoinProduct",
       "target_types": [
         "yumo.achat.core.wallet.CoinProduct"
       ],
@@ -5759,7 +5759,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:31:ProductsResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:31:ProductsResponse",
       "target_types": [
         "yumo.achat.core.wallet.ProductsResponse"
       ],
@@ -5767,7 +5767,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:32:CurrencyResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:32:CurrencyResponse",
       "target_types": [
         "yumo.achat.core.wallet.CurrencyResponse"
       ],
@@ -5775,7 +5775,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:35:CoinTransaction",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:35:CoinTransaction",
       "target_types": [
         "yumo.achat.core.wallet.CoinTransaction"
       ],
@@ -5783,7 +5783,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:38:TransactionsResponse",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:38:TransactionsResponse",
       "target_types": [
         "yumo.achat.core.wallet.TransactionsResponse"
       ],
@@ -5791,7 +5791,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:40:CreateOrderRequest",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:40:CreateOrderRequest",
       "target_types": [
         "yumo.achat.core.wallet.CreateOrderRequest"
       ],
@@ -5799,7 +5799,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:42:CreatedOrder",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:42:CreatedOrder",
       "target_types": [
         "yumo.achat.core.wallet.CreatedOrder"
       ],
@@ -5807,7 +5807,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:55:WalletConfiguration",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:55:WalletConfiguration",
       "target_types": [
         "yumo.achat.core.wallet.WalletConfiguration"
       ],
@@ -5815,7 +5815,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:14:WalletSnapshot",
+      "source_id": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt:14:WalletSnapshot",
       "target_types": [
         "yumo.achat.core.wallet.WalletSnapshot"
       ],
@@ -5823,7 +5823,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
+      "source_id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
       "target_types": [
         "yumo.achat.core.integration.appsflyer.AppsFlyerConfig"
       ],
@@ -5831,7 +5831,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
+      "source_id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
       "target_types": [
         "yumo.achat.core.integration.appsflyer.AttributionStartStatus"
       ],
@@ -5839,7 +5839,7 @@
       "field_mapping": "原构造字段按基线台账登记；当前生产源码保持既有字段语义，新增ach_modelTrace使用默认空串登记，不覆盖或重命名既有字段。"
     },
     {
-      "source_id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
+      "source_id": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
       "target_types": [
         "yumo.achat.core.integration.thinkingdata.ThinkingDataConfig"
       ],

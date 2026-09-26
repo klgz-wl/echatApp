@@ -39,7 +39,11 @@ internal fun TrackAnalyticsPage(
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             tracker.track("page_view", parameters + mapOf("page_name" to page), userId)
             if (page == "purchase") {
-                tracker.track("view_store", parameters + mapOf("entry_source" to "main"), userId)
+                tracker.track(
+                    "view_store",
+                    parameters + mapOf("entry_source" to (parameters["entry_source"] ?: "main")),
+                    userId,
+                )
             }
             awaitCancellation()
         }

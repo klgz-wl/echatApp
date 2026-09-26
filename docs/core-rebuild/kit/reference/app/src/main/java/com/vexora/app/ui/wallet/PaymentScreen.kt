@@ -25,7 +25,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.vexora.app.R
 import com.vexora.app.ui.components.*
 import com.vexora.app.ui.theme.*
-import com.vexora.core.payment.*
+import com.zorv.core.payment.*
 import kotlinx.coroutines.delay
 
 /** 原生收银台容器复用既有 WebScreen 控件；渠道内容由真实 HTTPS 网页提供。 */

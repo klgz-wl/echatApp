@@ -1,13 +1,13 @@
 package com.vexora.app.ui.generation
 
 import android.net.Uri
-import com.vexora.core.analytics.*
+import com.zorv.core.analytics.*
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.catalog.Template
-import com.vexora.core.visual.*
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.catalog.Template
+import com.zorv.core.visual.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException

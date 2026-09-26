@@ -4,7 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import com.vexora.app.R
 import com.vexora.app.ui.theme.Design
-import com.vexora.core.wallet.CoinTransaction
+import com.zorv.core.wallet.CoinTransaction
 
 internal data class TransactionAmount(@StringRes val format: Int, val value: String, val color: Color)
 

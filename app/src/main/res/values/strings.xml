@@ -143,7 +143,7 @@
     <string name="nav_me">ME</string>
     <string name="backend_loading_templates">Loading live templates...</string>
     <string name="backend_templates_offline">Live templates unavailable, using local preview</string>
-    <string name="backend_templates_placeholder">Local preview template</string>
+    <string name="backend_templates_placeholder">No template available</string>
     <string name="template_feed_loading_title">Loading live templates</string>
     <string name="template_feed_loading_body">Fetching real templates from the server...</string>
     <string name="template_feed_empty_title">No live templates</string>
@@ -154,4 +154,5 @@
     <string name="image_templates_error">Unable to load image templates</string>
     <string name="home_task_generating">Generating...</string>
     <string name="home_task_completed">Completed</string>
+    <string name="template_media_unavailable">Media unavailable</string>
 </resources>

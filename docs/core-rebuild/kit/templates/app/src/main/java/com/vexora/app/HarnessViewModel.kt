@@ -4,15 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vexora.app.analytics.AnalyticsHub
 import com.vexora.app.analytics.BusinessEventQueue
-import com.vexora.core.auth.AnonymousStartup
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.auth.UserProfileRepository
-import com.vexora.core.billing.BillingRepository
-import com.vexora.core.payment.PaymentCoordinator
-import com.vexora.core.payment.PurchaseRouter
-import com.vexora.core.region.RegionAccess
-import com.vexora.core.wallet.RechargeNotifications
-import com.vexora.core.wallet.WalletRepository
+import com.zorv.core.auth.AnonymousStartup
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.auth.UserProfileRepository
+import com.zorv.core.billing.BillingRepository
+import com.zorv.core.payment.PaymentCoordinator
+import com.zorv.core.payment.PurchaseRouter
+import com.zorv.core.region.RegionAccess
+import com.zorv.core.wallet.RechargeNotifications
+import com.zorv.core.wallet.WalletRepository
 import dagger.Lazy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -32,11 +32,11 @@ class HarnessRuntime @Inject constructor(
     val sessions: SessionCoordinator, val profiles: UserProfileRepository,
     val billing: BillingRepository, val payments: PaymentCoordinator,
     val recharge: RechargeNotifications, val router: PurchaseRouter, val events: BusinessEventQueue,
-    val catalog: com.vexora.core.catalog.TemplateRepository,
-    val library: com.vexora.core.visual.VisualLibraryRepository,
-    val photos: com.vexora.core.visual.UploadedPhotoRepository,
-    val images: com.vexora.core.visual.PrivateGenerationStorage,
-    val requests: com.vexora.core.visual.GenerationRequestRepository,
+    val catalog: com.zorv.core.catalog.TemplateRepository,
+    val library: com.zorv.core.visual.VisualLibraryRepository,
+    val photos: com.zorv.core.visual.UploadedPhotoRepository,
+    val images: com.zorv.core.visual.PrivateGenerationStorage,
+    val requests: com.zorv.core.visual.GenerationRequestRepository,
 )
 
 @HiltViewModel
@@ -97,7 +97,7 @@ class HarnessViewModel @Inject constructor(private val region: RegionAccess, pri
         viewModelScope.launch {
             try {
                 val graph = runtime.get()
-                graph.catalog.load(com.vexora.core.catalog.CatalogChannel.HOME)
+                graph.catalog.load(com.zorv.core.catalog.CatalogChannel.HOME)
                 graph.photos.photos(1)
                 graph.library.resources(1, null)
                 mutable.value = R.string.status_library

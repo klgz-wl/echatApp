@@ -1,0 +1,2 @@
+-keep class cn.thinkingdata.thirdparty.** { *; }
+-keep class cn.thinkingdata.module.routes.** { *; }

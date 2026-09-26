@@ -189,8 +189,8 @@ def verify_private(kit, private):
     require(sha(private/'config/shared-dev.jks') == read_json(kit/'manifests/dev-signature.json')['keystore_sha256'], '私密证书与普通包不匹配')
 
 def customize(root, answers):
-    replacements = {'com.vexora.app':answers['app_namespace'],'com.vexora.core':answers['core_namespace']}
-    pattern = re.compile(r'com\.vexora\.(?:app|core)(?![A-Za-z0-9_])')
+    replacements = {'com.vexora.app':answers['app_namespace'],'com.zorv.core':answers['core_namespace']}
+    pattern = re.compile(r'(?:com\.vexora\.app|com\.zorv\.core)(?![A-Za-z0-9_])')
     for path in sorted(root.rglob('*')):
         if not path.is_file() or path.suffix not in {'.kt','.kts','.pro','.xml','.properties'}: continue
         text = pattern.sub(lambda m:replacements[m[0]],path.read_text())
@@ -198,7 +198,7 @@ def customize(root, answers):
             text = text.replace('\":app\"','\":'+answers['app_module']+'\"').replace('../app/', '../'+answers['app_module']+'/')
         path.write_text(text)
     # 一次匹配原包路径；先暂存所有待迁移文件，支持包路径互换且不覆盖源码。
-    path_pattern = re.compile(r'/com/vexora/(?:app|core)(?=/)')
+    path_pattern = re.compile(r'/(?:com/vexora/app|com/zorv/core)(?=/)')
     moves = []
     for path in sorted(root.rglob('*.kt')):
         name = path.relative_to(root).as_posix()

@@ -1,7 +1,7 @@
 package com.vexora.app
 
 import android.app.Application
-import com.vexora.core.config.CoreRuntimeConfig
+import com.zorv.core.config.CoreRuntimeConfig
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject

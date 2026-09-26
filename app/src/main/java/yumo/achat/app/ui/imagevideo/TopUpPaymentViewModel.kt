@@ -174,7 +174,7 @@ internal class CoreTopUpPaymentController(
         selectedProductId = productId?.takeIf(products::containsKey)
     }
 
-    fun prepare(activity: Activity) {
+    fun prepare(activity: Activity, entrySource: String = "main") {
         scope.launch {
             sessions.synchronize()
             if (blocksNewCoinPurchase(purchaseState.status)) return@launch
@@ -185,7 +185,7 @@ internal class CoreTopUpPaymentController(
             }
             if (!corePaymentPresentation(coreState).canStartPurchase) return@launch
             val product = selectedProductId?.let(products::get) ?: return@launch
-            router.buy(activity, product.toCoinProduct(userInfo), "main")
+            router.buy(activity, product.toCoinProduct(userInfo), entrySource)
         }
     }
 

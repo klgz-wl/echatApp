@@ -24,9 +24,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.vexora.app.R
 import com.vexora.app.ui.components.*
 import com.vexora.app.ui.theme.*
-import com.vexora.core.wallet.CoinProduct
-import com.vexora.core.wallet.CoinDisplayConfiguration
-import com.vexora.core.billing.*
+import com.zorv.core.wallet.CoinProduct
+import com.zorv.core.wallet.CoinDisplayConfiguration
+import com.zorv.core.billing.*
 import java.util.Locale
 
 @Composable
@@ -181,12 +181,12 @@ fun RecordsScreen(state: WalletUiState, refresh: () -> Unit, more: () -> Unit, r
 }
 
 @Composable
-private fun PaymentStatusText(state: com.vexora.core.payment.PaymentViewState): String? {
+private fun PaymentStatusText(state: com.zorv.core.payment.PaymentViewState): String? {
     val record = state.record ?: return null
     val resource = when {
-        record.stage == com.vexora.core.payment.PaymentStage.AWAITING_FULFILLMENT -> R.string.payment_fulfillment_pending
-        record.stage in setOf(com.vexora.core.payment.PaymentStage.CLOSED, com.vexora.core.payment.PaymentStage.TIMED_OUT,
-            com.vexora.core.payment.PaymentStage.UNCERTAIN) -> R.string.payment_check_later
+        record.stage == com.zorv.core.payment.PaymentStage.AWAITING_FULFILLMENT -> R.string.payment_fulfillment_pending
+        record.stage in setOf(com.zorv.core.payment.PaymentStage.CLOSED, com.zorv.core.payment.PaymentStage.TIMED_OUT,
+            com.zorv.core.payment.PaymentStage.UNCERTAIN) -> R.string.payment_check_later
         else -> return null
     }
     return stringResource(resource)

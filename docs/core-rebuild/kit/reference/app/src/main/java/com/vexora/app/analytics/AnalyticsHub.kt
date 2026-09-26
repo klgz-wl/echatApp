@@ -1,11 +1,11 @@
 package com.vexora.app.analytics
 
-import com.vexora.core.analytics.*
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.auth.SessionStorage
-import com.vexora.core.config.ClientIdentity
-import com.vexora.core.integration.appsflyer.AppsFlyerAnalytics
-import com.vexora.core.integration.thinkingdata.ThinkingDataAnalytics
+import com.zorv.core.analytics.*
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.auth.SessionStorage
+import com.zorv.core.config.ClientIdentity
+import com.zorv.core.integration.appsflyer.AppsFlyerAnalytics
+import com.zorv.core.integration.thinkingdata.ThinkingDataAnalytics
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -19,7 +19,7 @@ class AnalyticsHub @Inject constructor(private val firebase: FirebaseAnalyticsSi
     private val thinkingData: ThinkingDataAnalytics, private val backend: BackendAnalyticsSink,
     private val sessions: SessionCoordinator, private val policy: AnalyticsPolicy,
     private val queue: BusinessEventQueue, private val storage: SessionStorage, private val identity: ClientIdentity,
-    private val attributionReports: dagger.Lazy<com.vexora.core.attribution.AttributionReports>) {
+    private val attributionReports: dagger.Lazy<com.zorv.core.attribution.AttributionReports>) {
     private val sinks = listOf(firebase to policy.firebase, appsFlyer to policy.appsFlyer, thinkingData to policy.thinkingData, backend to policy.backend)
         .filter { it.second }.map { it.first }
     private val identities = mutableMapOf<AnalyticsSink, String?>()

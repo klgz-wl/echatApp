@@ -22,6 +22,7 @@ internal data class BusinessEvent(
     val parameters: Map<String, Any>,
     val userId: String?,
     val eventTime: Long,
+    val dedupeKey: String? = null,
 )
 
 internal class BusinessEventQueue(
@@ -32,13 +33,15 @@ internal class BusinessEventQueue(
     private val channel = Channel<BusinessEvent>(capacity)
     val events = channel.receiveAsFlow()
     private val onceKeys = LinkedHashSet(dedupeStore.read().takeLast(dedupeLimit))
+    private val inFlightKeys = mutableSetOf<String>()
     @Volatile var mode: String = "unknown"
     @Volatile var sessionId: String = UUID.randomUUID().toString()
 
     @Synchronized
     override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
         if (name.isBlank()) return
-        if (onceKey != null && hasOnceKey(userId, onceKey)) return
+        val dedupeKey = onceKey?.let { onceKey(userId, it) }
+        if (dedupeKey != null && (dedupeKey in onceKeys || dedupeKey in inFlightKeys)) return
         val eventTime = System.currentTimeMillis()
         val sent = channel.trySend(
             BusinessEvent(
@@ -51,9 +54,17 @@ internal class BusinessEventQueue(
                 ),
                 userId = userId,
                 eventTime = eventTime,
+                dedupeKey = dedupeKey,
             ),
         ).isSuccess
-        if (sent && onceKey != null) rememberOnceKey(userId, onceKey)
+        if (sent && dedupeKey != null) inFlightKeys += dedupeKey
+    }
+
+    @Synchronized
+    fun confirm(event: BusinessEvent, accepted: Boolean) {
+        val key = event.dedupeKey ?: return
+        inFlightKeys -= key
+        if (accepted) rememberOnceKey(key)
     }
 
     private fun onceKey(userId: String?, onceKey: String): String =
@@ -61,11 +72,7 @@ internal class BusinessEventQueue(
             .digest("${userId.orEmpty()}:$onceKey".toByteArray())
             .joinToString("") { "%02x".format(it) }
 
-    private fun hasOnceKey(userId: String?, onceKey: String): Boolean =
-        onceKey(userId, onceKey) in onceKeys
-
-    private fun rememberOnceKey(userId: String?, onceKey: String) {
-        val key = onceKey(userId, onceKey)
+    private fun rememberOnceKey(key: String) {
         if (!onceKeys.add(key)) return
         if (onceKeys.size > dedupeLimit) {
             val iterator = onceKeys.iterator()

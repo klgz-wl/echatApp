@@ -21,6 +21,9 @@ import javax.inject.Singleton
 class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val context: Context,
     private val config: AppsFlyerConfig) : AnalyticsSink, AttributionIdProvider, ConversionSource {
     @Volatile private var ready = false
+    @Volatile private var started = false
+    private val sdkLock = Any()
+    private val pendingEvents = PendingAppsFlyerEvents(config.eventQueueCapacity)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutableStartStatus = MutableStateFlow(AttributionStartStatus(AttributionStartStage.NOT_REQUESTED))
     val startStatus = mutableStartStatus.asStateFlow()
@@ -61,7 +64,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             }
         }
         try {
-            AppsFlyerLib.getInstance().apply {
+            synchronized(sdkLock) { AppsFlyerLib.getInstance().apply {
                 if (!ready) {
                     setDebugLog(config.debugLogging)
                     init(config.devKey, object : AppsFlyerConversionListener {
@@ -98,7 +101,14 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                         if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
                     }
                 })
-            }
+                started = true
+                val batch = pendingEvents.drain()
+                batch.events.forEach { event ->
+                    setCustomerUserId(event.userId.orEmpty())
+                    logEvent(context, yumo.achat.core.analytics.AnalyticsPlatform.APPS_FLYER.eventName(event.name), event.parameters)
+                }
+                setCustomerUserId(batch.restoreUserId.orEmpty())
+            } }
             return true
         } catch (_: Exception) {
             updateStartStatus(AttributionStartStage.INITIALIZATION_FAILED)
@@ -116,7 +126,26 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     }
     override fun advertisingId(): String? = gaid
     override fun attributionUid(): String = currentId()
-    override fun identify(userId: String?) { AppsFlyerLib.getInstance().setCustomerUserId(userId.orEmpty()) }
-    override fun event(name: String, parameters: Map<String, Any>) { AppsFlyerLib.getInstance().logEvent(context, yumo.achat.core.analytics.AnalyticsPlatform.APPS_FLYER.eventName(name), parameters) }
+    override fun identify(userId: String?) {
+        pendingEvents.identify(userId)
+        synchronized(sdkLock) {
+            if (ready) AppsFlyerLib.getInstance().setCustomerUserId(userId.orEmpty())
+        }
+    }
+    override fun event(name: String, parameters: Map<String, Any>) {
+        synchronized(sdkLock) {
+            if (started) {
+                AppsFlyerLib.getInstance().logEvent(
+                    context,
+                    yumo.achat.core.analytics.AnalyticsPlatform.APPS_FLYER.eventName(name),
+                    parameters,
+                )
+            } else {
+                runCatching { pendingEvents.enqueueOrThrow(name, parameters) }
+                    .onFailure { diagnostic("AppsFlyer/Event", "启动前事件队列已满，拒绝最新事件") }
+                    .getOrThrow()
+            }
+        }
+    }
     override fun currentId(): String = if (ready) AppsFlyerLib.getInstance().getAppsFlyerUID(context).orEmpty() else ""
 }

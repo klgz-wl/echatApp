@@ -3,9 +3,9 @@ package com.vexora.app.ui.login
 import android.content.Context
 import android.content.res.Resources
 import android.telephony.TelephonyManager
-import com.vexora.core.region.LocalRegionSource
-import com.vexora.core.region.LocalRegion
-import com.vexora.core.region.LocalRegionKind
+import com.zorv.core.region.LocalRegionSource
+import com.zorv.core.region.LocalRegion
+import com.zorv.core.region.LocalRegionKind
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 

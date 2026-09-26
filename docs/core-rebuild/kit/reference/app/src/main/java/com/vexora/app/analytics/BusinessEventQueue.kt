@@ -1,8 +1,8 @@
 package com.vexora.app.analytics
 
 import android.content.Context
-import com.vexora.core.analytics.*
-import com.vexora.core.auth.SessionCoordinator
+import com.zorv.core.analytics.*
+import com.zorv.core.auth.SessionCoordinator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow

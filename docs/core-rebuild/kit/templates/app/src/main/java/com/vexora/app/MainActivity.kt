@@ -9,7 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.vexora.core.integration.appsflyer.AppsFlyerAnalytics
+import com.zorv.core.integration.appsflyer.AppsFlyerAnalytics
 import dagger.Lazy
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch

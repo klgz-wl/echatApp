@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
@@ -57,6 +58,7 @@ internal class AppsFlyerBackendAttribution(
             debugLogging = BuildConfig.APPSFLYER_DEBUG_LOGGING && BuildConfig.DEBUG,
             enabled = BuildConfig.ENABLE_APPSFLYER,
             diagnosticLogging = BuildConfig.APPSFLYER_DIAGNOSTIC_LOGGING,
+            eventQueueCapacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
         ),
     )
     private val storage = AppAttributionStorage(appContext)
@@ -90,6 +92,9 @@ internal class AppsFlyerBackendAttribution(
             client.reportAttribution(JSONObject(payload.toString()))
         },
         onReported = { session -> mutableSuccessfulReports.tryEmit(session.userId) },
+        deliveryStore = SharedPreferencesAttributionDeliveryStore(
+            appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE),
+        ),
     )
 
     init {
@@ -98,10 +103,12 @@ internal class AppsFlyerBackendAttribution(
                 reporter.updateSnapshot(data)
             }
         }
+        storage.cachedSnapshotBlocking()?.let(reporter::updateSnapshot)
     }
 
     fun onActivityResumed(activity: Activity) {
         source.onActivityResumed(activity)
+        reporter.retryPending()
     }
 
     fun onActivityPaused(activity: Activity) {
@@ -114,6 +121,8 @@ internal class AppsFlyerBackendAttribution(
     override fun currentId(): String = source.currentId()
 
     fun analyticsSink(): AnalyticsSink = source
+
+    fun snapshots(): StateFlow<JsonObject?> = coordinator.snapshots
 
     override suspend fun report(session: AuthSession) {
         reporter.updateSession(session)
@@ -138,7 +147,29 @@ private class AppAttributionStorage(context: Context) : AttributionStorage, Sess
 
     fun deviceIdBlocking(): String = sessionStore.deviceId()
 
+    fun cachedSnapshotBlocking(): JsonObject? = preferences.getString(KEY_ATTRIBUTION, null)
+        ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+
     private companion object {
         const val KEY_ATTRIBUTION = "appsflyer_install_attribution"
+    }
+}
+
+private class SharedPreferencesAttributionDeliveryStore(
+    private val preferences: android.content.SharedPreferences,
+) : AttributionDeliveryStore {
+    override fun wasReported(digest: String): Boolean =
+        digest in preferences.getStringSet(KEY_REPORTED, emptySet()).orEmpty()
+
+    override fun markReported(digest: String): Boolean {
+        val updated = preferences.getStringSet(KEY_REPORTED, emptySet()).orEmpty().toMutableSet()
+        updated += digest
+        while (updated.size > MAX_REPORTED) updated.remove(updated.first())
+        return preferences.edit().putStringSet(KEY_REPORTED, updated).commit()
+    }
+
+    private companion object {
+        const val KEY_REPORTED = "reported_attribution_digests"
+        const val MAX_REPORTED = 32
     }
 }

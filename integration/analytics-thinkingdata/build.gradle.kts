@@ -10,7 +10,10 @@ android {
     namespace = config.getProperty("core.namespace") + ".integration.thinkingdata"
     compileSdk = config.getProperty("sdk.compile").toInt()
     compileSdkMinor = config.getProperty("sdk.minor").toInt()
-    defaultConfig { minSdk = config.getProperty("sdk.min").toInt() }
+    defaultConfig {
+        minSdk = config.getProperty("sdk.min").toInt()
+        consumerProguardFiles("consumer-rules.pro")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

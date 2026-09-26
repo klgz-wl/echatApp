@@ -2,9 +2,9 @@ package com.vexora.app.ui.generation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vexora.core.auth.SessionCoordinator
-import com.vexora.core.visual.*
-import com.vexora.core.wallet.WalletRepository
+import com.zorv.core.auth.SessionCoordinator
+import com.zorv.core.visual.*
+import com.zorv.core.wallet.WalletRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.*

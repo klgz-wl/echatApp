@@ -1,6 +1,6 @@
 # Core 功能与公共接口清单
 
-源码基线：`950f524`，更新：2026-09-18。分析范围：`core/src/main/java/com/vexora/core` 下 11 个包、57 个 Kotlin 生产源码文件；第 3.4 节另列 AppsFlyer integration 与宿主接入边界，不计入 Core 文件数。本文描述现有实现，不把源码存在视为真实平台收数验收。
+源码基线：`950f524`，更新：2026-09-18。分析范围：`core/src/main/java/com/zorv/core` 下 11 个包、57 个 Kotlin 生产源码文件；第 3.4 节另列 AppsFlyer integration 与宿主接入边界，不计入 Core 文件数。本文描述现有实现，不把源码存在视为真实平台收数验收。
 
 后续跨项目结构调整、Model新增字段与dev/prod材料交付见 交付规格（历史参考，契约以本文正文和随包源码为准） 和 计划（历史参考，契约以本文正文和随包源码为准）。交付包已获授权制作，当前Vexora源码仍未改造；本清单的签名/协议仍描述现有实现，不提前列入未来冗余字段。
 
@@ -62,7 +62,7 @@ flowchart TD
 
 ## 2. config：配置与账号校验
 
-源码：[AppConfiguration.kt](../reference/core/src/main/java/com/vexora/core/config/AppConfiguration.kt)、[ClientIdentity.kt](../reference/core/src/main/java/com/vexora/core/config/ClientIdentity.kt)、[CoreRuntimeConfig.kt](../reference/core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt)。
+源码：[AppConfiguration.kt](../reference/core/src/main/java/com/zorv/core/config/AppConfiguration.kt)、[ClientIdentity.kt](../reference/core/src/main/java/com/zorv/core/config/ClientIdentity.kt)、[CoreRuntimeConfig.kt](../reference/core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt)。
 
 | 类/枚举 | 主要公共属性 | 功能与边界 |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ flowchart TD
 
 ### 3.1 统计契约、参数与自有接口
 
-源码：[AnalyticsSink.kt](../reference/core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt)、[EventTracker.kt](../reference/core/src/main/java/com/vexora/core/analytics/EventTracker.kt)、[EventApi.kt](../reference/core/src/main/java/com/vexora/core/analytics/EventApi.kt)、[BackendAnalyticsSink.kt](../reference/core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt)。
+源码：[AnalyticsSink.kt](../reference/core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt)、[EventTracker.kt](../reference/core/src/main/java/com/zorv/core/analytics/EventTracker.kt)、[EventApi.kt](../reference/core/src/main/java/com/zorv/core/analytics/EventApi.kt)、[BackendAnalyticsSink.kt](../reference/core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt)。
 
 | 类/接口 | 公共方法 | 作用 |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ BackendAnalyticsSink 不持久化、不在应用层重试；队列满丢弃新�
 
 ### 3.2 归因等待、缓存与独立补报
 
-源码：[AttributionCoordinator.kt](../reference/core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt)、[AttributionModels.kt](../reference/core/src/main/java/com/vexora/core/attribution/AttributionModels.kt)、[AttributionReports.kt](../reference/core/src/main/java/com/vexora/core/attribution/AttributionReports.kt)。
+源码：[AttributionCoordinator.kt](../reference/core/src/main/java/com/zorv/core/attribution/AttributionCoordinator.kt)、[AttributionModels.kt](../reference/core/src/main/java/com/zorv/core/attribution/AttributionModels.kt)、[AttributionReports.kt](../reference/core/src/main/java/com/zorv/core/attribution/AttributionReports.kt)。
 
 | 类/接口 | 公共成员 | 功能 |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ AttributionReports 对每组“有效快照＋epoch”有限重试；补报成�
 
 ### 3.4 AppsFlyer 适配与 SDK 升级边界（不属于 Core 源码目录）
 
-源码：[AppsFlyerAnalytics](../reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt)、[AppsFlyerConfig](../reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt)、[ForegroundAttributionStart](../reference/integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt)、[依赖声明](../reference/integration/analytics-appsflyer/build.gradle.kts)、[版本目录](../reference/gradle/libs.versions.toml)。
+源码：[AppsFlyerAnalytics](../reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerAnalytics.kt)、[AppsFlyerConfig](../reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt)、[ForegroundAttributionStart](../reference/integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt)、[依赖声明](../reference/integration/analytics-appsflyer/build.gradle.kts)、[版本目录](../reference/gradle/libs.versions.toml)。
 
 当前工程从6.12.2升级为6.18.1，显式加入Install Referrer 2.2。这是源码锁定版本，不是对未来最新/受支持版本的永久承诺；发布前按 故障复盘与发布检查（历史参考，契约以本文正文和随包源码为准） 核对官方支持周期、最终依赖、实际请求和回调，不能只照搬参考工程。
 
@@ -175,7 +175,7 @@ prodRelease地区门禁通过前不创建业务依赖；MainActivity在RESUMED�
 
 ### 4.1 保留的认证底层能力（正式入口仅匿名）
 
-源码：[AuthRepository.kt](../reference/core/src/main/java/com/vexora/core/auth/AuthRepository.kt)。`ApiAuthRepository` 实现 `AuthRepository`，通过 Mutex 串行执行认证操作。账号/Google/退出/注销方法仍存在，但正式页面不再提供这些操作；不是要求重建旧登录UI。
+源码：[AuthRepository.kt](../reference/core/src/main/java/com/zorv/core/auth/AuthRepository.kt)。`ApiAuthRepository` 实现 `AuthRepository`，通过 Mutex 串行执行认证操作。账号/Google/退出/注销方法仍存在，但正式页面不再提供这些操作；不是要求重建旧登录UI。
 
 | 公共方法（两者相同） | 功能与前提 |
 | --- | --- |
@@ -188,7 +188,7 @@ prodRelease地区门禁通过前不创建业务依赖；MainActivity在RESUMED�
 
 ### 4.2 会话协调器
 
-源码：[SessionCoordinator.kt](../reference/core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt)。
+源码：[SessionCoordinator.kt](../reference/core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt)。
 
 `Session` 字段：token、refreshToken、userId、epoch: String；revision: Long = 0。epoch 区分每次登录，revision 区分同一会话内的 token 刷新。
 
@@ -206,7 +206,7 @@ prodRelease地区门禁通过前不创建业务依赖；MainActivity在RESUMED�
 
 ### 4.3 持久化接口
 
-源码：[PreferenceSessionStorage.kt](../reference/core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt)。
+源码：[PreferenceSessionStorage.kt](../reference/core/src/main/java/com/zorv/core/auth/PreferenceSessionStorage.kt)。
 
 | 接口 | 公共方法 | 实现 |
 | --- | --- | --- |
@@ -220,7 +220,7 @@ prodRelease地区门禁通过前不创建业务依赖；MainActivity在RESUMED�
 
 ### 4.4 AnonymousStartup 与 profile 模式
 
-源码：[AnonymousStartup.kt](../reference/core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt)、[UserProfileRepository.kt](../reference/core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt)。
+源码：[AnonymousStartup.kt](../reference/core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt)、[UserProfileRepository.kt](../reference/core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt)。
 
 | 类型 | 公共方法/属性 | 功能 |
 | --- | --- | --- |
@@ -239,7 +239,7 @@ StartupOfflineException、StartupUnavailableException 无业务方法；超时�
 
 ### 5.1 业务响应与认证 API
 
-源码：[ApiModels.kt](../reference/core/src/main/java/com/vexora/core/network/ApiModels.kt)。
+源码：[ApiModels.kt](../reference/core/src/main/java/com/zorv/core/network/ApiModels.kt)。
 
 `ApiResponse<T>(code: Int, message: String? = null, data: T? = null)`：
 
@@ -261,7 +261,7 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 
 ### 5.2 SessionInterceptor
 
-源码：[NetworkModule.kt](../reference/core/src/main/java/com/vexora/core/network/NetworkModule.kt)。构造依赖 sessions、api，以及 `invalidateOnRetriedUnauthorized: Boolean = true`。
+源码：[NetworkModule.kt](../reference/core/src/main/java/com/zorv/core/network/NetworkModule.kt)。构造依赖 sessions、api，以及 `invalidateOnRetriedUnauthorized: Boolean = true`。
 
 公共框架方法：`intercept(chain: Interceptor.Chain): okhttp3.Response`。
 
@@ -296,11 +296,11 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 | `visualApi(retrofit: Retrofit): VisualGenerationApi` | 视觉生成接口 |
 | `walletApi(client: OkHttpClient, config: CoreRuntimeConfig, json: Json): WalletApi` | 禁隐式连接重试和重定向的钱包客户端 |
 
-日志辅助函数位于 [HttpLogging.kt](../reference/core/src/main/java/com/vexora/core/network/HttpLogging.kt)、[PaymentHttpClient.kt](../reference/core/src/main/java/com/vexora/core/network/PaymentHttpClient.kt)，均为 internal，详见第 11 节。
+日志辅助函数位于 [HttpLogging.kt](../reference/core/src/main/java/com/zorv/core/network/HttpLogging.kt)、[PaymentHttpClient.kt](../reference/core/src/main/java/com/zorv/core/network/PaymentHttpClient.kt)，均为 internal，详见第 11 节。
 
 ## 6. catalog：模板、分类、媒体与报价
 
-源码：[TemplateRepository.kt](../reference/core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt)、[ApiTemplateRepository.kt](../reference/core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt)。
+源码：[TemplateRepository.kt](../reference/core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt)、[ApiTemplateRepository.kt](../reference/core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt)。
 
 | 类/接口 | 公共方法 | 提供的功能 |
 | --- | --- | --- |
@@ -328,13 +328,13 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 
 关键行为：首个模板页请求分类，后续页只带 All 占位分类，宿主需保留此前分类；视频 HOME 传 home_featured=true，VIDEO 传 false，图片不传。无效媒体条目可跳过，分页依据原始返回项计算。远端媒体尺寸允许未知，但访问 aspectRatio 前必须确认 hasDimensions；canLoad 检查协议/主机，不代表实际下载成功。MockTemplateRepository 返回 fixture 本身，不执行远端分页。
 
-新增列表封面能力：[PreviewMediaType.kt](../reference/core/src/main/java/com/vexora/core/catalog/PreviewMediaType.kt) 的公共 `previewMediaType(url: String, originalUrl: String, originalMimeType: String): String` 按URL路径扩展名判MIME，忽略查询参数；未知扩展名仅在url等于originalUrl时沿用原MIME。Template.cover映射preview_url用于列表，Template.preview仍为file_url详情媒体；tags/isHomeFeatured透传，播放生命周期在app。
+新增列表封面能力：[PreviewMediaType.kt](../reference/core/src/main/java/com/zorv/core/catalog/PreviewMediaType.kt) 的公共 `previewMediaType(url: String, originalUrl: String, originalMimeType: String): String` 按URL路径扩展名判MIME，忽略查询参数；未知扩展名仅在url等于originalUrl时沿用原MIME。Template.cover映射preview_url用于列表，Template.preview仍为file_url详情媒体；tags/isHomeFeatured透传，播放生命周期在app。
 
 ## 7. visual：图片准备、生成任务与作品
 
 ### 7.1 GenerationRequestRepository：持久生成请求
 
-源码：[GenerationRequestRepository.kt](../reference/core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt)。提交、刷新与通知确认由 Mutex 串行处理；该类没有公开 StateFlow，宿主读取记录并维护共享 UI 状态。
+源码：[GenerationRequestRepository.kt](../reference/core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt)。提交、刷新与通知确认由 Mutex 串行处理；该类没有公开 StateFlow，宿主读取记录并维护共享 UI 状态。
 
 | 公共方法 | 具体功能与边界 |
 | --- | --- |
@@ -357,7 +357,7 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 
 ### 7.2 GenerationStorage / PrivateGenerationStorage
 
-源码：[存储接口](../reference/core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt)、[PrivateGenerationStorage.kt](../reference/core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt)。
+源码：[存储接口](../reference/core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt)、[PrivateGenerationStorage.kt](../reference/core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt)。
 
 | 所属类型 | 公共方法 | 功能 |
 | --- | --- | --- |
@@ -373,7 +373,7 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 
 ### 7.3 VisualLibraryRepository 与轮询配置
 
-源码：[VisualLibraryRepository.kt](../reference/core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt)。
+源码：[VisualLibraryRepository.kt](../reference/core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt)。
 
 | 类型 | 公共方法 | 功能 |
 | --- | --- | --- |
@@ -384,7 +384,7 @@ DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousReques
 
 ### 7.4 VisualGenerationApi：底层 HTTP 接口
 
-源码：[VisualGenerationApi.kt](../reference/core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt)。以下全为 `suspend`，Session 参数作为请求 Tag，不进请求体。
+源码：[VisualGenerationApi.kt](../reference/core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt)。以下全为 `suspend`，Session 参数作为请求 Tag，不进请求体。
 
 | 公共方法 | HTTP |
 | --- | --- |
@@ -409,7 +409,7 @@ DTO 清单：
 
 ### 7.5 已上传图片与生成埋点
 
-源码：[UploadedPhotoRepository.kt](../reference/core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt)。
+源码：[UploadedPhotoRepository.kt](../reference/core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt)。
 
 | 类/接口 | 公共方法 | 功能 |
 | --- | --- | --- |
@@ -426,7 +426,7 @@ GenerationRequestRepository通过EventTracker上报task_submit阶段upload_img_r
 
 ### 8.1 WalletRepository
 
-源码：[WalletRepository.kt](../reference/core/src/main/java/com/vexora/core/wallet/WalletRepository.kt)。
+源码：[WalletRepository.kt](../reference/core/src/main/java/com/zorv/core/wallet/WalletRepository.kt)。
 
 公开状态：`state: StateFlow<WalletSnapshot>`。快照字段为 epoch、可空 balance、products、transactions、nextPage、hasMore；未知余额不是零余额。
 
@@ -442,7 +442,7 @@ GenerationRequestRepository通过EventTracker上报task_submit阶段upload_img_r
 
 ### 8.2 WalletApi 与商品模型
 
-源码：[WalletApi.kt](../reference/core/src/main/java/com/vexora/core/wallet/WalletApi.kt)、[CoinDisplayConfiguration.kt](../reference/core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt)。
+源码：[WalletApi.kt](../reference/core/src/main/java/com/zorv/core/wallet/WalletApi.kt)、[CoinDisplayConfiguration.kt](../reference/core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt)。
 
 | 公共方法（WalletApi，均 suspend） | HTTP |
 | --- | --- |
@@ -473,7 +473,7 @@ CoinProduct 的自定义公共计算属性：
 
 ### 8.3 RechargeNotifications
 
-源码：[RechargeNotifications.kt](../reference/core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt)。
+源码：[RechargeNotifications.kt](../reference/core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt)。
 
 | 公共成员 | 功能 |
 | --- | --- |
@@ -489,7 +489,7 @@ CoinProduct 的自定义公共计算属性：
 
 ### 9.1 CoinPurchaseController：消耗型购买编排入口
 
-源码：[CoinPurchaseController.kt](../reference/core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt)。
+源码：[CoinPurchaseController.kt](../reference/core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt)。
 
 | 公共成员 | 功能 |
 | --- | --- |
@@ -501,7 +501,7 @@ CoinProduct 的自定义公共计算属性：
 
 ### 9.2 BillingRepository：SDK 门面与恢复
 
-源码：[BillingRepository.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingRepository.kt)。
+源码：[BillingRepository.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingRepository.kt)。
 
 | 公共成员 | 功能 |
 | --- | --- |
@@ -516,7 +516,7 @@ initialize 的返回值表示连接结果，不能据此断言所有历史订单
 
 ### 9.3 BillingManager：平台适配
 
-源码：[BillingManager.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingManager.kt)。公开状态：`connectionState: StateFlow<BillingConnectionState>`。
+源码：[BillingManager.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingManager.kt)。公开状态：`connectionState: StateFlow<BillingConnectionState>`。
 
 | 公共方法 | 功能 |
 | --- | --- |
@@ -535,7 +535,7 @@ SDK 回调虽为 public，但属于框架入口：`onPurchasesUpdated(billingRes
 
 ### 9.4 购买准入与纯逻辑编排
 
-源码：[BillingPurchaseAdmission.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt)、[ConsumablePurchaseOrchestrator.kt](../reference/core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt)。
+源码：[BillingPurchaseAdmission.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt)、[ConsumablePurchaseOrchestrator.kt](../reference/core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt)。
 
 - `BillingPurchaseAdmission.tryAcquire(): BillingPurchaseLease?`：占用则返回 null；成功返回租约。
 - `BillingPurchaseLease.close(): Unit`：幂等释放。类为 public，构造器是 internal，应通过 tryAcquire 获取。
@@ -565,7 +565,7 @@ purchase 顺序为初始化→查询→建单→购买→消费；Pending 不消
 
 ### 9.5 结果与模型辅助方法
 
-源码：[BillingProduct.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingProduct.kt)、[BillingPurchase.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingPurchase.kt)、[BillingProductType.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingProductType.kt)、[BillingConnectionState.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt)、[BillingConfiguration.kt](../reference/core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt)。
+源码：[BillingProduct.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingProduct.kt)、[BillingPurchase.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingPurchase.kt)、[BillingProductType.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingProductType.kt)、[BillingConnectionState.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingConnectionState.kt)、[BillingConfiguration.kt](../reference/core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt)。
 
 | 类型 | 属性/职责 |
 | --- | --- |
@@ -590,7 +590,7 @@ purchase 顺序为初始化→查询→建单→购买→消费；Pending 不消
 
 ### 10.1 PurchaseRouter：宿主统一购买入口
 
-源码：[PurchaseRouter.kt](../reference/core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt)。
+源码：[PurchaseRouter.kt](../reference/core/src/main/java/com/zorv/core/payment/PurchaseRouter.kt)。
 
 | 公共成员 | 功能与返回语义 |
 | --- | --- |
@@ -603,7 +603,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.2 策略选择与新旧流程
 
-源码：[PurchaseFlow.kt](../reference/core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt)、[LegacyPaymentFlow.kt](../reference/core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt)、[ServicePaymentFlow.kt](../reference/core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt)。
+源码：[PurchaseFlow.kt](../reference/core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt)、[LegacyPaymentFlow.kt](../reference/core/src/main/java/com/zorv/core/payment/LegacyPaymentFlow.kt)、[ServicePaymentFlow.kt](../reference/core/src/main/java/com/zorv/core/payment/ServicePaymentFlow.kt)。
 
 | 类 | 公共方法 | 功能 |
 | --- | --- | --- |
@@ -617,7 +617,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.3 LegacyPaymentRepository / LegacyOrderRegistry
 
-源码：[LegacyPaymentRepository.kt](../reference/core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt)。
+源码：[LegacyPaymentRepository.kt](../reference/core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt)。
 
 | 类/接口 | 公共方法 | 功能 |
 | --- | --- | --- |
@@ -631,7 +631,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.4 PaymentEngine：持久支付状态机
 
-源码：[PaymentEngine.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentEngine.kt)。公开状态为 `state: StateFlow<PaymentViewState>`、`failureEvents: SharedFlow<String>`（所属 epoch）。
+源码：[PaymentEngine.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentEngine.kt)。公开状态为 `state: StateFlow<PaymentViewState>`、`failureEvents: SharedFlow<String>`（所属 epoch）。
 
 所有表内方法均为 `suspend`；内部串行、按当前会话处理。除 recharge/claimOfficial 外返回 Unit。大多数失败被转换成状态/当次失败事件，不保证向调用方抛出原始异常；无会话时 guarded 操作可直接不执行。
 
@@ -660,7 +660,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.5 PaymentCoordinator：前台调度
 
-源码：[PaymentCoordinator.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt)。公开属性：`engine: PaymentEngine`、`configuration: PaymentConfiguration`、`state: StateFlow<PaymentViewState>`。
+源码：[PaymentCoordinator.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentCoordinator.kt)。公开属性：`engine: PaymentEngine`、`configuration: PaymentConfiguration`、`state: StateFlow<PaymentViewState>`。
 
 | 公共方法 | 功能 |
 | --- | --- |
@@ -674,7 +674,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.6 PaymentRepository / PaymentServiceApi
 
-源码：[PaymentServiceApi.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt)。
+源码：[PaymentServiceApi.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt)。
 
 | 类/接口 | 公共方法（均 suspend） | 功能 |
 | --- | --- | --- |
@@ -689,7 +689,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.7 支付模型、校验与时间工具
 
-源码：[PaymentContract.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentContract.kt)、[PaymentStorage.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentStorage.kt)。
+源码：[PaymentContract.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentContract.kt)、[PaymentStorage.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentStorage.kt)。
 
 | 类/函数 | 公共方法/计算属性 | 功能 |
 | --- | --- | --- |
@@ -722,7 +722,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.8 支付存储与事件队列
 
-源码：[PaymentStorage.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentStorage.kt)、[PaymentEventQueue.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt)。
+源码：[PaymentStorage.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentStorage.kt)、[PaymentEventQueue.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt)。
 
 | 类/接口 | 公共成员 | 功能 |
 | --- | --- | --- |
@@ -741,7 +741,7 @@ Play消费完成的事件阶段为play_consumed，恢复也使用同订单onceKe
 
 ### 10.10 region：启动前置准入（独立功能包）
 
-源码：[RegionAccess.kt](../reference/core/src/main/java/com/vexora/core/region/RegionAccess.kt)、[CountryIsRegionSource.kt](../reference/core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt)。
+源码：[RegionAccess.kt](../reference/core/src/main/java/com/zorv/core/region/RegionAccess.kt)、[CountryIsRegionSource.kt](../reference/core/src/main/java/com/zorv/core/region/CountryIsRegionSource.kt)。
 
 | 类型 | 公共成员 | 功能 |
 | --- | --- | --- |
@@ -761,14 +761,14 @@ CountryIsRegionSource构造参数url/timeoutMillis，不带业务认证、身份
 
 | 源码与内部类型/函数 | 方法/职责 |
 | --- | --- |
-| [PendingPurchaseRegistry.kt](../reference/core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt)：PendingPurchaseRecord、PendingPurchaseRegistry | `restore`、`register`、`findMatching`、`attachPurchaseToken`、`remove`、`snapshot`；维护 SKU/订单/token/用户关联；匹配优先 token、订单，再唯一 SKU |
-| [PurchaseRequestCoordinator.kt](../reference/core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt)：PurchaseRequestCoordinator | `start`、`findMatching`、`isActive`、`activeRequest`、`complete`、`completeActive`；全局 Play 回调与单次购买请求绑定 |
+| [PendingPurchaseRegistry.kt](../reference/core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt)：PendingPurchaseRecord、PendingPurchaseRegistry | `restore`、`register`、`findMatching`、`attachPurchaseToken`、`remove`、`snapshot`；维护 SKU/订单/token/用户关联；匹配优先 token、订单，再唯一 SKU |
+| [PurchaseRequestCoordinator.kt](../reference/core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt)：PurchaseRequestCoordinator | `start`、`findMatching`、`isActive`、`activeRequest`、`complete`、`completeActive`；全局 Play 回调与单次购买请求绑定 |
 | 同文件：PurchaseRequest | `complete`、`suspend await`、`companion.completed`；管理 CompletableDeferred 购买结果 |
-| [PurchaseFulfillmentCoordinator.kt](../reference/core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt)：PurchaseFulfillmentCoordinator | `suspend fulfill(purchaseToken: String, operation: suspend () -> BillingResult<Unit>): BillingResult<Unit>`；同 token 操作合并、成功去重、清理 pending |
-| [HttpLogging.kt](../reference/core/src/main/java/com/vexora/core/network/HttpLogging.kt) | `createHttpLoggingInterceptor` 两个重载、`sanitizeHttpLogMessage`、SENSITIVE_HTTP_HEADERS；创建 BODY/NONE 日志与脱敏副本 |
-| [PaymentHttpClient.kt](../reference/core/src/main/java/com/vexora/core/network/PaymentHttpClient.kt) | `paymentClient`、`paymentDiagnostics`、`sanitizePaymentHttpLogMessage`；独立支付客户端、状态摘要、支付凭据/链接日志脱敏 |
-| [PaymentServiceApi.kt](../reference/core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt) | `paymentErrorReason(body: String, json: Json): String?`；提取白名单技术错误原因 |
-| [RechargeNotifications.kt](../reference/core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt) | `rechargeKey(envelope: JsonObject): String?`、`rechargeOrderId(envelope: JsonObject): String?`；解析通知去重键与订单号 |
+| [PurchaseFulfillmentCoordinator.kt](../reference/core/src/main/java/com/zorv/core/billing/PurchaseFulfillmentCoordinator.kt)：PurchaseFulfillmentCoordinator | `suspend fulfill(purchaseToken: String, operation: suspend () -> BillingResult<Unit>): BillingResult<Unit>`；同 token 操作合并、成功去重、清理 pending |
+| [HttpLogging.kt](../reference/core/src/main/java/com/zorv/core/network/HttpLogging.kt) | `createHttpLoggingInterceptor` 两个重载、`sanitizeHttpLogMessage`、SENSITIVE_HTTP_HEADERS；创建 BODY/NONE 日志与脱敏副本 |
+| [PaymentHttpClient.kt](../reference/core/src/main/java/com/zorv/core/network/PaymentHttpClient.kt) | `paymentClient`、`paymentDiagnostics`、`sanitizePaymentHttpLogMessage`；独立支付客户端、状态摘要、支付凭据/链接日志脱敏 |
+| [PaymentServiceApi.kt](../reference/core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt) | `paymentErrorReason(body: String, json: Json): String?`；提取白名单技术错误原因 |
+| [RechargeNotifications.kt](../reference/core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt) | `rechargeKey(envelope: JsonObject): String?`、`rechargeOrderId(envelope: JsonObject): String?`；解析通知去重键与订单号 |
 
 `BillingManager` 另外有以下 internal 成员，和第 9 节的 public 方法区分：
 
@@ -845,4 +845,4 @@ AuthRepository、TemplateRepository、GenerationRequestRepository、VisualLibrar
 
 相关说明：Core 模块重建提示词（历史参考，契约以本文正文和随包源码为准）、[归因与启动模式](归因与启动模式.md)、AppsFlyer 故障复盘与发布检查（历史参考，契约以本文正文和随包源码为准）、[埋点事件定义](埋点事件定义.md)、[视觉生成接口接入](视觉生成接口接入.md)、支付迁移说明（历史参考，契约以本文正文和随包源码为准）、支付流程切换（历史参考，契约以本文正文和随包源码为准）、第三方支付执行记录（历史参考，契约以本文正文和随包源码为准）。
 
-验证依据可进一步从 [Core 测试目录](../reference/core/src/test/java/com/vexora/core) 按包查看。本次仅为文档任务：检查源码对应、引用有效性和 `git diff --check`，不重新运行 Android 构建或真实支付。本轮以950f524同步已有业务结论，并核对需求/Figma/确认记录/开发计划/参考梳理已有匿名profile路由、四端埋点和SDK升级说明；没有新增产品决策。未来代码接口变更应同步本清单。
+验证依据可进一步从 [Core 测试目录](../reference/core/src/test/java/com/zorv/core) 按包查看。本次仅为文档任务：检查源码对应、引用有效性和 `git diff --check`，不重新运行 Android 构建或真实支付。本轮以950f524同步已有业务结论，并核对需求/Figma/确认记录/开发计划/参考梳理已有匿名profile路由、四端埋点和SDK升级说明；没有新增产品决策。未来代码接口变更应同步本清单。

@@ -70,7 +70,7 @@
       },
       {
         "name": "attributionReports",
-        "type": "dagger.Lazy<com.vexora.core.attribution.AttributionReports>)"
+        "type": "dagger.Lazy<com.zorv.core.attribution.AttributionReports>)"
       }
     ],
     "target": null,
@@ -938,7 +938,7 @@
       },
       {
         "name": "payment",
-        "type": "com.vexora.core.payment.PaymentViewState"
+        "type": "com.zorv.core.payment.PaymentViewState"
       },
       {
         "name": "selectedId",
@@ -981,7 +981,7 @@
       },
       {
         "name": "payments",
-        "type": "com.vexora.core.payment.PaymentCoordinator"
+        "type": "com.zorv.core.payment.PaymentCoordinator"
       },
       {
         "name": "displayConfig",
@@ -1044,8 +1044,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:3:AnalyticsSink",
-    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt:3:AnalyticsSink",
+    "source": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt",
     "line": 3,
     "name": "AnalyticsSink",
     "kind": "interface",
@@ -1056,8 +1056,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:8:AttributionIdProvider",
-    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt:8:AttributionIdProvider",
+    "source": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt",
     "line": 8,
     "name": "AttributionIdProvider",
     "kind": "interface",
@@ -1068,8 +1068,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
-    "source": "core/src/main/java/com/vexora/core/analytics/AnalyticsSink.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt:10:AnalyticsPolicy",
+    "source": "core/src/main/java/com/zorv/core/analytics/AnalyticsSink.kt",
     "line": 10,
     "name": "AnalyticsPolicy",
     "kind": "data",
@@ -1103,8 +1103,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:18:BackendAnalyticsSink",
-    "source": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt:18:BackendAnalyticsSink",
+    "source": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt",
     "line": 18,
     "name": "BackendAnalyticsSink",
     "kind": "class",
@@ -1132,8 +1132,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
-    "source": "core/src/main/java/com/vexora/core/analytics/BackendAnalyticsSink.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt:28:PendingEvent",
+    "source": "core/src/main/java/com/zorv/core/analytics/BackendAnalyticsSink.kt",
     "line": 28,
     "name": "PendingEvent",
     "kind": "data",
@@ -1167,8 +1167,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:11:EventApi",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventApi.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventApi.kt:11:EventApi",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventApi.kt",
     "line": 11,
     "name": "EventApi",
     "kind": "interface",
@@ -1179,8 +1179,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventApi.kt:17:ReportEventRequest",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventApi.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventApi.kt:17:ReportEventRequest",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventApi.kt",
     "line": 17,
     "name": "ReportEventRequest",
     "kind": "data",
@@ -1230,8 +1230,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:4:EventTracker",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:4:EventTracker",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
     "line": 4,
     "name": "EventTracker",
     "kind": "interface",
@@ -1242,8 +1242,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:8:AnalyticsPlatform",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:8:AnalyticsPlatform",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
     "line": 8,
     "name": "AnalyticsPlatform",
     "kind": "enum",
@@ -1259,8 +1259,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:11:NoOpEventTracker",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:11:NoOpEventTracker",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
     "line": 11,
     "name": "NoOpEventTracker",
     "kind": "object",
@@ -1271,8 +1271,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
-    "source": "core/src/main/java/com/vexora/core/analytics/EventTracker.kt",
+    "id": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt:14:AnalyticsConfiguration",
+    "source": "core/src/main/java/com/zorv/core/analytics/EventTracker.kt",
     "line": 14,
     "name": "AnalyticsConfiguration",
     "kind": "data",
@@ -1306,8 +1306,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt:16:AttributionCoordinator",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionCoordinator.kt:16:AttributionCoordinator",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionCoordinator.kt",
     "line": 16,
     "name": "AttributionCoordinator",
     "kind": "class",
@@ -1339,8 +1339,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:10:LoginAttribution",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:10:LoginAttribution",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 10,
     "name": "LoginAttribution",
     "kind": "data",
@@ -1422,8 +1422,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:24:ConversionResult",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:24:ConversionResult",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 24,
     "name": "ConversionResult",
     "kind": "sealed",
@@ -1434,8 +1434,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:25:Pending",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:25:Pending",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 25,
     "name": "Pending",
     "kind": "data",
@@ -1446,8 +1446,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:26:Success",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:26:Success",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 26,
     "name": "Success",
     "kind": "data",
@@ -1469,8 +1469,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:27:Failed",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:27:Failed",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 27,
     "name": "Failed",
     "kind": "data",
@@ -1481,8 +1481,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:30:ConversionSource",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:30:ConversionSource",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 30,
     "name": "ConversionSource",
     "kind": "interface",
@@ -1493,8 +1493,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:37:AttributionStorage",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:37:AttributionStorage",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 37,
     "name": "AttributionStorage",
     "kind": "interface",
@@ -1505,8 +1505,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:41:LoginAttributionProvider",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:41:LoginAttributionProvider",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 41,
     "name": "LoginAttributionProvider",
     "kind": "interface",
@@ -1517,8 +1517,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionModels.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt:42:AttributionConfiguration",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionModels.kt",
     "line": 42,
     "name": "AttributionConfiguration",
     "kind": "data",
@@ -1552,8 +1552,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt:18:AttributionReportApi",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionReports.kt:18:AttributionReportApi",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionReports.kt",
     "line": 18,
     "name": "AttributionReportApi",
     "kind": "interface",
@@ -1564,8 +1564,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt:44:AttributionReports",
-    "source": "core/src/main/java/com/vexora/core/attribution/AttributionReports.kt",
+    "id": "core/src/main/java/com/zorv/core/attribution/AttributionReports.kt:44:AttributionReports",
+    "source": "core/src/main/java/com/zorv/core/attribution/AttributionReports.kt",
     "line": 44,
     "name": "AttributionReports",
     "kind": "class",
@@ -1598,15 +1598,15 @@
       },
       {
         "name": "profiles",
-        "type": "com.vexora.core.auth.UserProfileRepository)"
+        "type": "com.zorv.core.auth.UserProfileRepository)"
       }
     ],
     "target": null,
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:9:NetworkAvailability",
-    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:9:NetworkAvailability",
+    "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
     "line": 9,
     "name": "NetworkAvailability",
     "kind": "interface",
@@ -1617,8 +1617,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
-    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:10:StartupConfiguration",
+    "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
     "line": 10,
     "name": "StartupConfiguration",
     "kind": "class",
@@ -1640,8 +1640,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:11:StartupOfflineException",
-    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:11:StartupOfflineException",
+    "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
     "line": 11,
     "name": "StartupOfflineException",
     "kind": "class",
@@ -1652,8 +1652,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:12:StartupUnavailableException",
-    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:12:StartupUnavailableException",
+    "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
     "line": 12,
     "name": "StartupUnavailableException",
     "kind": "class",
@@ -1664,8 +1664,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt:15:AnonymousStartup",
-    "source": "core/src/main/java/com/vexora/core/auth/AnonymousStartup.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt:15:AnonymousStartup",
+    "source": "core/src/main/java/com/zorv/core/auth/AnonymousStartup.kt",
     "line": 15,
     "name": "AnonymousStartup",
     "kind": "class",
@@ -1701,8 +1701,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:12:UserDataCleaner",
-    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt:12:UserDataCleaner",
+    "source": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt",
     "line": 12,
     "name": "UserDataCleaner",
     "kind": "interface",
@@ -1713,8 +1713,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:14:AuthRepository",
-    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt:14:AuthRepository",
+    "source": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt",
     "line": 14,
     "name": "AuthRepository",
     "kind": "interface",
@@ -1725,8 +1725,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt:21:ApiAuthRepository",
-    "source": "core/src/main/java/com/vexora/core/auth/AuthRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt:21:ApiAuthRepository",
+    "source": "core/src/main/java/com/zorv/core/auth/AuthRepository.kt",
     "line": 21,
     "name": "ApiAuthRepository",
     "kind": "class",
@@ -1770,8 +1770,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt:19:PreferenceSessionStorage",
-    "source": "core/src/main/java/com/vexora/core/auth/PreferenceSessionStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/PreferenceSessionStorage.kt:19:PreferenceSessionStorage",
+    "source": "core/src/main/java/com/zorv/core/auth/PreferenceSessionStorage.kt",
     "line": 19,
     "name": "PreferenceSessionStorage",
     "kind": "class",
@@ -1782,8 +1782,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:16:Session",
-    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt:16:Session",
+    "source": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt",
     "line": 16,
     "name": "Session",
     "kind": "data",
@@ -1821,8 +1821,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:19:SessionStorage",
-    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt:19:SessionStorage",
+    "source": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt",
     "line": 19,
     "name": "SessionStorage",
     "kind": "interface",
@@ -1833,8 +1833,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt:27:SessionCoordinator",
-    "source": "core/src/main/java/com/vexora/core/auth/SessionCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt:27:SessionCoordinator",
+    "source": "core/src/main/java/com/zorv/core/auth/SessionCoordinator.kt",
     "line": 27,
     "name": "SessionCoordinator",
     "kind": "class",
@@ -1850,8 +1850,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:18:UserProfile",
-    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:18:UserProfile",
+    "source": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
     "line": 18,
     "name": "UserProfile",
     "kind": "data",
@@ -1873,8 +1873,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:22:UserProfileApi",
-    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:22:UserProfileApi",
+    "source": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
     "line": 22,
     "name": "UserProfileApi",
     "kind": "interface",
@@ -1885,8 +1885,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:26:ProfileMode",
-    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:26:ProfileMode",
+    "source": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
     "line": 26,
     "name": "ProfileMode",
     "kind": "data",
@@ -1912,8 +1912,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt:30:UserProfileRepository",
-    "source": "core/src/main/java/com/vexora/core/auth/UserProfileRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt:30:UserProfileRepository",
+    "source": "core/src/main/java/com/zorv/core/auth/UserProfileRepository.kt",
     "line": 30,
     "name": "UserProfileRepository",
     "kind": "class",
@@ -1933,8 +1933,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingConfiguration.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt:3:BillingConfiguration",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingConfiguration.kt",
     "line": 3,
     "name": "BillingConfiguration",
     "kind": "data",
@@ -1960,8 +1960,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt:3:BillingConnectionState",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingConnectionState.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingConnectionState.kt:3:BillingConnectionState",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingConnectionState.kt",
     "line": 3,
     "name": "BillingConnectionState",
     "kind": "enum",
@@ -1972,8 +1972,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingManager.kt:29:BillingManager",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingManager.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingManager.kt:29:BillingManager",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingManager.kt",
     "line": 29,
     "name": "BillingManager",
     "kind": "class",
@@ -1989,8 +1989,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:3:BillingProduct",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:3:BillingProduct",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt",
     "line": 3,
     "name": "BillingProduct",
     "kind": "data",
@@ -2048,8 +2048,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:16:SubscriptionOfferDetails",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt",
     "line": 16,
     "name": "SubscriptionOfferDetails",
     "kind": "data",
@@ -2083,8 +2083,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt:23:PricingPhase",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProduct.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt:23:PricingPhase",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProduct.kt",
     "line": 23,
     "name": "PricingPhase",
     "kind": "data",
@@ -2122,8 +2122,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:3:BillingProductType",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt:3:BillingProductType",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt",
     "line": 3,
     "name": "BillingProductType",
     "kind": "enum",
@@ -2134,8 +2134,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:30:BillingClient",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt:30:BillingClient",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt",
     "line": 30,
     "name": "BillingClient",
     "kind": "object",
@@ -2146,8 +2146,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt:31:ProductType",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingProductType.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt:31:ProductType",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingProductType.kt",
     "line": 31,
     "name": "ProductType",
     "kind": "object",
@@ -2158,8 +2158,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:3:BillingPurchase",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:3:BillingPurchase",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
     "line": 3,
     "name": "BillingPurchase",
     "kind": "data",
@@ -2221,8 +2221,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:17:PurchaseState",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:17:PurchaseState",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
     "line": 17,
     "name": "PurchaseState",
     "kind": "enum",
@@ -2233,8 +2233,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:28:BillingResult",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:28:BillingResult",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
     "line": 28,
     "name": "BillingResult",
     "kind": "data",
@@ -2268,8 +2268,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt:44:BillingResponseCode",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchase.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt:44:BillingResponseCode",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchase.kt",
     "line": 44,
     "name": "BillingResponseCode",
     "kind": "object",
@@ -2280,8 +2280,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt:14:BillingPurchaseAdmission",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt:14:BillingPurchaseAdmission",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt",
     "line": 14,
     "name": "BillingPurchaseAdmission",
     "kind": "class",
@@ -2292,8 +2292,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt:21:BillingPurchaseLease",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingPurchaseAdmission.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt:21:BillingPurchaseLease",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingPurchaseAdmission.kt",
     "line": 21,
     "name": "BillingPurchaseLease",
     "kind": "class",
@@ -2309,8 +2309,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/BillingRepository.kt:18:BillingRepository",
-    "source": "core/src/main/java/com/vexora/core/billing/BillingRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/BillingRepository.kt:18:BillingRepository",
+    "source": "core/src/main/java/com/zorv/core/billing/BillingRepository.kt",
     "line": 18,
     "name": "BillingRepository",
     "kind": "class",
@@ -2338,8 +2338,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:14:CoinPurchaseStatus",
-    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt:14:CoinPurchaseStatus",
+    "source": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt",
     "line": 14,
     "name": "CoinPurchaseStatus",
     "kind": "enum",
@@ -2350,8 +2350,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
-    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt:15:CoinPurchaseState",
+    "source": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt",
     "line": 15,
     "name": "CoinPurchaseState",
     "kind": "data",
@@ -2385,8 +2385,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt:20:CoinPurchaseController",
-    "source": "core/src/main/java/com/vexora/core/billing/CoinPurchaseController.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt:20:CoinPurchaseController",
+    "source": "core/src/main/java/com/zorv/core/billing/CoinPurchaseController.kt",
     "line": 20,
     "name": "CoinPurchaseController",
     "kind": "class",
@@ -2426,8 +2426,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:13:ConsumablePurchaseOrchestrator",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:13:ConsumablePurchaseOrchestrator",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 13,
     "name": "ConsumablePurchaseOrchestrator",
     "kind": "class",
@@ -2438,8 +2438,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:76:ConsumablePurchaseStage",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:76:ConsumablePurchaseStage",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 76,
     "name": "ConsumablePurchaseStage",
     "kind": "enum",
@@ -2450,8 +2450,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:84:PurchaseStepResult",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:84:PurchaseStepResult",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 84,
     "name": "PurchaseStepResult",
     "kind": "sealed",
@@ -2462,8 +2462,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:85:Success",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 85,
     "name": "Success",
     "kind": "data",
@@ -2485,8 +2485,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:86:Pending",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 86,
     "name": "Pending",
     "kind": "data",
@@ -2508,8 +2508,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:87:Failure",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 87,
     "name": "Failure",
     "kind": "data",
@@ -2535,8 +2535,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:90:ConsumablePurchaseResult",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:90:ConsumablePurchaseResult",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 90,
     "name": "ConsumablePurchaseResult",
     "kind": "sealed",
@@ -2547,8 +2547,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:91:Success",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 91,
     "name": "Success",
     "kind": "data",
@@ -2570,8 +2570,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:93:Failure",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 93,
     "name": "Failure",
     "kind": "data",
@@ -2601,8 +2601,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:99:Pending",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 99,
     "name": "Pending",
     "kind": "data",
@@ -2624,8 +2624,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt:101:InProgress",
-    "source": "core/src/main/java/com/vexora/core/billing/ConsumablePurchaseOrchestrator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt:101:InProgress",
+    "source": "core/src/main/java/com/zorv/core/billing/ConsumablePurchaseOrchestrator.kt",
     "line": 101,
     "name": "InProgress",
     "kind": "data",
@@ -2636,8 +2636,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
-    "source": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt:3:PendingPurchaseRecord",
+    "source": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt",
     "line": 3,
     "name": "PendingPurchaseRecord",
     "kind": "data",
@@ -2675,8 +2675,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt:12:PendingPurchaseRegistry",
-    "source": "core/src/main/java/com/vexora/core/billing/PendingPurchaseRegistry.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt:12:PendingPurchaseRegistry",
+    "source": "core/src/main/java/com/zorv/core/billing/PendingPurchaseRegistry.kt",
     "line": 12,
     "name": "PendingPurchaseRegistry",
     "kind": "class",
@@ -2687,8 +2687,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt:7:PurchaseFulfillmentCoordinator",
-    "source": "core/src/main/java/com/vexora/core/billing/PurchaseFulfillmentCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/PurchaseFulfillmentCoordinator.kt:7:PurchaseFulfillmentCoordinator",
+    "source": "core/src/main/java/com/zorv/core/billing/PurchaseFulfillmentCoordinator.kt",
     "line": 7,
     "name": "PurchaseFulfillmentCoordinator",
     "kind": "class",
@@ -2708,8 +2708,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt:11:PurchaseRequestCoordinator",
-    "source": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt:11:PurchaseRequestCoordinator",
+    "source": "core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt",
     "line": 11,
     "name": "PurchaseRequestCoordinator",
     "kind": "class",
@@ -2720,8 +2720,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt:77:PurchaseRequest",
-    "source": "core/src/main/java/com/vexora/core/billing/PurchaseRequestCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt:77:PurchaseRequest",
+    "source": "core/src/main/java/com/zorv/core/billing/PurchaseRequestCoordinator.kt",
     "line": 77,
     "name": "PurchaseRequest",
     "kind": "class",
@@ -2753,8 +2753,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
-    "source": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt:9:CatalogConfiguration",
+    "source": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt",
     "line": 9,
     "name": "CatalogConfiguration",
     "kind": "class",
@@ -2780,8 +2780,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt:14:ApiTemplateRepository",
-    "source": "core/src/main/java/com/vexora/core/catalog/ApiTemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt:14:ApiTemplateRepository",
+    "source": "core/src/main/java/com/zorv/core/catalog/ApiTemplateRepository.kt",
     "line": 14,
     "name": "ApiTemplateRepository",
     "kind": "class",
@@ -2805,8 +2805,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:9:CatalogChannel",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:9:CatalogChannel",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 9,
     "name": "CatalogChannel",
     "kind": "enum",
@@ -2817,8 +2817,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:10:MediaKind",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:10:MediaKind",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 10,
     "name": "MediaKind",
     "kind": "enum",
@@ -2829,8 +2829,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:11:CategoryIcon",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:11:CategoryIcon",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 11,
     "name": "CategoryIcon",
     "kind": "enum",
@@ -2841,8 +2841,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:12:TemplateCategory",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:12:TemplateCategory",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 12,
     "name": "TemplateCategory",
     "kind": "data",
@@ -2876,8 +2876,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:13:TemplateMedia",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:13:TemplateMedia",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 13,
     "name": "TemplateMedia",
     "kind": "data",
@@ -2915,8 +2915,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:30:TemplatePrices",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:30:TemplatePrices",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 30,
     "name": "TemplatePrices",
     "kind": "data",
@@ -2942,8 +2942,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:37:Template",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:37:Template",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 37,
     "name": "Template",
     "kind": "data",
@@ -3025,8 +3025,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:44:TemplateCatalog",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 44,
     "name": "TemplateCatalog",
     "kind": "data",
@@ -3064,8 +3064,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:52:CatalogFixture",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:52:CatalogFixture",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 52,
     "name": "CatalogFixture",
     "kind": "data",
@@ -3095,8 +3095,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:53:CatalogAssetSource",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:53:CatalogAssetSource",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 53,
     "name": "CatalogAssetSource",
     "kind": "interface",
@@ -3107,8 +3107,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:54:TemplateRepository",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:54:TemplateRepository",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 54,
     "name": "TemplateRepository",
     "kind": "interface",
@@ -3119,8 +3119,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt:57:MockTemplateRepository",
-    "source": "core/src/main/java/com/vexora/core/catalog/TemplateRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt:57:MockTemplateRepository",
+    "source": "core/src/main/java/com/zorv/core/catalog/TemplateRepository.kt",
     "line": 57,
     "name": "MockTemplateRepository",
     "kind": "class",
@@ -3144,8 +3144,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:3:AppMode",
-    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:3:AppMode",
+    "source": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt",
     "line": 3,
     "name": "AppMode",
     "kind": "enum",
@@ -3156,8 +3156,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:5:AccountRules",
-    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:5:AccountRules",
+    "source": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt",
     "line": 5,
     "name": "AccountRules",
     "kind": "data",
@@ -3191,8 +3191,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt:14:AppConfiguration",
-    "source": "core/src/main/java/com/vexora/core/config/AppConfiguration.kt",
+    "id": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt:14:AppConfiguration",
+    "source": "core/src/main/java/com/zorv/core/config/AppConfiguration.kt",
     "line": 14,
     "name": "AppConfiguration",
     "kind": "data",
@@ -3230,8 +3230,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt:3:ClientIdentity",
-    "source": "core/src/main/java/com/vexora/core/config/ClientIdentity.kt",
+    "id": "core/src/main/java/com/zorv/core/config/ClientIdentity.kt:3:ClientIdentity",
+    "source": "core/src/main/java/com/zorv/core/config/ClientIdentity.kt",
     "line": 3,
     "name": "ClientIdentity",
     "kind": "data",
@@ -3261,8 +3261,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
-    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:8:CoreRuntimeConfig",
+    "source": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
     "line": 8,
     "name": "CoreRuntimeConfig",
     "kind": "data",
@@ -3292,8 +3292,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
-    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:14:NetworkConfig",
+    "source": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
     "line": 14,
     "name": "NetworkConfig",
     "kind": "data",
@@ -3323,8 +3323,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
-    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:51:StorageConfig",
+    "source": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
     "line": 51,
     "name": "StorageConfig",
     "kind": "data",
@@ -3350,8 +3350,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
-    "source": "core/src/main/java/com/vexora/core/config/CoreRuntimeConfig.kt",
+    "id": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt:61:DiagnosticsConfig",
+    "source": "core/src/main/java/com/zorv/core/config/CoreRuntimeConfig.kt",
     "line": 61,
     "name": "DiagnosticsConfig",
     "kind": "data",
@@ -3377,8 +3377,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:11:ApiResponse",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:11:ApiResponse",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 11,
     "name": "ApiResponse",
     "kind": "data",
@@ -3408,8 +3408,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:18:ServiceFailure",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:18:ServiceFailure",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 18,
     "name": "ServiceFailure",
     "kind": "sealed",
@@ -3420,8 +3420,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:19:InvalidResponse",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:19:InvalidResponse",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 19,
     "name": "InvalidResponse",
     "kind": "data",
@@ -3432,8 +3432,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:20:SignedOut",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:20:SignedOut",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 20,
     "name": "SignedOut",
     "kind": "data",
@@ -3444,8 +3444,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:21:Superseded",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:21:Superseded",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 21,
     "name": "Superseded",
     "kind": "data",
@@ -3456,8 +3456,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:22:InvalidAccount",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:22:InvalidAccount",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 22,
     "name": "InvalidAccount",
     "kind": "data",
@@ -3468,8 +3468,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:23:Business",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:23:Business",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 23,
     "name": "Business",
     "kind": "class",
@@ -3485,8 +3485,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:26:LoginRequest",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:26:LoginRequest",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 26,
     "name": "LoginRequest",
     "kind": "data",
@@ -3532,8 +3532,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:30:AnonymousRequest",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:30:AnonymousRequest",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 30,
     "name": "AnonymousRequest",
     "kind": "data",
@@ -3571,8 +3571,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:33:GoogleRequest",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:33:GoogleRequest",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 33,
     "name": "GoogleRequest",
     "kind": "data",
@@ -3614,8 +3614,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:37:RefreshRequest",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:37:RefreshRequest",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 37,
     "name": "RefreshRequest",
     "kind": "data",
@@ -3637,8 +3637,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:39:AuthResponse",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:39:AuthResponse",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 39,
     "name": "AuthResponse",
     "kind": "data",
@@ -3668,8 +3668,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:41:PublicAuthApi",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:41:PublicAuthApi",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 41,
     "name": "PublicAuthApi",
     "kind": "interface",
@@ -3680,8 +3680,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/ApiModels.kt:47:AccountApi",
-    "source": "core/src/main/java/com/vexora/core/network/ApiModels.kt",
+    "id": "core/src/main/java/com/zorv/core/network/ApiModels.kt:47:AccountApi",
+    "source": "core/src/main/java/com/zorv/core/network/ApiModels.kt",
     "line": 47,
     "name": "AccountApi",
     "kind": "interface",
@@ -3692,8 +3692,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/NetworkModule.kt:27:NetworkModule",
-    "source": "core/src/main/java/com/vexora/core/network/NetworkModule.kt",
+    "id": "core/src/main/java/com/zorv/core/network/NetworkModule.kt:27:NetworkModule",
+    "source": "core/src/main/java/com/zorv/core/network/NetworkModule.kt",
     "line": 27,
     "name": "NetworkModule",
     "kind": "object",
@@ -3704,8 +3704,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/network/NetworkModule.kt:81:SessionInterceptor",
-    "source": "core/src/main/java/com/vexora/core/network/NetworkModule.kt",
+    "id": "core/src/main/java/com/zorv/core/network/NetworkModule.kt:81:SessionInterceptor",
+    "source": "core/src/main/java/com/zorv/core/network/NetworkModule.kt",
     "line": 81,
     "name": "SessionInterceptor",
     "kind": "class",
@@ -3729,8 +3729,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt:16:LegacyPaymentFlow",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentFlow.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentFlow.kt:16:LegacyPaymentFlow",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentFlow.kt",
     "line": 16,
     "name": "LegacyPaymentFlow",
     "kind": "class",
@@ -3754,8 +3754,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:18:LegacyPaymentOrder",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 18,
     "name": "LegacyPaymentOrder",
     "kind": "data",
@@ -3785,8 +3785,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:19:LegacyRechargeMatch",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:19:LegacyRechargeMatch",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 19,
     "name": "LegacyRechargeMatch",
     "kind": "enum",
@@ -3797,8 +3797,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:20:LegacyOrderStorage",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:20:LegacyOrderStorage",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 20,
     "name": "LegacyOrderStorage",
     "kind": "interface",
@@ -3809,8 +3809,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:27:PreferenceLegacyOrderStorage",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:27:PreferenceLegacyOrderStorage",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 27,
     "name": "PreferenceLegacyOrderStorage",
     "kind": "class",
@@ -3826,8 +3826,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:39:LegacyOrderRegistry",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:39:LegacyOrderRegistry",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 39,
     "name": "LegacyOrderRegistry",
     "kind": "class",
@@ -3843,8 +3843,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt:60:LegacyPaymentRepository",
-    "source": "core/src/main/java/com/vexora/core/payment/LegacyPaymentRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt:60:LegacyPaymentRepository",
+    "source": "core/src/main/java/com/zorv/core/payment/LegacyPaymentRepository.kt",
     "line": 60,
     "name": "LegacyPaymentRepository",
     "kind": "class",
@@ -3868,8 +3868,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:14:PaymentEnvelope",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:14:PaymentEnvelope",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 14,
     "name": "PaymentEnvelope",
     "kind": "data",
@@ -3895,8 +3895,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:17:InitializePaymentRequest",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 17,
     "name": "InitializePaymentRequest",
     "kind": "data",
@@ -3918,8 +3918,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:18:PaymentSdkParams",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:18:PaymentSdkParams",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 18,
     "name": "PaymentSdkParams",
     "kind": "data",
@@ -3941,8 +3941,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:19:InitializedPayment",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:19:InitializedPayment",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 19,
     "name": "InitializedPayment",
     "kind": "data",
@@ -3996,8 +3996,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:42:PaymentOrderStatus",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 42,
     "name": "PaymentOrderStatus",
     "kind": "data",
@@ -4027,8 +4027,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:50:PaymentClientEvent",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:50:PaymentClientEvent",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 50,
     "name": "PaymentClientEvent",
     "kind": "data",
@@ -4086,8 +4086,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:62:PaymentEventReceipt",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 62,
     "name": "PaymentEventReceipt",
     "kind": "data",
@@ -4109,8 +4109,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:64:PaymentFailure",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:64:PaymentFailure",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 64,
     "name": "PaymentFailure",
     "kind": "sealed",
@@ -4121,8 +4121,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:65:Unavailable",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:65:Unavailable",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 65,
     "name": "Unavailable",
     "kind": "data",
@@ -4133,8 +4133,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:66:InvalidResponse",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:66:InvalidResponse",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 66,
     "name": "InvalidResponse",
     "kind": "data",
@@ -4145,8 +4145,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:67:Http",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:67:Http",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 67,
     "name": "Http",
     "kind": "data",
@@ -4166,8 +4166,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt:72:PaymentConfiguration",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentContract.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt:72:PaymentConfiguration",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentContract.kt",
     "line": 72,
     "name": "PaymentConfiguration",
     "kind": "data",
@@ -4217,8 +4217,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt:12:PaymentCoordinator",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentCoordinator.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentCoordinator.kt:12:PaymentCoordinator",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentCoordinator.kt",
     "line": 12,
     "name": "PaymentCoordinator",
     "kind": "class",
@@ -4246,8 +4246,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:19:PaymentOrderFactory",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:19:PaymentOrderFactory",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
     "line": 19,
     "name": "PaymentOrderFactory",
     "kind": "interface",
@@ -4258,8 +4258,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:20:PaymentEventSink",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:20:PaymentEventSink",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
     "line": 20,
     "name": "PaymentEventSink",
     "kind": "interface",
@@ -4270,8 +4270,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:21:PaymentViewState",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:21:PaymentViewState",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
     "line": 21,
     "name": "PaymentViewState",
     "kind": "data",
@@ -4309,8 +4309,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt:26:PaymentEngine",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEngine.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt:26:PaymentEngine",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
     "line": 26,
     "name": "PaymentEngine",
     "kind": "class",
@@ -4354,8 +4354,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt:17:QueuedPaymentEvent",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt",
     "line": 17,
     "name": "QueuedPaymentEvent",
     "kind": "data",
@@ -4393,8 +4393,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt:22:PaymentEventQueue",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentEventQueue.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt:22:PaymentEventQueue",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt",
     "line": 22,
     "name": "PaymentEventQueue",
     "kind": "class",
@@ -4426,8 +4426,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:13:PaymentServiceApi",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt:13:PaymentServiceApi",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt",
     "line": 13,
     "name": "PaymentServiceApi",
     "kind": "interface",
@@ -4438,8 +4438,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:18:PaymentRepository",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt:18:PaymentRepository",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt",
     "line": 18,
     "name": "PaymentRepository",
     "kind": "interface",
@@ -4450,8 +4450,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt:32:ApiPaymentRepository",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentServiceApi.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt:32:ApiPaymentRepository",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentServiceApi.kt",
     "line": 32,
     "name": "ApiPaymentRepository",
     "kind": "class",
@@ -4479,8 +4479,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:13:PaymentStage",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:13:PaymentStage",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
     "line": 13,
     "name": "PaymentStage",
     "kind": "enum",
@@ -4491,8 +4491,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:14:PaymentRecord",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:14:PaymentRecord",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
     "line": 14,
     "name": "PaymentRecord",
     "kind": "data",
@@ -4566,8 +4566,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:28:PaymentStorage",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:28:PaymentStorage",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
     "line": 28,
     "name": "PaymentStorage",
     "kind": "interface",
@@ -4578,8 +4578,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:33:PreferencePaymentStorage",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:33:PreferencePaymentStorage",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
     "line": 33,
     "name": "PreferencePaymentStorage",
     "kind": "class",
@@ -4595,8 +4595,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt:43:PaymentClock",
-    "source": "core/src/main/java/com/vexora/core/payment/PaymentStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt:43:PaymentClock",
+    "source": "core/src/main/java/com/zorv/core/payment/PaymentStorage.kt",
     "line": 43,
     "name": "PaymentClock",
     "kind": "interface",
@@ -4607,8 +4607,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:8:PurchaseFlow",
-    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt:8:PurchaseFlow",
+    "source": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt",
     "line": 8,
     "name": "PurchaseFlow",
     "kind": "enum",
@@ -4619,8 +4619,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
-    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt:9:PurchaseFlowConfiguration",
+    "source": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt",
     "line": 9,
     "name": "PurchaseFlowConfiguration",
     "kind": "data",
@@ -4642,8 +4642,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt:13:PurchaseFlowDispatcher",
-    "source": "core/src/main/java/com/vexora/core/payment/PurchaseFlow.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt:13:PurchaseFlowDispatcher",
+    "source": "core/src/main/java/com/zorv/core/payment/PurchaseFlow.kt",
     "line": 13,
     "name": "PurchaseFlowDispatcher",
     "kind": "class",
@@ -4659,8 +4659,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt:16:PurchaseRouter",
-    "source": "core/src/main/java/com/vexora/core/payment/PurchaseRouter.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/PurchaseRouter.kt:16:PurchaseRouter",
+    "source": "core/src/main/java/com/zorv/core/payment/PurchaseRouter.kt",
     "line": 16,
     "name": "PurchaseRouter",
     "kind": "class",
@@ -4704,8 +4704,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt:14:ServicePaymentFlow",
-    "source": "core/src/main/java/com/vexora/core/payment/ServicePaymentFlow.kt",
+    "id": "core/src/main/java/com/zorv/core/payment/ServicePaymentFlow.kt:14:ServicePaymentFlow",
+    "source": "core/src/main/java/com/zorv/core/payment/ServicePaymentFlow.kt",
     "line": 14,
     "name": "ServicePaymentFlow",
     "kind": "class",
@@ -4729,8 +4729,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt:13:CountryIsRegionSource",
-    "source": "core/src/main/java/com/vexora/core/region/CountryIsRegionSource.kt",
+    "id": "core/src/main/java/com/zorv/core/region/CountryIsRegionSource.kt:13:CountryIsRegionSource",
+    "source": "core/src/main/java/com/zorv/core/region/CountryIsRegionSource.kt",
     "line": 13,
     "name": "CountryIsRegionSource",
     "kind": "class",
@@ -4741,8 +4741,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:8:RegionAccessConfiguration",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 8,
     "name": "RegionAccessConfiguration",
     "kind": "data",
@@ -4776,8 +4776,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:12:LocalRegionKind",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:12:LocalRegionKind",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 12,
     "name": "LocalRegionKind",
     "kind": "enum",
@@ -4788,8 +4788,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:13:LocalRegion",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:13:LocalRegion",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 13,
     "name": "LocalRegion",
     "kind": "data",
@@ -4815,8 +4815,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:14:LocalRegionSource",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:14:LocalRegionSource",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 14,
     "name": "LocalRegionSource",
     "kind": "interface",
@@ -4827,8 +4827,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:15:IpRegionSource",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:15:IpRegionSource",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 15,
     "name": "IpRegionSource",
     "kind": "interface",
@@ -4839,8 +4839,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:16:RegionNetworkSource",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:16:RegionNetworkSource",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 16,
     "name": "RegionNetworkSource",
     "kind": "interface",
@@ -4851,8 +4851,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:17:RegionRestrictedException",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:17:RegionRestrictedException",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 17,
     "name": "RegionRestrictedException",
     "kind": "class",
@@ -4868,8 +4868,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:18:RegionUnavailableException",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:18:RegionUnavailableException",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 18,
     "name": "RegionUnavailableException",
     "kind": "class",
@@ -4885,8 +4885,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:19:RegionOfflineException",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:19:RegionOfflineException",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 19,
     "name": "RegionOfflineException",
     "kind": "class",
@@ -4897,8 +4897,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/region/RegionAccess.kt:32:RegionAccess",
-    "source": "core/src/main/java/com/vexora/core/region/RegionAccess.kt",
+    "id": "core/src/main/java/com/zorv/core/region/RegionAccess.kt:32:RegionAccess",
+    "source": "core/src/main/java/com/zorv/core/region/RegionAccess.kt",
     "line": 32,
     "name": "RegionAccess",
     "kind": "class",
@@ -4926,8 +4926,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:27:SourcePhoto",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 27,
     "name": "SourcePhoto",
     "kind": "data",
@@ -4965,8 +4965,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:28:GenerationRequest",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 28,
     "name": "GenerationRequest",
     "kind": "data",
@@ -5024,8 +5024,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:32:GenerationFailure",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:32:GenerationFailure",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 32,
     "name": "GenerationFailure",
     "kind": "enum",
@@ -5036,8 +5036,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:33:GenerationException",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:33:GenerationException",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 33,
     "name": "GenerationException",
     "kind": "class",
@@ -5053,8 +5053,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:34:GenerationStorage",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:34:GenerationStorage",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 34,
     "name": "GenerationStorage",
     "kind": "interface",
@@ -5065,8 +5065,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt:43:GenerationRequestRepository",
-    "source": "core/src/main/java/com/vexora/core/visual/GenerationRequestRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt:43:GenerationRequestRepository",
+    "source": "core/src/main/java/com/zorv/core/visual/GenerationRequestRepository.kt",
     "line": 43,
     "name": "GenerationRequestRepository",
     "kind": "class",
@@ -5098,8 +5098,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
-    "source": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt:19:GenerationConfiguration",
+    "source": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt",
     "line": 19,
     "name": "GenerationConfiguration",
     "kind": "class",
@@ -5125,8 +5125,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt:21:PrivateGenerationStorage",
-    "source": "core/src/main/java/com/vexora/core/visual/PrivateGenerationStorage.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt:21:PrivateGenerationStorage",
+    "source": "core/src/main/java/com/zorv/core/visual/PrivateGenerationStorage.kt",
     "line": 21,
     "name": "PrivateGenerationStorage",
     "kind": "class",
@@ -5150,8 +5150,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
-    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:15:UploadedPhoto",
+    "source": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
     "line": 15,
     "name": "UploadedPhoto",
     "kind": "data",
@@ -5197,8 +5197,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:21:UploadedPhotoApi",
-    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:21:UploadedPhotoApi",
+    "source": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
     "line": 21,
     "name": "UploadedPhotoApi",
     "kind": "interface",
@@ -5209,8 +5209,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:26:UploadedPhotoDownloadApi",
-    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:26:UploadedPhotoDownloadApi",
+    "source": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
     "line": 26,
     "name": "UploadedPhotoDownloadApi",
     "kind": "interface",
@@ -5221,8 +5221,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt:30:UploadedPhotoRepository",
-    "source": "core/src/main/java/com/vexora/core/visual/UploadedPhotoRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt:30:UploadedPhotoRepository",
+    "source": "core/src/main/java/com/zorv/core/visual/UploadedPhotoRepository.kt",
     "line": 30,
     "name": "UploadedPhotoRepository",
     "kind": "class",
@@ -5246,8 +5246,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:11:VisualCategory",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:11:VisualCategory",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 11,
     "name": "VisualCategory",
     "kind": "data",
@@ -5277,8 +5277,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:12:VisualPage",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:12:VisualPage",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 12,
     "name": "VisualPage",
     "kind": "data",
@@ -5312,8 +5312,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:13:VisualTemplate",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 13,
     "name": "VisualTemplate",
     "kind": "data",
@@ -5366,7 +5366,7 @@
       },
       {
         "name": "prices",
-        "type": "com.vexora.core.catalog.TemplatePrices?"
+        "type": "com.zorv.core.catalog.TemplatePrices?"
       },
       {
         "name": "previewUrl",
@@ -5391,8 +5391,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:21:VisualResult",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:21:VisualResult",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 21,
     "name": "VisualResult",
     "kind": "data",
@@ -5434,8 +5434,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:23:VisualTask",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:23:VisualTask",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 23,
     "name": "VisualTask",
     "kind": "data",
@@ -5513,8 +5513,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:31:VisualResource",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:31:VisualResource",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 31,
     "name": "VisualResource",
     "kind": "data",
@@ -5580,8 +5580,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt:38:VisualGenerationApi",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualGenerationApi.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt:38:VisualGenerationApi",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualGenerationApi.kt",
     "line": 38,
     "name": "VisualGenerationApi",
     "kind": "interface",
@@ -5592,8 +5592,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt:8:VisualPollingConfiguration",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt",
     "line": 8,
     "name": "VisualPollingConfiguration",
     "kind": "class",
@@ -5627,8 +5627,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt:13:VisualLibraryRepository",
-    "source": "core/src/main/java/com/vexora/core/visual/VisualLibraryRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt:13:VisualLibraryRepository",
+    "source": "core/src/main/java/com/zorv/core/visual/VisualLibraryRepository.kt",
     "line": 13,
     "name": "VisualLibraryRepository",
     "kind": "class",
@@ -5652,8 +5652,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
-    "source": "core/src/main/java/com/vexora/core/wallet/CoinDisplayConfiguration.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt:6:CoinDisplayConfiguration",
+    "source": "core/src/main/java/com/zorv/core/wallet/CoinDisplayConfiguration.kt",
     "line": 6,
     "name": "CoinDisplayConfiguration",
     "kind": "data",
@@ -5675,8 +5675,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
-    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:15:RechargeNotice",
+    "source": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt",
     "line": 15,
     "name": "RechargeNotice",
     "kind": "data",
@@ -5706,8 +5706,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
-    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:16:RechargeStreamConfiguration",
+    "source": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt",
     "line": 16,
     "name": "RechargeStreamConfiguration",
     "kind": "data",
@@ -5749,8 +5749,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt:21:RechargeNotifications",
-    "source": "core/src/main/java/com/vexora/core/wallet/RechargeNotifications.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt:21:RechargeNotifications",
+    "source": "core/src/main/java/com/zorv/core/wallet/RechargeNotifications.kt",
     "line": 21,
     "name": "RechargeNotifications",
     "kind": "class",
@@ -5786,8 +5786,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:14:CoinProduct",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:14:CoinProduct",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 14,
     "name": "CoinProduct",
     "kind": "data",
@@ -5861,8 +5861,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:31:ProductsResponse",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:31:ProductsResponse",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 31,
     "name": "ProductsResponse",
     "kind": "data",
@@ -5884,8 +5884,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:32:CurrencyResponse",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:32:CurrencyResponse",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 32,
     "name": "CurrencyResponse",
     "kind": "data",
@@ -5911,8 +5911,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:35:CoinTransaction",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:35:CoinTransaction",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 35,
     "name": "CoinTransaction",
     "kind": "data",
@@ -5954,8 +5954,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:38:TransactionsResponse",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:38:TransactionsResponse",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 38,
     "name": "TransactionsResponse",
     "kind": "data",
@@ -5989,8 +5989,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:40:CreateOrderRequest",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:40:CreateOrderRequest",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 40,
     "name": "CreateOrderRequest",
     "kind": "data",
@@ -6020,8 +6020,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:42:CreatedOrder",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:42:CreatedOrder",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 42,
     "name": "CreatedOrder",
     "kind": "data",
@@ -6051,8 +6051,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:46:WalletApi",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:46:WalletApi",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 46,
     "name": "WalletApi",
     "kind": "interface",
@@ -6063,8 +6063,8 @@
     "checks": []
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt:55:WalletConfiguration",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletApi.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt:55:WalletConfiguration",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletApi.kt",
     "line": 55,
     "name": "WalletConfiguration",
     "kind": "data",
@@ -6094,8 +6094,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:14:WalletSnapshot",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt:14:WalletSnapshot",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt",
     "line": 14,
     "name": "WalletSnapshot",
     "kind": "data",
@@ -6137,8 +6137,8 @@
     ]
   },
   {
-    "id": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt:20:WalletRepository",
-    "source": "core/src/main/java/com/vexora/core/wallet/WalletRepository.kt",
+    "id": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt:20:WalletRepository",
+    "source": "core/src/main/java/com/zorv/core/wallet/WalletRepository.kt",
     "line": 20,
     "name": "WalletRepository",
     "kind": "class",
@@ -6162,8 +6162,8 @@
     "checks": []
   },
   {
-    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt:21:AppsFlyerAnalytics",
-    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerAnalytics.kt",
+    "id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerAnalytics.kt:21:AppsFlyerAnalytics",
+    "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerAnalytics.kt",
     "line": 21,
     "name": "AppsFlyerAnalytics",
     "kind": "class",
@@ -6183,8 +6183,8 @@
     "checks": []
   },
   {
-    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
-    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/AppsFlyerConfig.kt",
+    "id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt:3:AppsFlyerConfig",
+    "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/AppsFlyerConfig.kt",
     "line": 3,
     "name": "AppsFlyerConfig",
     "kind": "data",
@@ -6218,8 +6218,8 @@
     ]
   },
   {
-    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:6:ForegroundAttributionStart",
-    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt:6:ForegroundAttributionStart",
+    "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt",
     "line": 6,
     "name": "ForegroundAttributionStart",
     "kind": "class",
@@ -6239,8 +6239,8 @@
     "checks": []
   },
   {
-    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:30:AttributionStartStage",
-    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt:30:AttributionStartStage",
+    "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt",
     "line": 30,
     "name": "AttributionStartStage",
     "kind": "enum",
@@ -6251,8 +6251,8 @@
     "checks": []
   },
   {
-    "id": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
-    "source": "integration/analytics-appsflyer/src/main/java/com/vexora/core/integration/appsflyer/ForegroundAttributionStart.kt",
+    "id": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt:32:AttributionStartStatus",
+    "source": "integration/analytics-appsflyer/src/main/java/com/zorv/core/integration/appsflyer/ForegroundAttributionStart.kt",
     "line": 32,
     "name": "AttributionStartStatus",
     "kind": "data",
@@ -6278,8 +6278,8 @@
     ]
   },
   {
-    "id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt:14:ThinkingDataAnalytics",
-    "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
+    "id": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataAnalytics.kt:14:ThinkingDataAnalytics",
+    "source": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataAnalytics.kt",
     "line": 14,
     "name": "ThinkingDataAnalytics",
     "kind": "class",
@@ -6296,15 +6296,15 @@
       },
       {
         "name": "policy",
-        "type": "com.vexora.core.analytics.AnalyticsPolicy)"
+        "type": "com.zorv.core.analytics.AnalyticsPolicy)"
       }
     ],
     "target": null,
     "checks": []
   },
   {
-    "id": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
-    "source": "integration/analytics-thinkingdata/src/main/java/com/vexora/core/integration/thinkingdata/ThinkingDataConfig.kt",
+    "id": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt:5:ThinkingDataConfig",
+    "source": "integration/analytics-thinkingdata/src/main/java/com/zorv/core/integration/thinkingdata/ThinkingDataConfig.kt",
     "line": 5,
     "name": "ThinkingDataConfig",
     "kind": "data",

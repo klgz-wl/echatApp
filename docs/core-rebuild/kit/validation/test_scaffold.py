@@ -30,6 +30,18 @@ class ScaffoldTest(unittest.TestCase):
     def test_prefix_required(self):
         value=answers();value['model_prefix']=''
         with self.assertRaises(s.ScaffoldError):s.validate_answers(value)
+    def test_reference_core_namespace_has_no_legacy_vexora_package(self):
+        kit=Path(__file__).resolve().parents[1]
+        legacy_dotted='com.'+'vexora.core';legacy_path='com/'+'vexora/core'
+        roots=[kit]
+        stale=[]
+        for root in roots:
+            for path in root.rglob('*'):
+                if path.is_file() and '__pycache__' not in path.parts:
+                    text=path.read_text(errors='ignore')
+                    if legacy_dotted in text or legacy_path in text or legacy_path in path.as_posix():stale.append(str(path.relative_to(kit)))
+        self.assertEqual([],stale)
+        self.assertTrue((kit/'reference/core/src/main/java/com/zorv/core').is_dir())
     def test_confirmation_required(self):
         value=answers();value['developer_confirmed']=False
         with self.assertRaises(s.ScaffoldError):s.validate_answers(value)
@@ -206,7 +218,7 @@ class ScaffoldTest(unittest.TestCase):
         self.assertEqual('keep',outside.read_text())
     def test_customization_updates_package_and_module_without_identity_change(self):
         root=self.root/'project'
-        for name,text in {'app/src/main/java/com/vexora/app/Test.kt':'package com.vexora.app\nimport com.vexora.core.Value', 'core/src/test/java/com/vexora/core/Test.kt':'package com.vexora.core\nval fixtures="../app/src/main/assets"','app/src/main/res/values/strings.xml':'<resources><string name="app_name">Old</string></resources>','settings.gradle.kts':'rootProject.name = "Vexora"\ninclude(":app")','config/app.properties':'app.namespace=com.vexora.app\ncore.namespace=com.vexora.core\n','app/build.gradle.kts':'val dev="yumo.achat.app"'}.items():
+        for name,text in {'app/src/main/java/com/vexora/app/Test.kt':'package com.vexora.app\nimport com.zorv.core.Value', 'core/src/test/java/com/zorv/core/Test.kt':'package com.zorv.core\nval fixtures="../app/src/main/assets"','app/src/main/res/values/strings.xml':'<resources><string name="app_name">Old</string></resources>','settings.gradle.kts':'rootProject.name = "Vexora"\ninclude(":app")','config/app.properties':'app.namespace=com.vexora.app\ncore.namespace=com.zorv.core\n','app/build.gradle.kts':'val dev="yumo.achat.app"'}.items():
             path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)
         custom=answers();custom['project_name']="Orbit's Demo"
         s.customize(root,custom)
@@ -216,10 +228,10 @@ class ScaffoldTest(unittest.TestCase):
         self.assertIn('../mobile/',(root/'core/src/test/java/com/example/foundation/Test.kt').read_text())
         self.assertIn("Orbit\\'s Demo",(root/'mobile/src/main/res/values/strings.xml').read_text())
     def test_namespace_paths_do_not_cascade_or_overwrite(self):
-        for label,app,core in [('nested','com.vexora.core.host','com.example.foundation'),('swap','com.vexora.core','com.vexora.app')]:
+        for label,app,core in [('nested','com.zorv.core.host','com.example.foundation'),('swap','com.zorv.core','com.vexora.app')]:
             with self.subTest(label=label):
                 root=self.root/label
-                files={'settings.gradle.kts':'rootProject.name = "Vexora"','config/app.properties':'app.namespace=com.vexora.app\ncore.namespace=com.vexora.core', 'app/src/main/res/values/strings.xml':'<resources><string name="app_name">Old</string></resources>', 'app/src/main/java/com/vexora/app/Same.kt':'package com.vexora.app\n// host', 'app/src/main/java/com/vexora/core/Same.kt':'package com.vexora.core\n// shared'}
+                files={'settings.gradle.kts':'rootProject.name = "Vexora"','config/app.properties':'app.namespace=com.vexora.app\ncore.namespace=com.zorv.core', 'app/src/main/res/values/strings.xml':'<resources><string name="app_name">Old</string></resources>', 'app/src/main/java/com/vexora/app/Same.kt':'package com.vexora.app\n// host', 'app/src/main/java/com/zorv/core/Same.kt':'package com.zorv.core\n// shared'}
                 for name,text in files.items():
                     file=root/name;file.parent.mkdir(parents=True,exist_ok=True);file.write_text(text)
                 custom=answers();custom.update(app_namespace=app,core_namespace=core)

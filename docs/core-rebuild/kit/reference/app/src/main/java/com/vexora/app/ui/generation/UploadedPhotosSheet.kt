@@ -19,7 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vexora.app.R
 import com.vexora.app.ui.catalog.TemplateImage
 import com.vexora.app.ui.theme.*
-import com.vexora.core.visual.UploadedPhoto
+import com.zorv.core.visual.UploadedPhoto
 
 @Composable
 fun UploadedPhotosRoute(dismiss: () -> Unit, upload: () -> Unit, select: (UploadedPhoto) -> Unit,
