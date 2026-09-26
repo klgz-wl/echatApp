@@ -1,4 +1,5 @@
 # 复制为prod-confirmation.local.properties；逐项核对后由开发者确认。
-# 包名及地址在app/build.gradle.kts替换；SDK配置在config/prod.properties。
-# 同步替换app/src/prod/google-services.json和正式签名。
+# 包名及地址在app/build.gradle.kts替换；Android SDK版本在config/app.properties，正式三方SDK配置在config/prod.properties。
+# 同步配置正式签名。Firebase能力保持关闭时，不要求上传证书匹配Firebase/OAuth；
+# 后续启用依赖证书身份的Google/Firebase能力时，再登记Play app-signing证书并更新prod Google资源。
 confirmed=false

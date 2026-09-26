@@ -3,8 +3,10 @@ package yumo.achat.app.config
 import java.io.File
 import java.util.Properties
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
+import org.json.JSONObject
 
 class FormalProdConfigurationTest {
     private val rootDir: File
@@ -58,6 +60,18 @@ class FormalProdConfigurationTest {
     }
 
     @Test
+    fun `prod google services uses the zorv firebase project`() {
+        val google = JSONObject(rootDir.resolve("app/src/prod/google-services.json").readText())
+        val project = google.getJSONObject("project_info")
+        val client = google.getJSONArray("client").getJSONObject(0).getJSONObject("client_info")
+
+        assertEquals("zorv-and", project.getString("project_id"))
+        assertEquals("546418872161", project.getString("project_number"))
+        assertEquals("com.zorv.app", client.getJSONObject("android_client_info").getString("package_name"))
+        assertEquals("1:546418872161:android:1ec4fb9b9bdc62060dff20", client.getString("mobilesdk_app_id"))
+    }
+
+    @Test
     fun `prod new purchases use explicit legacy flow`() {
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
@@ -82,6 +96,49 @@ class FormalProdConfigurationTest {
         assert(gradle.contains("正式签名不能使用sharedDev证书")) {
             "formal release gate must reject sharedDev as formal signing"
         }
+    }
+
+    @Test
+    fun `formal signing gate is independent from disabled firebase capabilities`() {
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val formalGate = gradle.substringAfter("tasks.register(\"verifyFormalRelease\")")
+            .substringBefore("tasks.configureEach")
+
+        listOf(
+            "build.boolean.ENABLE_FIREBASE_ANALYTICS",
+            "build.boolean.ENABLE_FIREBASE_CRASHLYTICS",
+            "build.boolean.ENABLE_FIREBASE_MESSAGING",
+        ).forEach { key -> assertEquals("false", prod.getProperty(key)) }
+        assertFalse(formalGate.contains("google-services.json"))
+        assertFalse(formalGate.contains("certificate_hash"))
+        assertFalse(formalGate.contains("Firebase/OAuth证书指纹与正式签名不匹配"))
+    }
+
+    @Test
+    fun `formal signing gate validates private key certificate and store isolation`() {
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+        val formalGate = gradle.substringAfter("tasks.register(\"verifyFormalRelease\")")
+            .substringBefore("tasks.configureEach")
+
+        assert(gradle.contains("getKey(")) { "formal signing gate must unlock the configured private key" }
+        assert(gradle.contains("is PrivateKey")) { "formal signing alias must contain a private key" }
+        assert(gradle.contains("checkValidity()")) { "formal certificate must be currently valid" }
+        assert(formalGate.contains("signingCertificate(formalSigningProperties"))
+        assert(formalGate.contains("canonicalFile")) { "formal and sharedDev stores must be path-isolated" }
+        assert(formalGate.contains("config/shared-dev.jks")) {
+            "formal store must be isolated from the trusted sharedDev baseline even without local dev properties"
+        }
+    }
+
+    @Test
+    fun `formal confirmation does not require firebase upload certificate while firebase is disabled`() {
+        val template = rootDir.resolve("config/prod-confirmation.properties.example").readText()
+
+        assert(template.contains("Android SDK版本在config/app.properties"))
+        assert(template.contains("正式三方SDK配置在config/prod.properties"))
+        assertFalse(template.contains("同步替换app/src/prod/google-services.json和正式签名"))
+        assert(template.contains("Firebase能力保持关闭时，不要求上传证书匹配Firebase/OAuth"))
     }
 
     @Test

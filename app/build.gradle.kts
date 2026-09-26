@@ -1,5 +1,7 @@
 import java.security.MessageDigest
 import java.security.KeyStore
+import java.security.PrivateKey
+import java.security.cert.X509Certificate
 import java.util.Properties
 import groovy.json.JsonSlurper
 
@@ -225,16 +227,18 @@ fun requireSigning(properties: Properties, label: String) {
     }
 }
 
-fun certificateBytes(properties: Properties): ByteArray {
+fun signingCertificate(properties: Properties, label: String): X509Certificate {
+    requireSigning(properties, label)
     val keyStoreFile = rootProject.file(properties.getProperty("storeFile"))
     val keyStore = KeyStore.getInstance(keyStoreFile, properties.getProperty("storePassword").toCharArray())
-    return keyStore.getCertificate(properties.getProperty("keyAlias")).encoded
+    val alias = properties.getProperty("keyAlias")
+    val key = keyStore.getKey(alias, properties.getProperty("keyPassword").toCharArray())
+    check(key is PrivateKey) { "$label signing alias does not contain a private key" }
+    val certificate = keyStore.getCertificate(alias)
+    check(certificate is X509Certificate) { "$label signing certificate must be X.509" }
+    certificate.checkValidity()
+    return certificate
 }
-
-fun sha1(bytes: ByteArray): String =
-    MessageDigest.getInstance("SHA-1")
-        .digest(bytes)
-        .joinToString("") { "%02x".format(it) }
 
 tasks.register("verifyFormalRelease") {
     notCompatibleWithConfigurationCache("Reads local formal signing and confirmation files during execution.")
@@ -246,32 +250,23 @@ tasks.register("verifyFormalRelease") {
         check(flavorApplicationIds.getValue("prod") == "com.zorv.app") {
             "必须确认正式包名 com.zorv.app"
         }
-        requireSigning(formalSigningProperties, "formal release")
+        val formalCertificate = signingCertificate(formalSigningProperties, "formal release")
+        val formalStoreFile = rootProject.file(formalSigningProperties.getProperty("storeFile"))
+        check(formalStoreFile.canonicalFile != rootProject.file("config/shared-dev.jks").canonicalFile) {
+            "正式签名文件不能使用sharedDev基线文件"
+        }
+        signingProperties.getProperty("storeFile")
+            ?.takeIf(String::isNotBlank)
+            ?.let(rootProject::file)
+            ?.let { sharedDevStoreFile ->
+                check(formalStoreFile.canonicalFile != sharedDevStoreFile.canonicalFile) {
+                    "正式签名文件不能与sharedDev共用"
+                }
+        }
         val devCertificate = rootProject.file("config/dev-certificate.der")
         check(devCertificate.isFile) { "缺少sharedDev证书指纹文件" }
-        val formalCertificate = certificateBytes(formalSigningProperties)
-        check(!devCertificate.readBytes().contentEquals(formalCertificate)) {
+        check(!devCertificate.readBytes().contentEquals(formalCertificate.encoded)) {
             "正式签名不能使用sharedDev证书"
-        }
-        val googleServices = rootProject.file("app/src/prod/google-services.json")
-        check(googleServices.isFile) { "缺少prod google-services.json" }
-        val formalSha1 = sha1(formalCertificate)
-        @Suppress("UNCHECKED_CAST")
-        val googleJson = JsonSlurper().parse(googleServices) as Map<String, Any?>
-        val clients = googleJson["client"] as? List<*> ?: emptyList<Any>()
-        val matchingClient = clients.filterIsInstance<Map<String, Any?>>().firstOrNull { client ->
-            val clientInfo = client["client_info"] as? Map<*, *>
-            val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
-            androidInfo?.get("package_name") == "com.zorv.app"
-        } ?: error("Firebase与当前包名不匹配")
-        val oauthClients = matchingClient["oauth_client"] as? List<*> ?: emptyList<Any>()
-        val hasMatchingCertificate = oauthClients.filterIsInstance<Map<String, Any?>>().any { oauth ->
-            val androidInfo = oauth["android_info"] as? Map<*, *>
-            androidInfo?.get("package_name") == "com.zorv.app" &&
-                androidInfo["certificate_hash"]?.toString()?.lowercase() == formalSha1
-        }
-        check(hasMatchingCertificate) {
-            "Firebase/OAuth证书指纹与正式签名不匹配"
         }
     }
 }
