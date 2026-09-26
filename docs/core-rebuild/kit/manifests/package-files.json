@@ -17,7 +17,7 @@
   "manifests/models.json": "2ca0a122da038a64dbd6cef00b03131994f2bfa73f4fd4493b8d7ce9a44e8832",
   "manifests/sources.json": "216ef1c22bce545e8ba6c24aaf38bce6868423eeba0f0321886d7fba557fd41f",
   "prompts/完整重建提示词.md": "a5a15e4c837ea8ee8cc97594ac8bed9c8f033f4e7ca0c3443a852c50abfd9daf",
-  "prompts/支付完整对接提示词.md": "0dcb6fd4beb89725b64da3b5a21e4618d256ff6b0f4efd3a3623e3a10b8de50a",
+  "prompts/支付完整对接提示词.md": "e1c46618cc43e28e1d88df72885dc1fd84011b54ae1f8d0a3cb462d88e4b8a08",
   "prompts/阶段提示词.md": "6f4623a19cf2611f3c94141aeb77c6e490e4a6d4b5fb7648a617b85cbdc574f3",
   "prompts/首次问答.md": "2d5f6ff59a17a201388074b005b6dc00f487e09979c1679a69d5df4ba401e325",
   "reference/app/proguard-rules.pro": "fb17166a4648b1643c013d0af97709c538d187b044434292b1f049da622920bd",

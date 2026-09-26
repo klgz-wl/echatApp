@@ -58,6 +58,15 @@ class FormalProdConfigurationTest {
     }
 
     @Test
+    fun `prod new purchases use explicit legacy flow`() {
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assertEquals("LEGACY", prod.getProperty("build.string.PAYMENT_FLOW"))
+        assert(gradle.contains("\"PAYMENT_FLOW\" to \"LEGACY\""))
+    }
+
+    @Test
     fun `formal prod release requires formal signing and confirmation gate`() {
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
