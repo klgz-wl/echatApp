@@ -4,7 +4,7 @@
 
 本轮在 existing 模式下保留 echatApp 既有业务、Git 与远程，仅把可复用后端数据访问层从 `app` 迁入 `core`，由宿主通过 `AchatCoreBackendFactory` 注入 `AchatBackendConfiguration`。Core 不再读取宿主 `BuildConfig`，网络 baseUrl、applicationId、clientVersion 均由 app 边界传入；宿主 UI、Compose 页面、ViewModel 状态和业务流程保持原入口。
 
-基线装配已覆盖 `core`、`integration/analytics-appsflyer`、`integration/analytics-thinkingdata`、dev/prod flavor、sharedDev 签名、dev/prod Google resources、配置指纹与 APK 身份检查。`prod` 当前为 FORMAL 运行配置：包名 `com.zorv.app`、显示名 `zorv`、运行时 REST/Payment/WebSocket 指向 release 后端 `release.appjoly.com`，新发起的 Top Up 直接使用 `LEGACY` 路由；历史已持久化的 `SERVICE` 订单仍沿原路由恢复和对账。`release.zorv.date` 是用户访问 App/站点的域名，不作为 Android 后端 API 域名。devRelease 本地验证使用 sharedDev；prodRelease 必须使用独立 formal 签名，不能把 devRelease 或 sharedDev 证书冒充为 Google Play 正式上传签名验收。
+基线装配已覆盖 `core`、`integration/analytics-appsflyer`、`integration/analytics-thinkingdata`、dev/prod flavor、sharedDev 签名、dev/prod Google resources、配置指纹与 APK 身份检查。`prod` 当前为 FORMAL 运行配置：包名 `com.zorv.app`、显示名 `zorv`，运行时 REST、Payment、WebSocket 与 CDN 统一使用 `cdn.zorv.date`，但各自保留 `/api/v1/`、`/payment-api/v1/`、`/connection/websocket` 和 CDN base 的独立协议/路径；新发起的 Top Up 直接使用 `LEGACY` 路由，历史已持久化的 `SERVICE` 订单仍沿原路由恢复和对账。devRelease 本地验证使用 sharedDev；prodRelease 必须使用独立 formal 签名，不能把 devRelease 或 sharedDev 证书冒充为 Google Play 正式上传签名验收。
 
 `.core-scaffold/project.json` 中的 `prod_mode=DEV_REUSE` 是初始化阶段的锁定问答元信息，脚手架 `doctor` 会按该值校验历史接入参数；正式运行模式以后续 `config/app.properties` 的 `kit.prod.mode=FORMAL` 与生成的 `BuildConfig` 为准。不要为了让 project 元信息看起来与正式运行配置一致而改写该字段，否则会破坏脚手架校验。
 

@@ -57,6 +57,32 @@ class FormalProdConfigurationTest {
     }
 
     @Test
+    fun `prod backend routes use the zorv host`() {
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assertEquals(
+            2,
+            Regex("CORE_BASE_URL\\\" to \\\"https://cdn\\.zorv\\.date/api/v1/")
+                .findAll(gradle).count(),
+        )
+        assert(gradle.contains("\"ACHAT_API_BASE_URL\" to \"https://cdn.zorv.date\""))
+        assertEquals(
+            2,
+            Regex("PAYMENT_BASE_URL\\\" to \\\"https://cdn\\.zorv\\.date/payment-api/v1/")
+                .findAll(gradle).count(),
+        )
+        assertEquals(
+            2,
+            Regex("CORE_STREAM_URL\\\" to \\\"wss://cdn\\.zorv\\.date")
+                .findAll(gradle).count(),
+        )
+        assert(gradle.contains("\"ACHAT_WS_URL\" to \"wss://cdn.zorv.date/connection/websocket\""))
+        assert(Regex("CORE_CDN_URL\\\" to \\\"https://cdn\\.zorv\\.date").findAll(gradle).count() >= 2)
+        assertFalse(gradle.contains("https://release.appjoly.com"))
+        assertFalse(gradle.contains("wss://release.appjoly.com"))
+    }
+
+    @Test
     fun `prod attribution configuration is distinct from dev`() {
         val dev = rootDir.resolve("config/dev.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()

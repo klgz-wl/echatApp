@@ -38,9 +38,9 @@ val flavorEndpoints = mapOf(
         "REGION_LOOKUP_URL" to "https://api.country.is/",
     ),
     "prod" to mapOf(
-        "CORE_BASE_URL" to "https://release.appjoly.com/api/v1/",
-        "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
-        "CORE_STREAM_URL" to "wss://release.appjoly.com",
+        "CORE_BASE_URL" to "https://cdn.zorv.date/api/v1/",
+        "PAYMENT_BASE_URL" to "https://cdn.zorv.date/payment-api/v1/",
+        "CORE_STREAM_URL" to "wss://cdn.zorv.date",
         "CORE_CDN_URL" to "https://cdn.zorv.date",
         "REGION_LOOKUP_URL" to "https://api.country.is/",
     ),
@@ -329,9 +329,11 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         val text = buildConfig.get().asFile.readText()
         val expected = mapOf(
             "APPLICATION_ID" to "com.zorv.app",
-            "ACHAT_API_BASE_URL" to "https://release.appjoly.com",
-            "ACHAT_WS_URL" to "wss://release.appjoly.com/connection/websocket",
-            "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
+            "ACHAT_API_BASE_URL" to "https://cdn.zorv.date",
+            "ACHAT_WS_URL" to "wss://cdn.zorv.date/connection/websocket",
+            "CORE_BASE_URL" to "https://cdn.zorv.date/api/v1/",
+            "CORE_STREAM_URL" to "wss://cdn.zorv.date",
+            "PAYMENT_BASE_URL" to "https://cdn.zorv.date/payment-api/v1/",
             "CORE_CDN_URL" to "https://cdn.zorv.date",
             "PAYMENT_FLOW" to "LEGACY",
         )
