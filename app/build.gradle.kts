@@ -366,9 +366,17 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         check("""TD_APP_ID = "$requiredProdThinkingDataAppId""" in text) {
             "prodRelease ThinkingData app ID must match the confirmed formal project"
         }
-        val requiredProdContactEmail = "PhippenLautner@gmail.com"
+        val requiredProdContactEmail = "info@frostandbites.site"
         check("""CONTACT_EMAIL = "$requiredProdContactEmail""" in text) {
             "prodRelease contact email must match the confirmed formal identity"
+        }
+        val requiredProdPrivacyPolicyUrl = "https://sites.google.com/view/zorvprivacy/home"
+        check("""PRIVACY_POLICY_URL = "$requiredProdPrivacyPolicyUrl""" in text) {
+            "prodRelease privacy policy URL must match the confirmed Zorv page"
+        }
+        val requiredProdTermsOfServiceUrl = "https://sites.google.com/view/zorvterms/home"
+        check("""TERMS_OF_SERVICE_URL = "$requiredProdTermsOfServiceUrl""" in text) {
+            "prodRelease terms of service URL must match the confirmed Zorv page"
         }
         listOf(
             "ENABLE_FIREBASE_ANALYTICS",

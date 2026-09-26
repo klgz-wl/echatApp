@@ -30,12 +30,30 @@ class FormalProdConfigurationTest {
         assertEquals("FORMAL", app.getProperty("kit.prod.mode"))
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
-        assertEquals("PhippenLautner@gmail.com", prod.getProperty("build.string.CONTACT_EMAIL"))
+        assertEquals("info@frostandbites.site", prod.getProperty("build.string.CONTACT_EMAIL"))
         assertEquals(
             2,
             Regex("CORE_CDN_URL\\\" to \\\"https://cdn\\.zorv\\.date").findAll(gradle).count(),
         )
         assert(gradle.contains("requiredProdContactEmail"))
+        assert(gradle.contains("info@frostandbites.site"))
+    }
+
+    @Test
+    fun `prod uses zorv privacy and terms pages`() {
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assertEquals(
+            "https://sites.google.com/view/zorvprivacy/home",
+            prod.getProperty("build.string.PRIVACY_POLICY_URL"),
+        )
+        assertEquals(
+            "https://sites.google.com/view/zorvterms/home",
+            prod.getProperty("build.string.TERMS_OF_SERVICE_URL"),
+        )
+        assert(gradle.contains("requiredProdPrivacyPolicyUrl"))
+        assert(gradle.contains("requiredProdTermsOfServiceUrl"))
     }
 
     @Test
