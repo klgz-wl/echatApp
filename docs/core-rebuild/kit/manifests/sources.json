@@ -764,7 +764,7 @@
     {
       "source": "config/dev.properties",
       "destination": "config/dev/dev.properties",
-      "sha256": "08fb948328db19322347e8ba51c44b2a2632659b68b03cc24f691d9feb828f37"
+      "sha256": "857a32bc2d4fd510e2dbc4a29cb4eb636479b5ab8747c347da92bbf18ef10154"
     },
     {
       "source": "app/src/dev/google-services.json",

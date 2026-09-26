@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Core Integration Harness</string>
+    <string name="app_name">zorv</string>
     <string name="retry">Retry</string>
     <string name="wallet">Refresh wallet</string>
     <string name="library">Check catalog and resources</string>

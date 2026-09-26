@@ -11,6 +11,15 @@ class FormalProdConfigurationTest {
         get() = requireNotNull(File(requireNotNull(System.getProperty("user.dir"))).parentFile)
 
     @Test
+    fun `all launcher flavors use lowercase zorv brand`() {
+        val dev = rootDir.resolve("config/dev.properties").readProperties()
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+
+        assertEquals("zorv", dev.getProperty("app.display.name"))
+        assertEquals("zorv", prod.getProperty("app.display.name"))
+    }
+
+    @Test
     fun `prod flavor uses formal zorv identity instead of dev reuse`() {
         val app = rootDir.resolve("config/app.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
