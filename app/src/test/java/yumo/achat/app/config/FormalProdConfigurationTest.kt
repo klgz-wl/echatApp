@@ -83,6 +83,32 @@ class FormalProdConfigurationTest {
     }
 
     @Test
+    fun `build repositories support explicit https mirrors`() {
+        val settings = rootDir.resolve("settings.gradle.kts").readText()
+
+        listOf(
+            "googleMavenMirror",
+            "mavenCentralMirror",
+            "gradlePluginPortalMirror",
+        ).forEach { property -> assert(settings.contains("httpsMirror(\"$property\")")) }
+        assert(settings.contains("gradleProperty(propertyName)"))
+        assert(settings.contains("scheme == \"https\""))
+        assert(settings.contains("if (googleMavenMirror == null) google() else maven"))
+        assert(settings.contains("includeGroupByRegex(\"androidx"))
+        assert(settings.contains("includeGroupByRegex(\"com\\\\.android"))
+        assertFalse(settings.contains("includeGroupByRegex(\"com\\\\.google\\\\..*\""))
+        assert(settings.contains("if (mavenCentralMirror == null) mavenCentral() else maven"))
+        assert(settings.contains("if (gradlePluginPortalMirror == null) gradlePluginPortal() else maven"))
+        listOf(
+            "com.android.tools.build:gradle",
+            "com.google.gms:google-services",
+            "com.google.firebase:firebase-crashlytics-gradle",
+            "com.google.dagger:hilt-android-gradle-plugin",
+            "com.google.devtools.ksp:symbol-processing-gradle-plugin",
+        ).forEach { module -> assert(settings.contains(module)) }
+    }
+
+    @Test
     fun `prod attribution configuration is distinct from dev`() {
         val dev = rootDir.resolve("config/dev.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
