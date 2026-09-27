@@ -29,14 +29,26 @@ internal fun generationTopUpRouteDelayMillis(rawMessage: String?): Long? =
 internal fun apiEnvelopeUserMessage(rawMessage: String?, fallback: String): String {
     val message = rawMessage?.trim().orEmpty()
     if (message.isBlank()) return fallback
+    if (!message.isSafeUserMessage()) return fallback
     if (!message.startsWith("{")) return message
     return runCatching {
         val root = JSONObject(message)
         root.optString("message").trim()
             .ifBlank { root.optString("error").trim() }
-            .ifBlank { fallback }
+            .takeIf(String::isSafeUserMessage)
+            ?: fallback
     }.getOrDefault(fallback)
 }
+
+private val userMessageMarkupPattern = Regex(
+    pattern = """<\s*(?:!doctype|/?[a-z][a-z0-9:_-]*)(?:\s|/?>)""",
+    option = RegexOption.IGNORE_CASE,
+)
+
+private fun String.isSafeUserMessage(): Boolean =
+    length <= 512 &&
+        !userMessageMarkupPattern.containsMatchIn(this) &&
+        !contains("&lt;", ignoreCase = true)
 
 internal fun topUpPaymentPrepareUserMessage(
     rawMessage: String?,

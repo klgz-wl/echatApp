@@ -8,7 +8,7 @@
   "config/templates/dev-certificate.der": "6a483e7d43ab2aa725d89c480f1744564541c7147b1840b38d647ca757a9a1e9",
   "contracts/Core功能与公共接口清单.md": "9a38301594ca95b7e39a1b3246476650f3b836563406ec06c492165460659471",
   "contracts/app-third-party-payment-integration.md": "0f182b9a56802ac696f2f5183a004aef284dbd7c16bc3d145abb80633f639dd6",
-  "contracts/埋点事件定义.md": "38aab2e3f03c53aeb2209095f8970bed23dd9410cfc6cb0c85d0d04e4d899056",
+  "contracts/埋点事件定义.md": "98c9fc87637097ac0f8e7f3875fb4d746315b65b033b634911d16f074f6a4dc5",
   "contracts/归因与启动模式.md": "0108ac0226058add2969ec579f9073955e2aeea861ce60507f8f6e82353b9077",
   "contracts/视觉生成接口接入.md": "6d503471c3d53e2de66e772c7c6963a760bcc08d22d22574c933d879cdfae65d",
   "manifests/baseline.json": "9291a75a4e2f7963a522ebf6363c5849601268a2f99a5b9f87698c7aa83125e3",

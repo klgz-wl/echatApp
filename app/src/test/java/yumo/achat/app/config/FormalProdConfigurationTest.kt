@@ -57,29 +57,41 @@ class FormalProdConfigurationTest {
     }
 
     @Test
-    fun `prod backend routes use the zorv host`() {
+    fun `prod business routes stay separate from the media cdn`() {
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals(
             2,
-            Regex("CORE_BASE_URL\\\" to \\\"https://cdn\\.zorv\\.date/api/v1/")
+            Regex("CORE_BASE_URL\\\" to \\\"https://release\\.appjoly\\.com/api/v1/")
                 .findAll(gradle).count(),
         )
-        assert(gradle.contains("\"ACHAT_API_BASE_URL\" to \"https://cdn.zorv.date\""))
+        assert(gradle.contains("\"ACHAT_API_BASE_URL\" to \"https://release.appjoly.com\""))
         assertEquals(
             2,
-            Regex("PAYMENT_BASE_URL\\\" to \\\"https://cdn\\.zorv\\.date/payment-api/v1/")
+            Regex("PAYMENT_BASE_URL\\\" to \\\"https://release\\.appjoly\\.com/payment-api/v1/")
                 .findAll(gradle).count(),
         )
         assertEquals(
             2,
-            Regex("CORE_STREAM_URL\\\" to \\\"wss://cdn\\.zorv\\.date")
+            Regex("CORE_STREAM_URL\\\" to \\\"wss://release\\.appjoly\\.com")
                 .findAll(gradle).count(),
         )
-        assert(gradle.contains("\"ACHAT_WS_URL\" to \"wss://cdn.zorv.date/connection/websocket\""))
+        assert(gradle.contains("\"ACHAT_WS_URL\" to \"wss://release.appjoly.com/connection/websocket\""))
         assert(Regex("CORE_CDN_URL\\\" to \\\"https://cdn\\.zorv\\.date").findAll(gradle).count() >= 2)
-        assertFalse(gradle.contains("https://release.appjoly.com"))
-        assertFalse(gradle.contains("wss://release.appjoly.com"))
+        assertFalse(gradle.contains("\"CORE_BASE_URL\" to \"https://cdn.zorv.date/api/v1/\""))
+        assertFalse(gradle.contains("\"CORE_STREAM_URL\" to \"wss://cdn.zorv.date\""))
+    }
+
+    @Test
+    fun `prod uses its confirmed backend client version`() {
+        val dev = rootDir.resolve("config/dev.properties").readProperties()
+        val prod = rootDir.resolve("config/prod.properties").readProperties()
+        val gradle = rootDir.resolve("app/build.gradle.kts").readText()
+
+        assertEquals("2.0.0", dev.getProperty("achat.client.version"))
+        assertEquals("1.0.0", prod.getProperty("achat.client.version"))
+        assert(gradle.contains("config.getProperty(\"achat.client.version\")"))
+        assert(gradle.contains("\"ACHAT_CLIENT_VERSION\" to \"1.0.0\""))
     }
 
     @Test

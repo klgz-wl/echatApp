@@ -24,6 +24,35 @@ class UploadUserMessageTest {
     }
 
     @Test
+    fun `api envelope user message hides html and oversized responses`() {
+        val fallback = "Unable to load video templates"
+
+        assertEquals(
+            fallback,
+            apiEnvelopeUserMessage(
+                """<!doctype html><html><head><title>Unauthorized</title></head></html>""",
+                fallback,
+            ),
+        )
+        assertEquals(
+            fallback,
+            apiEnvelopeUserMessage("x".repeat(513), fallback),
+        )
+        assertEquals(
+            fallback,
+            apiEnvelopeUserMessage("502 Bad Gateway <body>Proxy unavailable</body>", fallback),
+        )
+        assertEquals(
+            fallback,
+            apiEnvelopeUserMessage(
+                """{"message":"Proxy rejected <script>details</script>"}""",
+                fallback,
+            ),
+        )
+        assertEquals("Service unavailable", apiEnvelopeUserMessage("Service unavailable", fallback))
+    }
+
+    @Test
     fun `payment channel unavailable code is sanitized for top up`() {
         val fallback = "Unable to prepare payment"
         val unavailable = "Payment is temporarily unavailable. Please try again later."
