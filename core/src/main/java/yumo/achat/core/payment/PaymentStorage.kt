@@ -24,8 +24,17 @@ import javax.inject.Singleton
     val officialFallbackProductId: String? = null,
 ) {
     val thirdParty get() = initialized?.channelType == "third_party"
+    val orderCreationUnknown get() = stage == PaymentStage.UNCERTAIN && orderId == null && error == "order_unknown"
+    val initializationFailed get() = stage == PaymentStage.INITIALIZING && initialized == null && error != null
     // ACCESS_DENIED 只表示本客户端不得继续使用该订单，不代表服务器取消、退款或已完成。
-    val unresolved get() = stage !in setOf(PaymentStage.SUCCESS, PaymentStage.FAILED, PaymentStage.OFFICIAL_CONSUMED, PaymentStage.ACCESS_DENIED)
+    val unresolved get() = !orderCreationUnknown && !initializationFailed && stage !in setOf(
+        PaymentStage.SUCCESS,
+        PaymentStage.FAILED,
+        PaymentStage.OFFICIAL_CONSUMED,
+        PaymentStage.ACCESS_DENIED,
+        PaymentStage.CLOSED,
+        PaymentStage.TIMED_OUT,
+    )
     fun expired(now: Long) = deadline?.let { now >= it || (openedAt != null && now < openedAt) } ?: false
     override fun toString() = "PaymentRecord(订单及支付链接已隐藏, stage=$stage)"
 }

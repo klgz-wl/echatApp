@@ -116,7 +116,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
-            // 建单超时无 ID 时无法安全查回，保留未决占位，不能直接重建。
+            // 建单失败且无 ID 时无法安全查回；不恢复旧占位，下一次购买可重新建单。
             save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
             notifyFailure(session)
             reportPayment(record, "unknown", "order_creation", "order_unknown")
