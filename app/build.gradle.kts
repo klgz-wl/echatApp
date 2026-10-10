@@ -333,7 +333,7 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
             "ACHAT_WS_URL" to "wss://release.appjoly.com/connection/websocket",
             "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
             "CORE_CDN_URL" to "https://cdn.zorv.date",
-            "PAYMENT_FLOW" to "LEGACY",
+            "PAYMENT_FLOW" to "SERVICE",
         )
         expected.forEach { (field, value) ->
             check("""$field = "$value""" in text) {
