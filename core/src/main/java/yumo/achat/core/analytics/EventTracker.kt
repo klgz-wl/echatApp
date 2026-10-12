@@ -5,7 +5,7 @@ interface EventTracker {
     fun track(name: String, parameters: Map<String, Any> = emptyMap(), userId: String? = null,
         onceKey: String? = null)
 }
-enum class AnalyticsPlatform(val prefix: String) { FIREBASE("f"), APPS_FLYER("a"), THINKING_DATA("s"), BACKEND("z");
+enum class AnalyticsPlatform(val prefix: String) { FIREBASE("f"), APPS_FLYER("af"), THINKING_DATA("s"), BACKEND("z");
     fun eventName(name: String) = "${prefix}_$name"
 }
 object NoOpEventTracker : EventTracker {

@@ -4,8 +4,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EventTrackerTest {
-    @Test fun `四个平台使用新事件名和单字母前缀`() {
-        assertEquals(listOf("f_payment_custom", "a_payment_custom", "s_payment_custom", "z_payment_custom"), AnalyticsPlatform.entries.map { it.eventName("payment_custom") })
+    @Test fun `四个平台使用平台契约事件名前缀`() {
+        assertEquals(listOf("f_payment_custom", "af_payment_custom", "s_payment_custom", "z_payment_custom"), AnalyticsPlatform.entries.map { it.eventName("payment_custom") })
     }
     @Test fun `布尔数值规范一致且拒绝非有限金额和复杂对象`() {
         val result = analyticsParameters(mapOf("is_success" to true, "count" to 3, "amount" to 1.5, "invalid" to Double.NaN,
