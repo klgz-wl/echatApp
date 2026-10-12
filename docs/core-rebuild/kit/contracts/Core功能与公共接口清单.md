@@ -613,7 +613,7 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 | ServicePaymentFlow | `suspend buy(product: CoinProduct, source: String): Unit` | 委托 PaymentEngine 建单与初始化 |
 | ServicePaymentFlow | `suspend launchOfficial(activity: Activity, key: String, epoch: String): Unit` | 领取官方指令，使用服务端 SKU 调 CoinPurchaseController，再回写 SDK 结果 |
 
-`LegacyPaymentFlow.failureEvents: SharedFlow<String>` 提供所属 epoch 的一次性失败事件。`PurchaseFlow` 枚举为 SERVICE/LEGACY；`PurchaseFlowConfiguration.flow` 决定新购买策略。当前配置默认 LEGACY，失败不自动回退另一种流程。
+`LegacyPaymentFlow.failureEvents: SharedFlow<String>` 提供所属 epoch 的一次性失败事件。`PurchaseFlow` 枚举为 SERVICE/LEGACY；`PurchaseFlowConfiguration.flow` 决定新购买策略。当前 Zorv dev/prod 配置默认 SERVICE，失败不自动回退另一种流程；LEGACY 仅作为可配置参考路径和历史订单恢复路径保留。
 
 ### 10.3 LegacyPaymentRepository / LegacyOrderRegistry
 

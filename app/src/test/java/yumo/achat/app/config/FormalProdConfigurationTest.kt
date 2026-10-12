@@ -72,10 +72,12 @@ class FormalProdConfigurationTest {
     }
 
     @Test
-    fun `prod new purchases use explicit service flow`() {
+    fun `dev and prod new purchases use explicit service flow`() {
+        val app = rootDir.resolve("config/app.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
+        assertEquals("SERVICE", app.getProperty("build.string.PAYMENT_FLOW"))
         assertEquals("SERVICE", prod.getProperty("build.string.PAYMENT_FLOW"))
         assert(gradle.contains("\"PAYMENT_FLOW\" to \"SERVICE\""))
     }

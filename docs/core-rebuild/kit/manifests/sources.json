@@ -349,7 +349,7 @@
     {
       "source": "core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
       "destination": "reference/core/src/main/java/com/zorv/core/payment/PaymentEngine.kt",
-      "sha256": "b1b90241453c67820e388fe711cc8cd28e6cfe8bc61a5648b38a836f93b97fb8"
+      "sha256": "e7261b017711ac3a29d24d82b28e02cbcb1808c0b1ad5b396743b9f00daa5ea0"
     },
     {
       "source": "core/src/main/java/com/zorv/core/payment/PaymentEventQueue.kt",
@@ -759,7 +759,7 @@
     {
       "source": "config/app.properties",
       "destination": "config/dev/app.properties",
-      "sha256": "63e0d476a01b595c54196e00b105b75e879c7d8d2f40a0b3c5c7a7cbc9527a68"
+      "sha256": "11588255a676620e9fea4dd5aed37bcc4439222ea25c762a50cf52c066d1a02d"
     },
     {
       "source": "config/dev.properties",
