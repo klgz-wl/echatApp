@@ -71,4 +71,33 @@ class EventTrackerTest {
         tracker.paymentResult(values, "another", "play:order:consumed")
         assertEquals(4, tracker.events.size)
     }
+
+    @Test fun `purchase success替代旧purchase client并携带完整AF支付参数`() {
+        val tracker = RecordingTracker()
+        val values = paymentProperties("success", "google_play", "LEGACY", "store", "coins_100", "order-1",
+            "play_consumed", amount = 4.99, currency = "usd") + mapOf("af_content_id" to "play.sku.100")
+
+        tracker.paymentResult(values, "user", "play:order-1:consumed", includeRevenue = false)
+        repeat(3) { tracker.purchaseSuccess(values, "user", "play:order-1:purchase_success") }
+
+        assertEquals(listOf("pay_result", "payment_custom", "purchase_success"), tracker.events.map { it.name })
+        assertTrue(tracker.events.filter { it.name != "purchase_success" }.none { "af_revenue" in it.values })
+        val event = tracker.events.single { it.name == "purchase_success" }
+        assertEquals("user", event.user)
+        assertEquals("play:order-1:purchase_success", event.once)
+        assertEquals("success", event.values["status"])
+        assertEquals("true", event.values["af_success"])
+        assertEquals("google_play", event.values["pay_method"])
+        assertEquals("LEGACY", event.values["payment_flow"])
+        assertEquals("store", event.values["entry_source"])
+        assertEquals("coins_100", event.values["package_id"])
+        assertEquals("order-1", event.values["af_order_id"])
+        assertEquals("play.sku.100", event.values["af_content_id"])
+        assertEquals("recharge", event.values["af_content_type"])
+        assertEquals("user", event.values["self_user_id"])
+        assertEquals(4.99, event.values["af_price"])
+        assertEquals(4.99, event.values["af_revenue"])
+        assertEquals("USD", event.values["af_currency"])
+        assertFalse(tracker.events.any { it.name.startsWith("purchase_client") })
+    }
 }

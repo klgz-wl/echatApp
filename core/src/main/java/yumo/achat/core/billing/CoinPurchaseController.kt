@@ -62,10 +62,12 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
         var reportedOrder: String? = null
         var price: Double? = null
         var currency: String? = null
-        fun report(status: String, stage: String, reason: String? = null) {
-            tracker.paymentResult(paymentProperties(status, "google_play", flow, source, packageId, reportedOrder,
-                stage, reason, price, currency) + mapOf("af_content_id" to sku), session.userId,
-                reportedOrder?.takeIf { status == "success" }?.let { "play:$it:consumed" })
+        fun paymentValues(status: String, stage: String, reason: String? = null): Map<String, Any> =
+            paymentProperties(status, "google_play", flow, source, packageId, reportedOrder,
+                stage, reason, price, currency) + mapOf("af_content_id" to sku)
+        fun report(status: String, stage: String, reason: String? = null, includeRevenue: Boolean = true) {
+            tracker.paymentResult(paymentValues(status, stage, reason), session.userId,
+                reportedOrder?.takeIf { status == "success" }?.let { "play:$it:consumed" }, includeRevenue)
         }
         kotlinx.coroutines.withContext(Dispatchers.Main.immediate) {
             try {
@@ -119,12 +121,9 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                         if (config.backendOwnedFulfillment) {
                             report("pending", "play_accepted")
                         } else {
-                            report("success", "play_consumed")
-                            // 历史投放兼容事件统一发往四端；不带 af_revenue，避免重复计入收入。
-                            listOf("purchase_client", "purchase_client_buy", "purchase_client_buy_${sku.replace(Regex("[^A-Za-z0-9_]"), "_")}")
-                                .forEach { name -> tracker.track(name, mapOf("af_content_id" to sku, "package_id" to packageId,
-                                    "af_order_id" to reportedOrder.orEmpty(), "entry_source" to source, "status" to "success"), session.userId,
-                                    "play:${reportedOrder}:$name") }
+                            report("success", "play_consumed", includeRevenue = false)
+                            tracker.purchaseSuccess(paymentValues("success", "play_consumed"), session.userId,
+                                reportedOrder?.let { "play:$it:purchase_success" })
                         }
                     }
                     is ConsumablePurchaseResult.Failure -> report(if (result.code == BillingResponseCode.CANCELLED) "cancelled" else "failed",

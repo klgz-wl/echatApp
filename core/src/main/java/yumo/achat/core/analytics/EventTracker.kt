@@ -47,7 +47,7 @@ fun paymentProperties(status: String, method: String, flow: String, source: Stri
 }
 
 /** 两个结果事件共享价格字段，仅主成功事件记收入；报价和历史未知金额不推算收入。 */
-fun EventTracker.paymentResult(values: Map<String, Any>, userId: String, onceKey: String? = null) {
+fun EventTracker.paymentResult(values: Map<String, Any>, userId: String, onceKey: String? = null, includeRevenue: Boolean = true) {
     val shared = values - "af_revenue"
     track("pay_result", shared, userId, onceKey?.let { "$it:result" })
     val compatibility = buildMap<String, Any> {
@@ -55,10 +55,26 @@ fun EventTracker.paymentResult(values: Map<String, Any>, userId: String, onceKey
         values["entry_source"]?.let { put("trigger", it) }
         values["fail_reason"]?.let { put("failed_reason", it) }
         val price = (values["af_price"] as? Number)?.toDouble()
-        if (values["status"] == "success" && values["pay_method"] == "google_play" &&
+        if (includeRevenue && values["status"] == "success" && values["pay_method"] == "google_play" &&
             values["price_source"] == "google_play" && price != null && price.isFinite() && price >= 0 &&
             (values["af_currency"] as? String)?.matches(Regex("[A-Z]{3}")) == true)
             put("af_revenue", price)
     }
     track("payment_custom", shared + compatibility, userId, onceKey?.let { "$it:custom" })
+}
+
+fun EventTracker.purchaseSuccess(values: Map<String, Any>, userId: String, onceKey: String? = null) {
+    val shared = values - "af_revenue"
+    val price = (values["af_price"] as? Number)?.toDouble()
+    val currency = values["af_currency"] as? String
+    val purchaseValues = buildMap {
+        putAll(shared)
+        put("af_content_type", "recharge")
+        put("self_user_id", userId)
+        if (values["status"] == "success" && price != null && price.isFinite() && price >= 0 &&
+            currency?.matches(Regex("[A-Z]{3}")) == true) {
+            put("af_revenue", price)
+        }
+    }
+    track("purchase_success", purchaseValues, userId, onceKey)
 }
