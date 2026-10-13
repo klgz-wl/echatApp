@@ -32,7 +32,7 @@ class FormalProdConfigurationTest {
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
         assertEquals("2.0.0", dev.getProperty("build.string.ACHAT_CLIENT_VERSION"))
-        assertEquals("1.0.0", prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
+        assertEquals("1.0.1", prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
         assertEquals("PhippenLautner@gmail.com", prod.getProperty("build.string.CONTACT_EMAIL"))
         assertEquals(
             2,

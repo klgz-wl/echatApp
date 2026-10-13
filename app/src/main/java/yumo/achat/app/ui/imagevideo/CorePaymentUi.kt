@@ -50,7 +50,8 @@ internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresen
     val stage = record?.stage
     val orderCreationUnknown = record?.orderCreationUnknown == true
     val initializationFailed = record?.initializationFailed == true
-    val active = !orderCreationUnknown && !initializationFailed && stage in setOf(
+    val hasVisibleError = record?.error != null
+    val active = !hasVisibleError && !orderCreationUnknown && !initializationFailed && stage in setOf(
         PaymentStage.CREATING,
         PaymentStage.INITIALIZING,
         PaymentStage.OFFICIAL_READY,
@@ -63,14 +64,14 @@ internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresen
     )
     return CorePaymentPresentation(
         locksProductSelection = active,
-        canStartPurchase = record == null || orderCreationUnknown || initializationFailed || stage in setOf(
+        canStartPurchase = record == null || hasVisibleError || orderCreationUnknown || initializationFailed || stage in setOf(
             PaymentStage.CLOSED,
             PaymentStage.TIMED_OUT,
             PaymentStage.FAILED,
             PaymentStage.ACCESS_DENIED,
             PaymentStage.SUCCESS,
         ),
-        canRetry = !orderCreationUnknown && !initializationFailed && stage in setOf(
+        canRetry = !hasVisibleError && !orderCreationUnknown && !initializationFailed && stage in setOf(
             PaymentStage.INITIALIZING,
             PaymentStage.UNCERTAIN,
         ),

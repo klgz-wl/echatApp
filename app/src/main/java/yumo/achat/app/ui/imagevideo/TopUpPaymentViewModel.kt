@@ -166,7 +166,7 @@ internal class CoreTopUpPaymentController(
     fun retainAvailableProducts(products: List<StoreProduct>, userInfo: StoreUserInfo? = null) {
         this.products = products.associateBy(StoreProduct::id)
         this.userInfo = userInfo
-        val activeProduct = coreState.record?.takeIf(PaymentRecord::unresolved)?.productId
+        val activeProduct = coreState.record?.takeIf { it.unresolved && it.error == null }?.productId
         selectedProductId = activeProduct ?: selectedProductId?.takeIf(this.products::containsKey) ?: products.firstOrNull()?.id
     }
 

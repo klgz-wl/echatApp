@@ -103,7 +103,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             notifyFailure(session)
             return@guarded
         }
-        val old = records.lastOrNull { it.userId == session.userId && it.unresolved }
+        val old = records.lastOrNull { it.userId == session.userId && it.unresolved && it.error == null }
         if (old != null) { resume(old.copy(source = source), session); return@guarded }
         var record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,

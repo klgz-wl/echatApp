@@ -205,6 +205,26 @@ class PaymentEngineTest {
         assertEquals(2,f.orders); assertEquals(listOf("order-1","order-2"),f.api.initialized)
         assertTrue(engine.state.value.checkoutVisible)
     }
+    @Test fun `带错误的未决旧单不拦截新商品购买`() = runBlocking {
+        val f = Fixture(); f.login(); val engine = f.engine()
+        f.store.records = listOf(
+            PaymentRecord(
+                key = "old",
+                userId = "user",
+                productId = "coins_100",
+                source = "main",
+                orderId = "old-order",
+                stage = PaymentStage.OFFICIAL_CONSUMED,
+                error = "payment_channel_unavailable",
+            ),
+        )
+
+        engine.buy("coins_200", "main")
+
+        assertEquals(1, f.orders)
+        assertEquals("coins_200", engine.state.value.record?.productId)
+        assertEquals(listOf("order-1"), f.api.initialized)
+    }
     @Test fun `初始化返回已过期收银台时不暴露支付页面`() = runBlocking {
         val f = Fixture(); f.login(); f.now = paymentTime("2026-09-24T12:00:00Z")!!
         f.api.checkoutExpiresAt = "2026-09-24T11:59:59Z"

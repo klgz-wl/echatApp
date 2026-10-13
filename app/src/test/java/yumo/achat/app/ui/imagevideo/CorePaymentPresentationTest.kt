@@ -57,6 +57,33 @@ class CorePaymentPresentationTest {
     }
 
     @Test
+    fun `active stage with visible error can select another package and start fresh purchase`() {
+        listOf(
+            PaymentStage.CREATING,
+            PaymentStage.INITIALIZING,
+            PaymentStage.OFFICIAL_READY,
+            PaymentStage.OFFICIAL_LAUNCHED,
+            PaymentStage.CHECKOUT,
+            PaymentStage.VERIFYING,
+            PaymentStage.AWAITING_FULFILLMENT,
+            PaymentStage.UNCERTAIN,
+            PaymentStage.OFFICIAL_CONSUMED,
+        ).forEach { stage ->
+            val presentation = corePaymentPresentation(
+                state(
+                    stage = stage,
+                    orderId = "order",
+                    error = "payment_channel_unavailable",
+                ),
+            )
+
+            assertFalse(presentation.locksProductSelection)
+            assertFalse(presentation.canRetry)
+            assertTrue(presentation.canStartPurchase)
+        }
+    }
+
+    @Test
     fun `order creation failure without order id does not lock product selection`() {
         val presentation = corePaymentPresentation(
             state(
