@@ -23,6 +23,7 @@ import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreUserInfo
 import yumo.achat.core.network.AuthResponse
 import yumo.achat.core.payment.PaymentCoordinator
+import yumo.achat.core.payment.PaymentClientEventDetails
 import yumo.achat.core.payment.PaymentRecord
 import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
@@ -165,7 +166,7 @@ internal class CoreTopUpPaymentController(
     fun retainAvailableProducts(products: List<StoreProduct>, userInfo: StoreUserInfo? = null) {
         this.products = products.associateBy(StoreProduct::id)
         this.userInfo = userInfo
-        val activeProduct = coreState.record?.takeIf(PaymentRecord::unresolved)?.productId
+        val activeProduct = coreState.record?.takeIf { it.unresolved && it.error == null }?.productId
         selectedProductId = activeProduct ?: selectedProductId?.takeIf(this.products::containsKey) ?: products.firstOrNull()?.id
     }
 
@@ -190,14 +191,27 @@ internal class CoreTopUpPaymentController(
     }
 
     fun openThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.opened(route.record.key)
-    fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady) = payments.pageEvent(route.record.key, "page_loaded")
-    fun onThirdPartyPageError(route: TopUpPurchaseState.ThirdPartyReady, message: String) =
-        payments.pageEvent(route.record.key, "page_load_error")
+    fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady, url: String?, htmlExcerpt: String?) =
+        payments.pageEvent(
+            route.record.key,
+            "page_loaded",
+            PaymentClientEventDetails(url = url, htmlExcerpt = htmlExcerpt),
+        )
+    fun onThirdPartyPageError(route: TopUpPurchaseState.ThirdPartyReady, url: String?, message: String) =
+        payments.pageEvent(
+            route.record.key,
+            "page_load_error",
+            PaymentClientEventDetails(url = url, errorMessage = message.takeIf(String::isNotBlank)),
+        )
     fun closeThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.close(route.record.key)
     fun refreshPayment(route: TopUpPurchaseState.ThirdPartyReady) = payments.poll(route.record.key)
     fun onCheckoutLaunchError(message: String) {
         coreState.record?.let { record ->
-            payments.pageEvent(record.key, "page_load_error")
+            payments.pageEvent(
+                record.key,
+                "page_load_error",
+                PaymentClientEventDetails(errorMessage = message.takeIf(String::isNotBlank)),
+            )
             if (record.thirdParty) payments.close(record.key)
         }
     }

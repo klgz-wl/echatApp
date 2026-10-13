@@ -140,7 +140,6 @@ android {
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
                 buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
                 buildConfigField("String", "ACHAT_WS_URL", quoted(wsUrl))
-                buildConfigField("String", "ACHAT_CLIENT_VERSION", quoted(config.getProperty("achat.client.version")))
                 buildConfigField("String", "PROD_CONFIG_STATUS", quoted(mode))
                 val expectedKeys = (common.stringPropertyNames() + devProperties.stringPropertyNames() + config.stringPropertyNames())
                     .filter { it.startsWith("build.") }
@@ -329,14 +328,14 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         val text = buildConfig.get().asFile.readText()
         val expected = mapOf(
             "APPLICATION_ID" to "com.zorv.app",
-            "ACHAT_CLIENT_VERSION" to "1.0.0",
+            "ACHAT_CLIENT_VERSION" to "1.0.1",
             "ACHAT_API_BASE_URL" to "https://release.appjoly.com",
             "ACHAT_WS_URL" to "wss://release.appjoly.com/connection/websocket",
             "CORE_BASE_URL" to "https://release.appjoly.com/api/v1/",
             "CORE_STREAM_URL" to "wss://release.appjoly.com",
             "PAYMENT_BASE_URL" to "https://release.appjoly.com/payment-api/v1/",
             "CORE_CDN_URL" to "https://cdn.zorv.date",
-            "PAYMENT_FLOW" to "LEGACY",
+            "PAYMENT_FLOW" to "SERVICE",
         )
         expected.forEach { (field, value) ->
             check("""$field = "$value""" in text) {

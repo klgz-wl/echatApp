@@ -46,8 +46,12 @@ internal data class CorePaymentPresentation(
 )
 
 internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresentation {
-    val stage = state.record?.stage
-    val active = stage in setOf(
+    val record = state.record
+    val stage = record?.stage
+    val orderCreationUnknown = record?.orderCreationUnknown == true
+    val initializationFailed = record?.initializationFailed == true
+    val hasVisibleError = record?.error != null
+    val active = !hasVisibleError && !orderCreationUnknown && !initializationFailed && stage in setOf(
         PaymentStage.CREATING,
         PaymentStage.INITIALIZING,
         PaymentStage.OFFICIAL_READY,
@@ -56,22 +60,20 @@ internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresen
         PaymentStage.VERIFYING,
         PaymentStage.AWAITING_FULFILLMENT,
         PaymentStage.UNCERTAIN,
-        PaymentStage.CLOSED,
-        PaymentStage.TIMED_OUT,
         PaymentStage.OFFICIAL_CONSUMED,
     )
     return CorePaymentPresentation(
         locksProductSelection = active,
-        canStartPurchase = stage == null || stage in setOf(
+        canStartPurchase = record == null || hasVisibleError || orderCreationUnknown || initializationFailed || stage in setOf(
+            PaymentStage.CLOSED,
+            PaymentStage.TIMED_OUT,
             PaymentStage.FAILED,
             PaymentStage.ACCESS_DENIED,
             PaymentStage.SUCCESS,
         ),
-        canRetry = stage in setOf(
+        canRetry = !hasVisibleError && !orderCreationUnknown && !initializationFailed && stage in setOf(
             PaymentStage.INITIALIZING,
             PaymentStage.UNCERTAIN,
-            PaymentStage.CLOSED,
-            PaymentStage.TIMED_OUT,
         ),
     )
 }

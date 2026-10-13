@@ -69,10 +69,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                     setDebugLog(config.debugLogging)
                     init(config.devKey, object : AppsFlyerConversionListener {
                         override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
-                            val snapshot = buildJsonObject {
-                                (conversionJson(data.orEmpty()) as JsonObject).forEach { (key, value) -> put(key, value) }
-                                put("af_uid", currentId())
-                            }
+                            val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
                             mutable.value = if (!snapshot.hasValidAttribution()) ConversionResult.Failed else ConversionResult.Success(snapshot)
                             diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
                         }
@@ -83,7 +80,10 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                                 .matchEntire(message.orEmpty().trim())?.groupValues?.get(1)
                             diagnostic("AppsFlyer/Attribution", "SDK 归因回调失败，HTTP=${status ?: "unknown"}")
                         }
-                        override fun onAppOpenAttribution(data: MutableMap<String, String>?) { /* 深链不覆盖安装归因。 */ }
+                        override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
+                            val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
+                            if (snapshot.hasValidAttribution()) mutable.value = ConversionResult.Success(snapshot)
+                        }
                         override fun onAttributionFailure(message: String?) { /* 保留已有安装归因。 */ }
                     }, context)
                     ready = true
@@ -149,3 +149,24 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     }
     override fun currentId(): String = if (ready) AppsFlyerLib.getInstance().getAppsFlyerUID(context).orEmpty() else ""
 }
+
+internal fun appsFlyerConversionSnapshot(data: Map<String, Any>, afUid: String): JsonObject = buildJsonObject {
+    (conversionJson(data) as JsonObject).forEach { (key, value) -> put(key, value) }
+    put("af_uid", afUid)
+}
+
+internal fun appsFlyerAppOpenAttributionSnapshot(data: Map<String, String>, afUid: String): JsonObject = buildJsonObject {
+    val hasSignal = data.hasAppOpenAttributionSignal()
+    data.forEach { (key, value) ->
+        if (hasSignal || key != "af_status") put(key, value)
+    }
+    put("af_callback_type", "app_open_attribution")
+    if (hasSignal) {
+        put("af_status", data["af_status"]?.takeIf { it.isNotBlank() } ?: "Non-organic")
+    }
+    put("af_uid", afUid)
+}
+
+private fun Map<String, String>.hasAppOpenAttributionSignal(): Boolean =
+    listOf("media_source", "network", "campaign", "deep_link_value", "af_dp", "link")
+        .any { key -> this[key]?.isNotBlank() == true }

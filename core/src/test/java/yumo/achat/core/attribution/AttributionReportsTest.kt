@@ -51,7 +51,10 @@ class AttributionReportsTest {
         val raw = buildJsonObject { put("af_status", "Non-organic"); put("is_first_launch", true) }
         source.conversion.value = ConversionResult.Success(raw)
         withTimeout(2000) { while (profiles.state.value?.mode != yumo.achat.core.config.AppMode.B) delay(5) }
-        assertEquals(raw, sent.last()["extra_data"])
+        val extra = sent.last()["extra_data"] as JsonObject
+        assertEquals(JsonPrimitive("Non-organic"), extra["af_status"])
+        assertEquals(JsonPrimitive(true), extra["is_first_launch"])
+        assertEquals(JsonPrimitive("anonymous"), extra["app_user_id"])
         assertEquals(JsonPrimitive("anonymous"), sent.last()["user_id"])
         assertEquals(sent.first(), sent.last())
         assertEquals(listOf("anonymous", "anonymous"), profileUsers.toList())

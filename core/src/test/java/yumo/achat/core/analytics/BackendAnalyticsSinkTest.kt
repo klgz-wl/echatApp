@@ -142,20 +142,34 @@ class BackendAnalyticsSinkTest {
         } finally { scope.cancel() }
     }
 
-    @Test fun `原专属事件均使用自有平台前缀且不携带AF收入参数`() = runBlocking {
+    @Test fun `专属事件使用自有平台前缀且purchase success保留AF收入参数`() = runBlocking {
         val requests = Channel<ReportEventRequest>(Channel.UNLIMITED)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             val sink = BackendAnalyticsSink(recordingApi(requests), identity, { "device" }, 10, scope)
-            val names = listOf("purchase_client", "purchase_client_buy", "purchase_client_buy_coins",
-                "3rdpayment_link_ok", "3rdpayment_link_error", "3rdpayment_page_loaded")
+            val names = listOf("purchase_success", "3rdpayment_link_ok", "3rdpayment_link_error", "3rdpayment_page_opened",
+                "3rdpayment_page_loaded", "3rdpayment_page_load_error", "3rdpayment_paid_while_open",
+                "3rdpayment_paid_on_close", "3rdpayment_user_cancel", "3rdpayment_timeout_cancel")
             sink.initialize()
-            names.forEach { sink.event(it, mapOf("status" to "success")) }
+            names.forEach { name ->
+                val parameters = if (name == "purchase_success") {
+                    mapOf("status" to "success", "af_price" to 4.99, "af_revenue" to 4.99, "af_currency" to "USD")
+                } else {
+                    mapOf("status" to "success")
+                }
+                sink.event(name, parameters)
+            }
             withTimeout(5000) {
                 names.forEach { name ->
                     val request = requests.receive()
                     assertEquals("z_$name", request.eventType)
-                    assertFalse(request.parameters.containsKey("af_revenue"))
+                    if (name == "purchase_success") {
+                        assertEquals("4.99", request.parameters["af_price"])
+                        assertEquals("4.99", request.parameters["af_revenue"])
+                        assertEquals("USD", request.parameters["af_currency"])
+                    } else {
+                        assertFalse(request.parameters.containsKey("af_revenue"))
+                    }
                 }
             }
         } finally { scope.cancel() }

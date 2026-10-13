@@ -17,7 +17,7 @@ import javax.inject.Singleton
 @Serializable private data class QueuedPaymentEvent(val key: String, val userId: String, val orderId: String,
     val event: PaymentClientEvent, val attempts: Int = 0)
 
-/** 可选遥测与交易解耦。仅记录协议字段，不收集 URL、HTML 或表单内容。 */
+/** 可选遥测与交易解耦。支付页 HTML 仅作为有界诊断摘要发往后台，不写入 App 日志或界面。 */
 @Singleton
 class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context, private val config: PaymentConfiguration,
     private val repository: PaymentRepository, private val sessions: SessionCoordinator, private val json: Json, private val tracker: EventTracker) : PaymentEventSink {
@@ -53,12 +53,12 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
             }
         }
     }
-    override fun record(record: PaymentRecord, type: String, now: Long, error: String?) {
-        val name = when (type) { "link_ok" -> "3rdpayment_link_ok"; "link_error" -> "3rdpayment_link_error"; "page_loaded" -> "3rdpayment_page_loaded"; else -> null }
+    override fun record(record: PaymentRecord, type: String, now: Long, error: String?, details: PaymentClientEventDetails?) {
+        val name = thirdPartyPaymentAnalyticsName(type)
         if (name != null) tracker.track(name, buildMap {
             put("package_id", record.productId); put("entry_source", record.source); put("af_order_id", record.orderId.orEmpty())
             put("channel_code", record.initialized?.channelCode.orEmpty()); put("open_mode", record.initialized?.openMode.orEmpty())
-            put("payment_flow", "SERVICE"); put("page_name", "recharge_paywall")
+            put("payment_flow", "SERVICE"); put("page_name", details?.page ?: "recharge_paywall")
             record.openedAt?.let { put("duration", (now - it).coerceAtLeast(0)) }; error?.let { put("fail_reason", it) }
         }, record.userId)
         val order = record.orderId ?: return
@@ -66,9 +66,11 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
             try {
                 val init = record.initialized
                 val event = PaymentClientEvent(type, init?.channelCode, init?.openMode,
+                    page = details?.page ?: "recharge_paywall", url = details?.url,
                     occurredAt = paymentTimestamp(now), openedAt = record.openedAt?.let(::paymentTimestamp),
                     closedAt = now.takeIf { type in setOf("user_cancel", "paid_on_close", "timeout_cancel") }?.let(::paymentTimestamp),
-                    durationMs = record.openedAt?.let { (now - it).coerceAtLeast(0) }, errorCode = error)
+                    durationMs = record.openedAt?.let { (now - it).coerceAtLeast(0) }, errorCode = error,
+                    errorMessage = details?.errorMessage, htmlExcerpt = details?.htmlExcerpt)
                 val key = "${record.key}:$type:$now"
                 lock.withLock {
                     val queued = read().filter { it.attempts < config.eventAttempts }
@@ -87,4 +89,17 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
             "支付事件保存失败"
         }
     }
+}
+
+internal fun thirdPartyPaymentAnalyticsName(type: String): String? = when (type) {
+    "link_ok" -> "3rdpayment_link_ok"
+    "link_error" -> "3rdpayment_link_error"
+    "page_opened" -> "3rdpayment_page_opened"
+    "page_loaded" -> "3rdpayment_page_loaded"
+    "page_load_error" -> "3rdpayment_page_load_error"
+    "paid_while_open" -> "3rdpayment_paid_while_open"
+    "paid_on_close" -> "3rdpayment_paid_on_close"
+    "user_cancel" -> "3rdpayment_user_cancel"
+    "timeout_cancel" -> "3rdpayment_timeout_cancel"
+    else -> null
 }

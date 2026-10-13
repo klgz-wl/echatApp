@@ -1,5 +1,6 @@
 package yumo.achat.app.attribution
 
+import android.util.Log
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -8,8 +9,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.jsonPrimitive
 import yumo.achat.core.backend.AuthSession
 import java.security.MessageDigest
+
+private const val ATTRIBUTION_REPORT_TAG = "AppsFlyer/Attribution"
 
 internal interface AttributionDeliveryStore {
     fun wasReported(digest: String): Boolean
@@ -43,12 +47,26 @@ internal class AttributionReportDispatcher(
     }
 
     fun updateSession(value: AuthSession) {
-        synchronized(stateLock) { session = value }
+        val waitingForSnapshot = synchronized(stateLock) {
+            session = value
+            snapshot == null
+        }
+        if (waitingForSnapshot) {
+            attributionLogD("归因上报已有登录态，等待归因快照，user=${value.userId}")
+        }
         kick()
     }
 
     fun updateSnapshot(value: JsonObject) {
-        synchronized(stateLock) { snapshot = value }
+        val waitingForSession = synchronized(stateLock) {
+            snapshot = value
+            session == null
+        }
+        if (waitingForSession) {
+            attributionLogD(
+                "归因快照已就绪，等待登录态，${value.reportSummary(userId = null, digest = value.canonicalString().sha256())}",
+            )
+        }
         kick()
     }
 
@@ -84,17 +102,30 @@ internal class AttributionReportDispatcher(
             var sent = false
             for (attempt in 0 until attempts) {
                 try {
+                    attributionLogD(
+                        "开始上报归因，attempt=${attempt + 1}/$attempts，${candidate.snapshot.reportSummary(candidate.session.userId, candidate.digest)}",
+                    )
                     report(candidate.session, candidate.snapshot)
+                    attributionLogI(
+                        "归因上报成功，${candidate.snapshot.reportSummary(candidate.session.userId, candidate.digest)}",
+                    )
                     sent = true
                     break
                 } catch (cancelled: CancellationException) {
                     throw cancelled
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    attributionLogW(
+                        "归因上报失败，attempt=${attempt + 1}/$attempts，${candidate.snapshot.reportSummary(candidate.session.userId, candidate.digest)}",
+                        error,
+                    )
                     if (attempt + 1 < attempts) retryDelay()
                 }
             }
             if (!sent) {
                 synchronized(stateLock) { deferredKeys += candidate.key }
+                attributionLogW(
+                    "归因上报暂缓，等待下次前台重试，${candidate.snapshot.reportSummary(candidate.session.userId, candidate.digest)}",
+                )
                 return
             }
             synchronized(stateLock) { reportedKeys += candidate.key }
@@ -118,6 +149,35 @@ internal class AttributionReportDispatcher(
         val session: AuthSession,
         val snapshot: JsonObject,
     )
+}
+
+private fun JsonObject.reportSummary(userId: String?, digest: String): String {
+    val digestPrefix = digest.take(12)
+    val afUid = stringValue("af_uid")?.takeLast(8)?.let { "***$it" } ?: "-"
+    val status = stringValue("af_status") ?: "-"
+    val mediaSource = stringValue("media_source") ?: stringValue("network") ?: "-"
+    val campaign = stringValue("campaign") ?: "-"
+    return "user=${userId ?: "-"} digest=$digestPrefix afUid=$afUid status=$status source=$mediaSource campaign=$campaign"
+}
+
+private fun JsonObject.stringValue(key: String): String? =
+    this[key]?.let { element ->
+        runCatching { element.jsonPrimitive.content }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+private fun attributionLogD(message: String) {
+    runCatching { Log.d(ATTRIBUTION_REPORT_TAG, message) }
+}
+
+private fun attributionLogI(message: String) {
+    runCatching { Log.i(ATTRIBUTION_REPORT_TAG, message) }
+}
+
+private fun attributionLogW(message: String, error: Throwable? = null) {
+    runCatching {
+        if (error == null) Log.w(ATTRIBUTION_REPORT_TAG, message)
+        else Log.w(ATTRIBUTION_REPORT_TAG, message, error)
+    }
 }
 
 private fun String.sha256(): String = MessageDigest.getInstance("SHA-256")

@@ -22,7 +22,13 @@ data class PaymentBusinessOrder(
     val obfuscatedProfileId: String? = null,
 )
 fun interface PaymentOrderFactory { suspend fun create(productId: String, session: Session): PaymentBusinessOrder }
-fun interface PaymentEventSink { fun record(record: PaymentRecord, type: String, now: Long, error: String?) }
+data class PaymentClientEventDetails(
+    val page: String = "recharge_paywall",
+    val url: String? = null,
+    val errorMessage: String? = null,
+    val htmlExcerpt: String? = null,
+)
+fun interface PaymentEventSink { fun record(record: PaymentRecord, type: String, now: Long, error: String?, details: PaymentClientEventDetails?) }
 data class PaymentViewState(val epoch: String? = null, val record: PaymentRecord? = null,
     val checkoutVisible: Boolean = false, val busy: Boolean = false, val storageFailed: Boolean = false)
 
@@ -64,7 +70,8 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (publish) mutable.value = PaymentViewState(session.epoch, record, visible)
     }
     private fun current(key: String, session: Session) = records.firstOrNull { it.key == key && it.userId == session.userId }
-    private fun event(record: PaymentRecord, name: String, error: String? = null) = events.record(record, name, clock.now(), error)
+    private fun event(record: PaymentRecord, name: String, error: String? = null, details: PaymentClientEventDetails? = null) =
+        events.record(record, name, clock.now(), error, details)
     private suspend fun guarded(action: suspend (Session) -> Unit) = lock.withLock {
         val session = sessions.current ?: return@withLock
         try { load(); action(session) }
@@ -96,7 +103,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             notifyFailure(session)
             return@guarded
         }
-        val old = records.lastOrNull { it.userId == session.userId && it.unresolved }
+        val old = records.lastOrNull { it.userId == session.userId && it.unresolved && it.error == null }
         if (old != null) { resume(old.copy(source = source), session); return@guarded }
         var record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,
@@ -116,7 +123,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
-            // 建单超时无 ID 时无法安全查回，保留未决占位，不能直接重建。
+            // 建单失败且无 ID 时无法安全查回；不恢复旧占位，下一次购买可重新建单。
             save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
             notifyFailure(session)
             reportPayment(record, "unknown", "order_creation", "order_unknown")
@@ -222,10 +229,10 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         tracker.track("initiate_pay", paymentValues(opened, "initiated", "checkout_open"), session.userId)
         event(opened, "page_opened")
     }
-    suspend fun pageEvent(key: String, type: String) = guarded { session ->
+    suspend fun pageEvent(key: String, type: String, details: PaymentClientEventDetails? = null) = guarded { session ->
         val record = current(key, session) ?: return@guarded
         if (!record.thirdParty || !record.unresolved) return@guarded
-        if (type in setOf("page_loaded", "page_load_error")) event(record, type)
+        if (type in setOf("page_loaded", "page_load_error")) event(record, type, details?.errorMessage, details)
         if (type == "page_load_error") notifyFailure(session)
     }
     suspend fun poll(key: String) = guarded { session ->

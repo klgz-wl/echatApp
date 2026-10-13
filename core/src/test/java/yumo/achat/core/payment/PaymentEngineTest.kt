@@ -34,7 +34,7 @@ class PaymentEngineTest {
             orders++; if(createFailure) throw java.io.IOException()
             PaymentBusinessOrder("order-$orders", "account-hash", "profile-hash")
         }, sessions,
-            PaymentEventSink { _, type, _, _ -> events += type }, PaymentClock { now }, config, tracker)
+            PaymentEventSink { _, type, _, _, _ -> events += type }, PaymentClock { now }, config, tracker)
         suspend fun login(id: String = "user") { sessions.saveLogin(AuthResponse("token", "refresh", id)) }
     }
     @Test fun `第三方已支付待发币不记成功成功去重且不猜测实付金额`() = runBlocking {
@@ -70,6 +70,27 @@ class PaymentEngineTest {
         assertTrue(timeout.tracker.events.any { it.values["status"] == "unknown" && it.values["stage"] == "poll_timeout" })
         assertFalse(timeout.tracker.events.any { it.values["status"] == "failed" })
     }
+    @Test fun `三方页面加载事件保留页面URL和HTML摘要`() = runBlocking {
+        val f = Fixture(); f.login()
+        var captured: PaymentClientEventDetails? = null
+        val engine = PaymentEngine(f.store, f.api, PaymentOrderFactory { _, _ ->
+            f.orders++; PaymentBusinessOrder("order-${f.orders}")
+        }, f.sessions, PaymentEventSink { _, type, _, _, details ->
+            if (type == "page_loaded") captured = details
+        }, PaymentClock { f.now }, f.config, f.tracker)
+
+        engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.opened(key)
+        engine.pageEvent(
+            key,
+            "page_loaded",
+            PaymentClientEventDetails(url = "https://checkout.example/pay", htmlExcerpt = "<html>ERR</html>"),
+        )
+
+        assertEquals("https://checkout.example/pay", captured?.url)
+        assertEquals("<html>ERR</html>", captured?.htmlExcerpt)
+    }
     @Test fun `每次支付失败发送一次提示且恢复历史订单不重放`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
         val notices = mutableListOf<String>()
@@ -81,7 +102,7 @@ class PaymentEngineTest {
             }
             assertEquals(3, notices.size)
             assertTrue(notices.all { it == f.sessions.current!!.epoch })
-            assertEquals(2, f.orders)
+            assertEquals(3, f.orders)
             engine.restore(); yield(); assertEquals(3, notices.size)
             collector.cancelAndJoin()
             collector = launch(start = CoroutineStart.UNDISPATCHED) { engine.failureEvents.collect { notices += it } }
@@ -129,7 +150,7 @@ class PaymentEngineTest {
             }
         }
         val engine = PaymentEngine(f.store, api, PaymentOrderFactory { _, _ -> PaymentBusinessOrder("order") }, f.sessions,
-            PaymentEventSink { _, _, _, _ -> }, PaymentClock { f.now }, f.config)
+            PaymentEventSink { _, _, _, _, _ -> }, PaymentClock { f.now }, f.config)
         val notices = mutableListOf<String>()
         val collector = launch(start = CoroutineStart.UNDISPATCHED) { engine.failureEvents.collect { notices += it } }
         try {
@@ -154,7 +175,7 @@ class PaymentEngineTest {
             }
             val engine = PaymentEngine(f.store, api, PaymentOrderFactory { _, _ ->
                 calls += "create"; orderStarted.complete(Unit); orderReady.await(); PaymentBusinessOrder("server-order")
-            }, f.sessions, PaymentEventSink { _, _, _, _ -> }, PaymentClock { f.now }, f.config)
+            }, f.sessions, PaymentEventSink { _, _, _, _, _ -> }, PaymentClock { f.now }, f.config)
             val buying = launch { engine.buy("coins", "main") }
             orderStarted.await()
             assertEquals(listOf("create"), calls)
@@ -176,13 +197,33 @@ class PaymentEngineTest {
             assertEquals(1, calls.count { it == "create" })
         }
     }
-    @Test fun `初始化失败重试复用同一业务单且第三方不依赖Play`() = runBlocking {
+    @Test fun `初始化失败后再次购买创建新业务单且第三方不依赖Play`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
         f.api.initializeFailure = PaymentFailure.Http(409,"PAYMENT_INITIALIZATION_IN_PROGRESS")
         engine.buy("coins", "generation"); f.api.initializeFailure = null
         engine.buy("coins", "generation")
-        assertEquals(1,f.orders); assertEquals(listOf("order-1","order-1"),f.api.initialized)
+        assertEquals(2,f.orders); assertEquals(listOf("order-1","order-2"),f.api.initialized)
         assertTrue(engine.state.value.checkoutVisible)
+    }
+    @Test fun `带错误的未决旧单不拦截新商品购买`() = runBlocking {
+        val f = Fixture(); f.login(); val engine = f.engine()
+        f.store.records = listOf(
+            PaymentRecord(
+                key = "old",
+                userId = "user",
+                productId = "coins_100",
+                source = "main",
+                orderId = "old-order",
+                stage = PaymentStage.OFFICIAL_CONSUMED,
+                error = "payment_channel_unavailable",
+            ),
+        )
+
+        engine.buy("coins_200", "main")
+
+        assertEquals(1, f.orders)
+        assertEquals("coins_200", engine.state.value.record?.productId)
+        assertEquals(listOf("order-1"), f.api.initialized)
     }
     @Test fun `初始化返回已过期收银台时不暴露支付页面`() = runBlocking {
         val f = Fixture(); f.login(); f.now = paymentTime("2026-09-24T12:00:00Z")!!
@@ -232,7 +273,7 @@ class PaymentEngineTest {
         assertEquals(1, f.orders)
         assertEquals(PaymentStage.ACCESS_DENIED, f.store.records.first { it.key == old.key }.stage)
     }
-    @Test fun `归属迁移不改变鉴权未决渠道未决或已拿到渠道的订单`() = runBlocking {
+    @Test fun `恢复不激活初始化失败旧单但保留已拿到渠道的订单`() = runBlocking {
         val f = Fixture(); f.login()
         val base = PaymentRecord("auth", f.sessions.current!!.userId, "coins", "main", orderId = "auth-order",
             stage = PaymentStage.INITIALIZING, error = "payment_auth_failed")
@@ -244,8 +285,9 @@ class PaymentEngineTest {
         assertEquals(listOf(PaymentStage.INITIALIZING, PaymentStage.INITIALIZING, PaymentStage.INITIALIZING), f.store.records.map { it.stage })
         assertEquals(0, f.orders)
         assertTrue(f.api.initialized.isEmpty())
+        assertEquals("initialized", engine.state.value.record?.key)
     }
-    @Test fun `渠道不可用提示具体原因并保留原单等待后台恢复`() = runBlocking {
+    @Test fun `渠道不可用提示具体原因且下次购买创建新单`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
         f.api.initializeFailure = PaymentFailure.Http(503, "PAYMENT_CHANNEL_UNAVAILABLE")
         engine.buy("coins", "main")
@@ -253,7 +295,8 @@ class PaymentEngineTest {
         assertFalse(engine.state.value.checkoutVisible)
         f.api.initializeFailure = null
         engine.buy("coins", "main")
-        assertEquals(1, f.orders)
+        assertEquals(2, f.orders)
+        assertEquals(listOf("order-1", "order-2"), f.api.initialized)
         assertTrue(engine.state.value.checkoutVisible)
         assertNull(engine.state.value.record?.error)
     }
@@ -273,13 +316,47 @@ class PaymentEngineTest {
         assertEquals("play.coins", record.initialized?.sdkParams?.productId)
         assertEquals("order-1", record.orderId)
     }
-    @Test fun `建单结果未知不能因再次点击重复创建`() = runBlocking {
+    @Test fun `建单前失败无订单号时允许下一次按新商品重新建单`() = runBlocking {
         val f=Fixture(); f.login(); f.createFailure=true; val engine=f.engine()
-        engine.buy("coins","main"); engine.buy("other-coins","main")
+        engine.buy("coins","main")
         assertEquals(1,f.orders); assertEquals(PaymentStage.UNCERTAIN,engine.state.value.record?.stage)
-        assertEquals("coins", engine.state.value.record?.productId)
+        assertNull(engine.state.value.record?.orderId)
+
+        f.createFailure=false
+        engine.buy("other-coins","main")
+
+        assertEquals(2,f.orders)
+        assertEquals("other-coins", engine.state.value.record?.productId)
+        assertEquals("order-2", engine.state.value.record?.orderId)
     }
-    @Test fun `支付鉴权失败提示独立错误且重启后复用原订单重试`() = runBlocking {
+    @Test fun `建单前失败无订单号重启后不恢复为活跃支付`() = runBlocking {
+        val f=Fixture(); f.login(); f.createFailure=true; var engine=f.engine()
+        engine.buy("coins","main")
+
+        engine = f.engine()
+        engine.restore()
+
+        assertNull(engine.state.value.record)
+    }
+    @Test fun `已有订单终态失败后重启不恢复且下次按新商品新建单`() = runBlocking {
+        val f=Fixture(); f.login()
+        f.store.records = listOf(
+            PaymentRecord("failed", f.sessions.current!!.userId, "coins", "main", orderId = "order-old", stage = PaymentStage.FAILED, error = "payment_failed"),
+            PaymentRecord("closed", f.sessions.current!!.userId, "coins", "main", orderId = "order-closed", stage = PaymentStage.CLOSED),
+            PaymentRecord("timeout", f.sessions.current!!.userId, "coins", "main", orderId = "order-timeout", stage = PaymentStage.TIMED_OUT, error = "expired_link"),
+        )
+
+        var engine = f.engine()
+        engine.restore()
+        assertNull(engine.state.value.record)
+
+        engine.buy("other-coins", "main")
+
+        assertEquals(1, f.orders)
+        assertEquals("other-coins", engine.state.value.record?.productId)
+        assertEquals("order-1", engine.state.value.record?.orderId)
+    }
+    @Test fun `支付鉴权失败提示独立错误且重启后新建订单`() = runBlocking {
         val f = Fixture(); f.login(); var engine = f.engine()
         f.api.initializeFailure = PaymentFailure.Http(401, "invalid authorization token")
         engine.buy("coins", "main")
@@ -287,11 +364,11 @@ class PaymentEngineTest {
         assertFalse(engine.state.value.checkoutVisible)
         assertNotNull(f.sessions.current)
         engine = f.engine(); engine.restore()
-        assertEquals("payment_auth_failed", engine.state.value.record?.error)
+        assertNull(engine.state.value.record)
         f.api.initializeFailure = null
         engine.buy("coins", "main")
-        assertEquals(1, f.orders)
-        assertEquals(listOf("order-1", "order-1"), f.api.initialized)
+        assertEquals(2, f.orders)
+        assertEquals(listOf("order-1", "order-2"), f.api.initialized)
         assertNull(engine.state.value.record?.error)
         assertTrue(engine.state.value.checkoutVisible)
     }
@@ -304,7 +381,12 @@ class PaymentEngineTest {
         assertEquals("profile-hash", claimed?.obfuscatedProfileId)
         assertNull(engine.claimOfficial(key)); engine.officialResult(key,true)
         assertEquals(PaymentStage.CLOSED,engine.state.value.record?.stage)
-        engine.buy("coins","main"); assertNotNull(engine.claimOfficial(key)); assertEquals(1,f.orders)
+        engine.buy("coins","main")
+        val nextKey = engine.state.value.record!!.key
+        assertNotEquals(key, nextKey)
+        assertNull(engine.claimOfficial(key))
+        assertNotNull(engine.claimOfficial(nextKey))
+        assertEquals(2,f.orders)
     }
     @Test fun `官方购买回调后由服务端状态推进到发币成功`() = runBlocking {
         val f = Fixture(); f.login(); f.api.official = true
@@ -355,16 +437,17 @@ class PaymentEngineTest {
         assertEquals(secondKey, engine.state.value.record?.key)
         assertEquals(PaymentStage.CHECKOUT, engine.state.value.record?.stage)
     }
-    @Test fun `超时断网关闭重启均保留订单且截止不重置`() = runBlocking {
+    @Test fun `关闭后重启不恢复旧订单且下次购买创建新单`() = runBlocking {
         val f=Fixture(); f.login(); var engine=f.engine(); engine.buy("coins","main")
-        val key=engine.state.value.record!!.key; engine.opened(key); val deadline=engine.state.value.record!!.deadline!!
+        val key=engine.state.value.record!!.key; engine.opened(key)
         f.api.queryFailure=true; engine.close(key)
         assertEquals(PaymentStage.CLOSED,engine.state.value.record?.stage)
-        engine=f.engine(); engine.restore(); f.now=deadline+1; engine.retry(key)
-        assertEquals(PaymentStage.TIMED_OUT,engine.state.value.record?.stage)
-        assertEquals(deadline,engine.state.value.record?.deadline); assertEquals(1,f.orders)
-        f.api.queryFailure=false; f.api.status="paid";f.api.fulfillment="fulfilled";engine.poll(key)
-        assertEquals(PaymentStage.SUCCESS,engine.state.value.record?.stage)
+        engine=f.engine(); engine.restore()
+        assertNull(engine.state.value.record)
+        f.api.queryFailure=false
+        engine.buy("other-coins","main")
+        assertEquals(2,f.orders)
+        assertEquals("other-coins",engine.state.value.record?.productId)
     }
     @Test fun `其他账号不能查询或确认旧订单`() = runBlocking {
         val f=Fixture();f.login();val engine=f.engine();engine.buy("coins","main");val key=engine.state.value.record!!.key
@@ -422,17 +505,21 @@ class PaymentEngineTest {
             override suspend fun write(records:List<PaymentRecord>){throw java.io.IOException()}
         }
         val engine=PaymentEngine(broken,f.api,PaymentOrderFactory { _,_ -> f.orders++; PaymentBusinessOrder("order") },f.sessions,
-            PaymentEventSink { _,_,_,_ -> },PaymentClock { f.now },f.config)
+            PaymentEventSink { _,_,_,_,_ -> },PaymentClock { f.now },f.config)
         engine.buy("coins","main");assertTrue(engine.state.value.storageFailed);assertEquals(0,f.orders);assertTrue(f.api.initialized.isEmpty())
     }
 
     @Test fun `重启前尚未拉起的官方订单需用户再次点击而消费完成允许下一次购买`() = runBlocking {
         val f=Fixture();f.login();f.api.official=true;var engine=f.engine();engine.buy("coins","main")
         val key=engine.state.value.record!!.key;engine=f.engine();engine.restore();assertNull(engine.claimOfficial(key))
-        engine.buy("coins","main");assertNotNull(engine.claimOfficial(key));engine.officialResult(key,false,true)
+        engine.buy("coins","main")
+        val nextKey = engine.state.value.record!!.key
+        assertNotEquals(key, nextKey)
+        assertNull(engine.claimOfficial(key))
+        assertNotNull(engine.claimOfficial(nextKey));engine.officialResult(nextKey,false,true)
         assertEquals(PaymentStage.OFFICIAL_CONSUMED,engine.state.value.record?.stage)
         assertFalse(engine.state.value.record!!.successAcknowledged)
-        engine.buy("coins","main");assertEquals(2,f.orders)
+        engine.buy("coins","main");assertEquals(3,f.orders)
     }
 
 }

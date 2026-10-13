@@ -60,7 +60,9 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
     fun poll(key: String) { scope.launch { engine.poll(key) } }
     fun shown(key: String) { scope.launch { engine.shown(key) } }
     fun acknowledge(key: String) { scope.launch { engine.acknowledge(key) } }
-    fun pageEvent(key: String, type: String) { scope.launch { engine.pageEvent(key, type) } }
+    fun pageEvent(key: String, type: String, details: PaymentClientEventDetails? = null) {
+        scope.launch { engine.pageEvent(key, type, details) }
+    }
     suspend fun refreshWallet() {
         try { wallet.refreshBalance(); wallet.refreshProducts(); wallet.loadRecords(refresh = true) }
         catch (cancelled: CancellationException) { throw cancelled }

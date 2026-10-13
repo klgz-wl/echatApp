@@ -24,12 +24,15 @@ class FormalProdConfigurationTest {
     @Test
     fun `prod flavor uses formal zorv identity instead of dev reuse`() {
         val app = rootDir.resolve("config/app.properties").readProperties()
+        val dev = rootDir.resolve("config/dev.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals("FORMAL", app.getProperty("kit.prod.mode"))
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
+        assertEquals("2.0.0", dev.getProperty("build.string.ACHAT_CLIENT_VERSION"))
+        assertEquals("1.0.1", prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
         assertEquals("info@frostandbites.site", prod.getProperty("build.string.CONTACT_EMAIL"))
         assertEquals(
             2,
@@ -88,10 +91,9 @@ class FormalProdConfigurationTest {
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
-        assertEquals("2.0.0", dev.getProperty("achat.client.version"))
-        assertEquals("1.0.0", prod.getProperty("achat.client.version"))
-        assert(gradle.contains("config.getProperty(\"achat.client.version\")"))
-        assert(gradle.contains("\"ACHAT_CLIENT_VERSION\" to \"1.0.0\""))
+        assertEquals("2.0.0", dev.getProperty("build.string.ACHAT_CLIENT_VERSION"))
+        assertEquals("1.0.1", prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
+        assert(gradle.contains("\"ACHAT_CLIENT_VERSION\" to \"1.0.1\""))
     }
 
     @Test
@@ -154,12 +156,14 @@ class FormalProdConfigurationTest {
     }
 
     @Test
-    fun `prod new purchases use explicit legacy flow`() {
+    fun `dev and prod new purchases use explicit service flow`() {
+        val app = rootDir.resolve("config/app.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
-        assertEquals("LEGACY", prod.getProperty("build.string.PAYMENT_FLOW"))
-        assert(gradle.contains("\"PAYMENT_FLOW\" to \"LEGACY\""))
+        assertEquals("SERVICE", app.getProperty("build.string.PAYMENT_FLOW"))
+        assertEquals("SERVICE", prod.getProperty("build.string.PAYMENT_FLOW"))
+        assert(gradle.contains("\"PAYMENT_FLOW\" to \"SERVICE\""))
     }
 
     @Test
