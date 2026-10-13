@@ -34,7 +34,7 @@ class PaymentEngineTest {
             orders++; if(createFailure) throw java.io.IOException()
             PaymentBusinessOrder("order-$orders", "account-hash", "profile-hash")
         }, sessions,
-            PaymentEventSink { _, type, _, _ -> events += type }, PaymentClock { now }, config, tracker)
+            PaymentEventSink { _, type, _, _, _ -> events += type }, PaymentClock { now }, config, tracker)
         suspend fun login(id: String = "user") { sessions.saveLogin(AuthResponse("token", "refresh", id)) }
     }
     @Test fun `第三方已支付待发币不记成功成功去重且不猜测实付金额`() = runBlocking {
@@ -69,6 +69,27 @@ class PaymentEngineTest {
         waiting.opened(timeoutKey); timeout.now += 600_001; waiting.poll(timeoutKey)
         assertTrue(timeout.tracker.events.any { it.values["status"] == "unknown" && it.values["stage"] == "poll_timeout" })
         assertFalse(timeout.tracker.events.any { it.values["status"] == "failed" })
+    }
+    @Test fun `三方页面加载事件保留页面URL和HTML摘要`() = runBlocking {
+        val f = Fixture(); f.login()
+        var captured: PaymentClientEventDetails? = null
+        val engine = PaymentEngine(f.store, f.api, PaymentOrderFactory { _, _ ->
+            f.orders++; PaymentBusinessOrder("order-${f.orders}")
+        }, f.sessions, PaymentEventSink { _, type, _, _, details ->
+            if (type == "page_loaded") captured = details
+        }, PaymentClock { f.now }, f.config, f.tracker)
+
+        engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.opened(key)
+        engine.pageEvent(
+            key,
+            "page_loaded",
+            PaymentClientEventDetails(url = "https://checkout.example/pay", htmlExcerpt = "<html>ERR</html>"),
+        )
+
+        assertEquals("https://checkout.example/pay", captured?.url)
+        assertEquals("<html>ERR</html>", captured?.htmlExcerpt)
     }
     @Test fun `每次支付失败发送一次提示且恢复历史订单不重放`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
@@ -129,7 +150,7 @@ class PaymentEngineTest {
             }
         }
         val engine = PaymentEngine(f.store, api, PaymentOrderFactory { _, _ -> PaymentBusinessOrder("order") }, f.sessions,
-            PaymentEventSink { _, _, _, _ -> }, PaymentClock { f.now }, f.config)
+            PaymentEventSink { _, _, _, _, _ -> }, PaymentClock { f.now }, f.config)
         val notices = mutableListOf<String>()
         val collector = launch(start = CoroutineStart.UNDISPATCHED) { engine.failureEvents.collect { notices += it } }
         try {
@@ -154,7 +175,7 @@ class PaymentEngineTest {
             }
             val engine = PaymentEngine(f.store, api, PaymentOrderFactory { _, _ ->
                 calls += "create"; orderStarted.complete(Unit); orderReady.await(); PaymentBusinessOrder("server-order")
-            }, f.sessions, PaymentEventSink { _, _, _, _ -> }, PaymentClock { f.now }, f.config)
+            }, f.sessions, PaymentEventSink { _, _, _, _, _ -> }, PaymentClock { f.now }, f.config)
             val buying = launch { engine.buy("coins", "main") }
             orderStarted.await()
             assertEquals(listOf("create"), calls)
@@ -464,7 +485,7 @@ class PaymentEngineTest {
             override suspend fun write(records:List<PaymentRecord>){throw java.io.IOException()}
         }
         val engine=PaymentEngine(broken,f.api,PaymentOrderFactory { _,_ -> f.orders++; PaymentBusinessOrder("order") },f.sessions,
-            PaymentEventSink { _,_,_,_ -> },PaymentClock { f.now },f.config)
+            PaymentEventSink { _,_,_,_,_ -> },PaymentClock { f.now },f.config)
         engine.buy("coins","main");assertTrue(engine.state.value.storageFailed);assertEquals(0,f.orders);assertTrue(f.api.initialized.isEmpty())
     }
 

@@ -11,6 +11,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.view.inputmethod.InputMethodManager
 import android.view.WindowManager
+import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -131,6 +132,7 @@ import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
 import java.net.URI
+import org.json.JSONArray
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1508,8 +1510,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         ) {
             ThirdPartyCheckoutOverlay(
                 route = thirdPartyRoute,
-                onLoaded = { topUpPaymentController.onThirdPartyPageLoaded(thirdPartyRoute) },
-                onError = { topUpPaymentController.onThirdPartyPageError(thirdPartyRoute, it) },
+                onLoaded = { url, htmlExcerpt ->
+                    topUpPaymentController.onThirdPartyPageLoaded(thirdPartyRoute, url, htmlExcerpt)
+                },
+                onError = { url, message -> topUpPaymentController.onThirdPartyPageError(thirdPartyRoute, url, message) },
                 onClose = { topUpPaymentController.closeThirdParty(thirdPartyRoute) },
             )
         }
@@ -3905,8 +3909,8 @@ private fun TopUpInlineStatus(text: String, color: Color) {
 @Composable
 private fun ThirdPartyCheckoutOverlay(
     route: TopUpPurchaseState.ThirdPartyReady,
-    onLoaded: () -> Unit,
-    onError: (String) -> Unit,
+    onLoaded: (url: String?, htmlExcerpt: String?) -> Unit,
+    onError: (url: String?, message: String) -> Unit,
     onClose: () -> Unit,
 ) {
     BackHandler(onBack = onClose)
@@ -3933,24 +3937,37 @@ private fun ThirdPartyCheckoutOverlay(
             factory = { context ->
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                    val checkoutWebView = this
+                    CookieManager.getInstance().apply {
+                        setAcceptCookie(true)
+                        setAcceptThirdPartyCookies(checkoutWebView, true)
+                    }
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val target = request?.url ?: return true
                             if (target.scheme != "https") {
-                                onError("Blocked insecure checkout navigation")
+                                onError(target.toString(), "Blocked insecure checkout navigation")
                                 return true
                             }
                             return false
                         }
-                        override fun onPageFinished(view: WebView?, url: String?) = onLoaded()
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            view?.evaluateJavascript(THIRD_PARTY_CHECKOUT_HTML_SCRIPT) { value ->
+                                onLoaded(url, decodeCheckoutHtmlExcerpt(value))
+                            } ?: onLoaded(url, null)
+                        }
                         override fun onReceivedError(
                             view: WebView?,
                             request: WebResourceRequest?,
                             error: WebResourceError?,
-                        ) = onError(error?.description?.toString().orEmpty())
+                        ) {
+                            if (request?.isForMainFrame != true) return
+                            onError(request.url?.toString(), error?.description?.toString().orEmpty())
+                        }
                     }
                     loadUrl(route.paymentUrl)
                 }
@@ -3961,6 +3978,16 @@ private fun ThirdPartyCheckoutOverlay(
             },
         )
     }
+}
+
+private const val THIRD_PARTY_CHECKOUT_HTML_LIMIT = 65536
+private const val THIRD_PARTY_CHECKOUT_HTML_SCRIPT =
+    "(function(){return document.documentElement ? document.documentElement.outerHTML : (document.body ? document.body.innerText : '');})()"
+
+private fun decodeCheckoutHtmlExcerpt(value: String?): String? {
+    val raw = value?.trim()?.takeIf { it.isNotEmpty() && it != "null" } ?: return null
+    val decoded = runCatching { JSONArray("[$raw]").optString(0) }.getOrElse { raw.trim('"') }
+    return decoded.takeIf(String::isNotBlank)?.take(THIRD_PARTY_CHECKOUT_HTML_LIMIT)
 }
 
 @Composable

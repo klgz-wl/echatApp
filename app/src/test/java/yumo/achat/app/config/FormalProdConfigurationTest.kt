@@ -24,12 +24,15 @@ class FormalProdConfigurationTest {
     @Test
     fun `prod flavor uses formal zorv identity instead of dev reuse`() {
         val app = rootDir.resolve("config/app.properties").readProperties()
+        val dev = rootDir.resolve("config/dev.properties").readProperties()
         val prod = rootDir.resolve("config/prod.properties").readProperties()
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals("FORMAL", app.getProperty("kit.prod.mode"))
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
+        assertEquals("2.0.0", dev.getProperty("build.string.ACHAT_CLIENT_VERSION"))
+        assertEquals("1.0.0", prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
         assertEquals("PhippenLautner@gmail.com", prod.getProperty("build.string.CONTACT_EMAIL"))
         assertEquals(
             2,

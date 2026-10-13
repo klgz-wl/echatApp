@@ -52,11 +52,14 @@ import java.util.TimeZone
     @SerialName("channel_code") val channelCode: String? = null,
     @SerialName("open_mode") val openMode: String? = null,
     val page: String = "recharge_paywall",
+    val url: String? = null,
     @SerialName("occurred_at") val occurredAt: String,
     @SerialName("opened_at") val openedAt: String? = null,
     @SerialName("closed_at") val closedAt: String? = null,
     @SerialName("duration_ms") val durationMs: Long? = null,
     @SerialName("error_code") val errorCode: String? = null,
+    @SerialName("error_message") val errorMessage: String? = null,
+    @SerialName("html_excerpt") val htmlExcerpt: String? = null,
     val metadata: JsonObject? = null,
 )
 @Serializable data class PaymentEventReceipt(val recorded: Boolean)

@@ -140,7 +140,6 @@ android {
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
                 buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
                 buildConfigField("String", "ACHAT_WS_URL", quoted(wsUrl))
-                buildConfigField("String", "ACHAT_CLIENT_VERSION", quoted("2.0.0"))
                 buildConfigField("String", "PROD_CONFIG_STATUS", quoted(mode))
                 val expectedKeys = (common.stringPropertyNames() + devProperties.stringPropertyNames() + config.stringPropertyNames())
                     .filter { it.startsWith("build.") }

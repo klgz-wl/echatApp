@@ -148,7 +148,9 @@ class BackendAnalyticsSinkTest {
         try {
             val sink = BackendAnalyticsSink(recordingApi(requests), identity, { "device" }, 10, scope)
             val names = listOf("purchase_client", "purchase_client_buy", "purchase_client_buy_coins",
-                "3rdpayment_link_ok", "3rdpayment_link_error", "3rdpayment_page_loaded")
+                "3rdpayment_link_ok", "3rdpayment_link_error", "3rdpayment_page_opened",
+                "3rdpayment_page_loaded", "3rdpayment_page_load_error", "3rdpayment_paid_while_open",
+                "3rdpayment_paid_on_close", "3rdpayment_user_cancel", "3rdpayment_timeout_cancel")
             sink.initialize()
             names.forEach { sink.event(it, mapOf("status" to "success")) }
             withTimeout(5000) {
