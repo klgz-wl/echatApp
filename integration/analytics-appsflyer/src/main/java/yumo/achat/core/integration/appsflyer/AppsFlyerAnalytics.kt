@@ -12,8 +12,7 @@ import kotlinx.serialization.json.*
 import timber.log.Timber
 import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.analytics.AttributionIdProvider
-import yumo.achat.core.attribution.ConversionResult
-import yumo.achat.core.attribution.ConversionSource
+import yumo.achat.core.attribution.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,8 +70,8 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                     init(config.devKey, object : AppsFlyerConversionListener {
                         override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
                             val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
-                            mutable.value = if (!snapshot.hasAppsFlyerAttribution()) ConversionResult.Failed else ConversionResult.Success(snapshot)
-                            diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasAppsFlyerAttribution()}")
+                            mutable.value = if (!snapshot.hasValidAttribution()) ConversionResult.Failed else ConversionResult.Success(snapshot)
+                            diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
                         }
                         override fun onConversionDataFail(message: String?) {
                             if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
@@ -83,7 +82,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                         }
                         override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
                             val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
-                            if (snapshot.hasAppsFlyerAttribution()) mutable.value = ConversionResult.Success(snapshot)
+                            if (snapshot.hasValidAttribution()) mutable.value = ConversionResult.Success(snapshot)
                         }
                         override fun onAttributionFailure(message: String?) { /* 保留已有安装归因。 */ }
                     }, context)
@@ -152,7 +151,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
 }
 
 internal fun appsFlyerConversionSnapshot(data: Map<String, Any>, afUid: String): JsonObject = buildJsonObject {
-    (appsFlyerConversionJson(data) as JsonObject).forEach { (key, value) -> put(key, value) }
+    (conversionJson(data) as JsonObject).forEach { (key, value) -> put(key, value) }
     put("af_uid", afUid)
 }
 
@@ -171,16 +170,3 @@ internal fun appsFlyerAppOpenAttributionSnapshot(data: Map<String, String>, afUi
 private fun Map<String, String>.hasAppOpenAttributionSignal(): Boolean =
     listOf("media_source", "network", "campaign", "deep_link_value", "af_dp", "link")
         .any { key -> this[key]?.isNotBlank() == true }
-
-private fun JsonObject.hasAppsFlyerAttribution(): Boolean =
-    (get("af_status") as? JsonPrimitive)?.contentOrNull?.lowercase() in setOf("organic", "non-organic")
-
-private fun appsFlyerConversionJson(value: Any?): JsonElement = when (value) {
-    null -> JsonNull
-    is Boolean -> JsonPrimitive(value)
-    is Number -> JsonPrimitive(value)
-    is Map<*, *> -> JsonObject(value.entries.associate { it.key.toString() to appsFlyerConversionJson(it.value) })
-    is Iterable<*> -> JsonArray(value.map(::appsFlyerConversionJson))
-    is Array<*> -> JsonArray(value.map(::appsFlyerConversionJson))
-    else -> JsonPrimitive(value.toString())
-}
