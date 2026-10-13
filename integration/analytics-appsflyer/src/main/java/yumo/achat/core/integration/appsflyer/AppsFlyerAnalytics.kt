@@ -6,13 +6,13 @@ import com.appsflyer.attribution.AppsFlyerRequestListener
 import com.appsflyer.AppsFlyerLib
 import com.appsflyer.AppsFlyerConversionListener
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import yumo.achat.core.attribution.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
 import timber.log.Timber
 import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.analytics.AttributionIdProvider
+import yumo.achat.core.attribution.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
