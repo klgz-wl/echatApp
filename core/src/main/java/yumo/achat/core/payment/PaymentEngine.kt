@@ -270,7 +270,14 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             return next
         }
         val timeout = next.unresolved && next.expired(clock.now())
-        if (closing) {
+        if (closing && timeout) {
+            if (record.stage != PaymentStage.TIMED_OUT) {
+                event(record, "poll_timeout")
+                reportPayment(record, "unknown", "poll_timeout", "poll_timeout")
+                if (record.thirdParty) event(record, "timeout_cancel")
+            }
+            next = next.copy(stage = PaymentStage.TIMED_OUT)
+        } else if (closing) {
             event(record, "user_cancel")
             if (next.unresolved) reportPayment(record, "closed", "checkout_close")
             if (next.unresolved) next = next.copy(stage = PaymentStage.CLOSED)
@@ -278,7 +285,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             if (record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
                 reportPayment(record, "unknown", "poll_timeout", "poll_timeout")
-                if (visible && record.initialized?.openMode == "webview") event(record, "timeout_cancel")
+                if (record.thirdParty) event(record, "timeout_cancel")
             }
             next = next.copy(stage = PaymentStage.TIMED_OUT)
         }

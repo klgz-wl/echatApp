@@ -12,11 +12,12 @@ class PaymentEngineTest {
     class Api : PaymentRepository {
         var official = false; var initializeFailure: Exception? = null; var queryFailure = false
         var checkoutExpiresAt = "2099-01-01T00:00:00Z"
+        var openMode = "webview"
         var status = "pending"; var fulfillment = "pending"; var initialized = mutableListOf<String>()
         override suspend fun initialize(orderId: String, session: Session): InitializedPayment {
             initialized += orderId; initializeFailure?.let { throw it }
             return if (official) InitializedPayment(orderId, "official", "google_play", "sdk", PaymentSdkParams("server-sku"))
-            else InitializedPayment(orderId, "third_party", "channel", "webview", paymentUrl="https://pay.example/checkout", expiresAt=checkoutExpiresAt)
+            else InitializedPayment(orderId, "third_party", "channel", openMode, paymentUrl="https://pay.example/checkout", expiresAt=checkoutExpiresAt)
         }
         override suspend fun status(orderId: String, session: Session): PaymentOrderStatus {
             if (queryFailure) throw java.io.IOException()
@@ -67,8 +68,47 @@ class PaymentEngineTest {
         val timeout = Fixture(); timeout.login(); val waiting = timeout.engine()
         waiting.buy("coins", "home_balance"); val timeoutKey = waiting.state.value.record!!.key
         waiting.opened(timeoutKey); timeout.now += 600_001; waiting.poll(timeoutKey)
+        assertTrue(timeout.events.contains("timeout_cancel"))
         assertTrue(timeout.tracker.events.any { it.values["status"] == "unknown" && it.values["stage"] == "poll_timeout" })
         assertFalse(timeout.tracker.events.any { it.values["status"] == "failed" })
+    }
+    @Test fun `外部浏览器超时也记录超时取消`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.openMode = "external_browser"; val engine = f.engine()
+        engine.buy("coins", "home_balance"); val key = engine.state.value.record!!.key
+        engine.opened(key)
+
+        f.now += 600_001
+        engine.poll(key)
+
+        assertTrue(f.events.contains("timeout_cancel"))
+        assertEquals(PaymentStage.TIMED_OUT, engine.state.value.record?.stage)
+    }
+    @Test fun `关闭第三方支付时按关闭结果区分用户取消和关闭时成功`() = runBlocking {
+        val cancelled = Fixture(); cancelled.login(); val cancelEngine = cancelled.engine()
+        cancelEngine.buy("coins", "home_balance"); val cancelKey = cancelEngine.state.value.record!!.key
+        cancelEngine.opened(cancelKey); cancelEngine.close(cancelKey)
+        assertTrue(cancelled.events.contains("user_cancel"))
+        assertFalse(cancelled.events.contains("paid_while_open"))
+
+        val paid = Fixture(); paid.login(); val paidEngine = paid.engine()
+        paidEngine.buy("coins", "home_balance"); val paidKey = paidEngine.state.value.record!!.key
+        paidEngine.opened(paidKey)
+        paid.api.status = "paid"; paid.api.fulfillment = "fulfilled"
+        paidEngine.close(paidKey)
+        assertTrue(paid.events.contains("paid_on_close"))
+        assertFalse(paid.events.contains("paid_while_open"))
+    }
+    @Test fun `外部浏览器回前台关闭入口按关闭结果归类`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.openMode = "external_browser"; val engine = f.engine()
+        engine.buy("coins", "home_balance"); val key = engine.state.value.record!!.key
+        engine.opened(key)
+        f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+
+        engine.close(key)
+
+        assertTrue(f.events.contains("paid_on_close"))
+        assertFalse(f.events.contains("paid_while_open"))
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
     }
     @Test fun `三方页面加载事件保留页面URL和HTML摘要`() = runBlocking {
         val f = Fixture(); f.login()
