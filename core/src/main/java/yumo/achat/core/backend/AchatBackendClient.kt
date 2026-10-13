@@ -71,11 +71,21 @@ class AchatBackendClient(
     }
 
     fun reportAttribution(payload: JSONObject) {
+        val afUid = payload.optString("af_uid").takeIf(String::isNotBlank)
+            ?: payload.optJSONObject("extra_data")?.optString("af_uid")?.takeIf(String::isNotBlank)
+            ?: ""
+        val deviceId = payload.optString("device_id").takeIf(String::isNotBlank).orEmpty()
+        val userId = payload.optString("user_id").takeIf(String::isNotBlank).orEmpty()
         val response = request(
             path = "/api/v1/attribution/report",
             method = "POST",
             body = payload.toString(),
-            headers = mapOf("Content-Type" to "application/json"),
+            headers = mapOf(
+                "Content-Type" to "application/json",
+                "X-AF-UID" to afUid,
+                "X-Device-ID" to deviceId,
+                "X-APP-USER-ID" to userId,
+            ),
         )
         val envelope = JSONObject(response)
         check(envelope.optInt("code", -1) == 0) {

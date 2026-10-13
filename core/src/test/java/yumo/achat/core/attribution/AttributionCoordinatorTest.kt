@@ -118,14 +118,26 @@ class AttributionCoordinatorTest {
         source.conversion.value = ConversionResult.Success(data("Non-organic"))
         assertEquals("Non-organic", withTimeout(500) { repo.forLogin() }.extraData["af_status"]?.jsonPrimitive?.content)
     }
-    @Test fun `独立补报采用真实设备身份且保留归因类型`() {
-        val raw = buildJsonObject { put("af_status", "Non-organic"); put("campaign_id", 123); put("is_first_launch", true) }
+    @Test fun `独立补报采用真实设备身份且补齐后台归因字段`() {
+        val raw = buildJsonObject {
+            put("af_status", "Non-organic")
+            put("campaign_id", 123)
+            put("is_first_launch", true)
+            put("af_uid", "af-uid")
+            put("af_channel", "paid-social")
+        }
         val payload = deviceAttributionReport(raw, ClientIdentity("test.package", "2.0", 30), "device", "user")
         assertEquals(JsonPrimitive("AppsFlyer"), payload["attribution_source"])
         assertEquals(JsonPrimitive("android"), payload["platform"])
         assertEquals(JsonPrimitive("device"), payload["device_id"])
         assertEquals(JsonPrimitive("user"), payload["user_id"])
-        assertEquals(raw, payload["extra_data"])
+        assertEquals(JsonPrimitive("af-uid"), payload["af_uid"])
+        assertEquals(JsonPrimitive("paid-social"), payload["channel"])
+        val extra = payload["extra_data"] as JsonObject
+        assertEquals(JsonPrimitive("af-uid"), extra["af_uid"])
+        assertEquals(JsonPrimitive("user"), extra["app_user_id"])
+        assertEquals(JsonPrimitive(true), extra["is_first_launch"])
+        assertEquals(JsonPrimitive(123), extra["campaign_id"])
         assertFalse(deviceAttributionReport(raw, ClientIdentity("test.package", "2.0", 30), "device", null).containsKey("user_id"))
     }
     @Test fun `回调字段映射保留数据类型并采用真实Android身份`() {

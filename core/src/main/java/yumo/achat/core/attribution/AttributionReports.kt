@@ -21,11 +21,13 @@ interface AttributionReportApi {
 
 fun deviceAttributionReport(data: JsonObject, identity: ClientIdentity, deviceId: String, userId: String?): JsonObject {
     val attribution = attributionPayload(data, identity, deviceId, "")
+    val extraData = data.withAppUserId(userId)
     return buildJsonObject {
         put("device_id", deviceId); put("package_name", identity.packageName)
         put("platform", "android"); put("app_version", identity.versionName)
         put("attribution_source", "AppsFlyer")
         userId?.let { put("user_id", it) }
+        attribution.afUid.takeIf { it.isNotBlank() }?.let { put("af_uid", it) }
         attribution.network?.let { put("network", it) }
         attribution.campaign?.let { put("campaign", it) }
         attribution.campaignId?.let { put("campaign_id", it) }
@@ -33,12 +35,19 @@ fun deviceAttributionReport(data: JsonObject, identity: ClientIdentity, deviceId
         attribution.adgroupId?.let { put("adgroup_id", it) }
         attribution.creative?.let { put("creative", it) }
         attribution.creativeId?.let { put("creative_id", it) }
+        attribution.channel?.let { put("channel", it) }
         attribution.country?.let { put("country", it) }
         data["click_time"]?.let { put("click_time", it) }
         data["install_time"]?.let { put("install_time", it) }
-        put("extra_data", data)
+        put("extra_data", extraData)
     }
 }
+
+private fun JsonObject.withAppUserId(userId: String?): JsonObject =
+    if (userId.isNullOrBlank()) this else buildJsonObject {
+        this@withAppUserId.forEach { (key, value) -> put(key, value) }
+        put("app_user_id", userId)
+    }
 
 @Singleton
 class AttributionReports @Inject constructor(private val coordinator: AttributionCoordinator, private val api: AttributionReportApi,

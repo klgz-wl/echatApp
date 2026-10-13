@@ -68,8 +68,12 @@ class AchatBackendRefreshTest {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/api/v1/attribution/report") { exchange ->
             assertEquals("POST", exchange.requestMethod)
+            assertEquals("af-report-id", exchange.requestHeaders.getFirst("X-AF-UID"))
+            assertEquals("stable-device", exchange.requestHeaders.getFirst("X-Device-ID"))
+            assertEquals("user-1", exchange.requestHeaders.getFirst("X-APP-USER-ID"))
             val body = JSONObject(exchange.requestBody.bufferedReader().use { it.readText() })
             assertEquals("stable-device", body.getString("device_id"))
+            assertEquals("af-report-id", body.getString("af_uid"))
             assertEquals("AppsFlyer", body.getString("attribution_source"))
             val response = """{"code":0}""".toByteArray()
             exchange.sendResponseHeaders(200, response.size.toLong())
@@ -81,6 +85,8 @@ class AchatBackendRefreshTest {
             client.reportAttribution(
                 JSONObject()
                     .put("device_id", "stable-device")
+                    .put("user_id", "user-1")
+                    .put("af_uid", "af-report-id")
                     .put("attribution_source", "AppsFlyer"),
             )
         } finally {
