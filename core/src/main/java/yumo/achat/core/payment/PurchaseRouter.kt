@@ -23,17 +23,20 @@ class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDis
     val failures = merge(payments.engine.failureEvents, legacy.failureEvents)
 
     fun buy(activity: Activity, product: CoinProduct, source: String) {
-        events.track("click_package", buildMap {
-            put("package_id", product.id); put("entry_source", source)
-            putAll(paymentPriceProperties(product.displayPrice, product.currency, "catalog_quote"))
-            product.playProductId?.takeIf { it.isNotBlank() }?.let { put("af_content_id", it) }
-            product.coins?.let { put("diamond_amount", it) }; put("bonus_amount", product.displayBonus)
-        })
-        val epoch = sessions.current?.epoch ?: return
+        val session = sessions.current ?: return
         if (payments.state.value.busy || payments.state.value.checkoutVisible ||
             payments.state.value.record?.stage == PaymentStage.OFFICIAL_READY ||
             blocksNewCoinPurchase(purchases.state.value.status)
         ) return
+        val values = buildMap {
+            put("package_id", product.id); put("entry_source", source)
+            put("af_success", "false")
+            putAll(paymentPriceProperties(product.displayPrice, product.currency, "catalog_quote"))
+            product.playProductId?.takeIf { it.isNotBlank() }?.let { put("af_content_id", it) }
+            product.coins?.let { put("diamond_amount", it) }; put("bonus_amount", product.displayBonus)
+        }
+        events.track("click_package", values + paymentRechargeProperties(values, session.userId), session.userId)
+        val epoch = session.epoch
         scope.launch {
             if (sessions.current?.epoch != epoch || activity.isFinishing || activity.isDestroyed) return@launch
             dispatcher.dispatch(service = { service.buy(product, source) }, legacy = { legacy.buy(activity, product, source) })

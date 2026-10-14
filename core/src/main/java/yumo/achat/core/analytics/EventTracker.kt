@@ -18,7 +18,7 @@ data class AnalyticsConfiguration(val storageName: String, val backgroundTimeout
 fun yumo.achat.core.catalog.Template.analyticsProperties() = mapOf<String, Any>(
     "template_id" to id, "category_id" to categories.firstOrNull().orEmpty(), "modality" to mediaKind.name.lowercase(java.util.Locale.ROOT))
 
-/** Firebase 不接收布尔参数；三端统一用 1/0，保留数值类型且限制到合法标量。 */
+/** Firebase 不接收布尔参数；四端统一用 1/0，保留数值类型且限制到合法标量。 */
 fun analyticsParameters(values: Map<String, Any>): Map<String, Any> = values.mapNotNull { (key, value) ->
     if (!Regex("[a-zA-Z][a-zA-Z0-9_]{0,39}").matches(key)) return@mapNotNull null
     val normalized: Any = when (value) {
@@ -29,7 +29,7 @@ fun analyticsParameters(values: Map<String, Any>): Map<String, Any> = values.map
         else -> return@mapNotNull null
     }
     key to normalized
-}.take(25).toMap()
+}.toMap()
 
 /** 四端共用 AppsFlyer 官方支付字段；来源字段明确区分报价和 Play 商品价。 */
 fun paymentPriceProperties(price: Double?, currency: String?, source: String): Map<String, Any> = buildMap {
@@ -46,14 +46,18 @@ fun paymentProperties(status: String, method: String, flow: String, source: Stri
     putAll(paymentPriceProperties(amount, currency, "google_play"))
 }
 
+fun paymentRechargeProperties(values: Map<String, Any>, userId: String?): Map<String, Any> = buildMap {
+    put("af_content_type", "recharge")
+    userId?.takeIf { it.isNotBlank() }?.let { put("self_user_id", it) }
+    values["entry_source"]?.let { put("trigger", it) }
+    values["fail_reason"]?.let { put("failed_reason", it) }
+}
+
 /** 两个结果事件共享价格字段，仅主成功事件记收入；报价和历史未知金额不推算收入。 */
 fun EventTracker.paymentResult(values: Map<String, Any>, userId: String, onceKey: String? = null, includeRevenue: Boolean = true) {
-    val shared = values - "af_revenue"
+    val shared = (values - "af_revenue") + paymentRechargeProperties(values, userId)
     track("pay_result", shared, userId, onceKey?.let { "$it:result" })
     val compatibility = buildMap<String, Any> {
-        put("af_content_type", "recharge"); put("self_user_id", userId)
-        values["entry_source"]?.let { put("trigger", it) }
-        values["fail_reason"]?.let { put("failed_reason", it) }
         val price = (values["af_price"] as? Number)?.toDouble()
         if (includeRevenue && values["status"] == "success" && values["pay_method"] == "google_play" &&
             values["price_source"] == "google_play" && price != null && price.isFinite() && price >= 0 &&
@@ -69,9 +73,9 @@ fun EventTracker.purchaseSuccess(values: Map<String, Any>, userId: String, onceK
     val currency = values["af_currency"] as? String
     val purchaseValues = buildMap {
         putAll(shared)
-        put("af_content_type", "recharge")
-        put("self_user_id", userId)
-        if (values["status"] == "success" && price != null && price.isFinite() && price >= 0 &&
+        putAll(paymentRechargeProperties(values, userId))
+        if (values["status"] == "success" && values["pay_method"] == "google_play" &&
+            values["price_source"] == "google_play" && price != null && price.isFinite() && price >= 0 &&
             currency?.matches(Regex("[A-Z]{3}")) == true) {
             put("af_revenue", price)
         }

@@ -48,9 +48,18 @@ class PaymentEngineTest {
         assertTrue(f.tracker.events.any { it.values["status"] == "pending" })
         f.api.fulfillment = "fulfilled"; engine.poll(key); engine.poll(key); engine.restore()
         val successes = f.tracker.events.filter { it.values["status"] == "success" }
-        assertEquals(setOf("pay_result", "payment_custom"), successes.map { it.name }.toSet())
-        assertEquals(2, successes.size)
+        assertEquals(setOf("pay_result", "payment_custom", "purchase_success"), successes.map { it.name }.toSet())
+        assertEquals(3, successes.size)
         assertTrue(successes.all { it.values["entry_source"] == "generation" && !it.values.containsKey("af_revenue") && it.user == "user" })
+        val purchase = successes.single { it.name == "purchase_success" }
+        assertEquals("channel", purchase.values["pay_method"])
+        assertEquals("SERVICE", purchase.values["payment_flow"])
+        assertEquals("coins", purchase.values["package_id"])
+        assertEquals("coins", purchase.values["af_content_id"])
+        assertEquals("recharge", purchase.values["af_content_type"])
+        assertEquals("user", purchase.values["self_user_id"])
+        assertEquals("generation", purchase.values["trigger"])
+        assertFalse(f.tracker.events.any { it.name.startsWith("purchase_client") })
     }
     @Test fun `服务端取消订单单独记录取消不记交易失败`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
@@ -446,6 +455,13 @@ class PaymentEngineTest {
         val success = f.tracker.events.first { it.name == "pay_result" && it.values["status"] == "success" }
         assertEquals(4.99, success.values["af_price"])
         assertEquals("google_play", success.values["price_source"])
+        val purchase = f.tracker.events.single { it.name == "purchase_success" }
+        assertEquals("google_play", purchase.values["pay_method"])
+        assertEquals("SERVICE", purchase.values["payment_flow"])
+        assertEquals("server-sku", purchase.values["af_content_id"])
+        assertEquals("recharge", purchase.values["af_content_type"])
+        assertEquals("main", purchase.values["trigger"])
+        assertEquals(4.99, purchase.values["af_revenue"])
     }
     @Test fun `待发币不是成功关闭与轮询并发只认一次成功`() = runBlocking {
         val f=Fixture(); f.login(); val engine=f.engine(); engine.buy("coins","generation")

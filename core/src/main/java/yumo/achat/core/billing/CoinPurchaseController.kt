@@ -93,8 +93,9 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                     launchPurchase = { orderId ->
                         if (sessions.current?.epoch != session.epoch || activity.isFinishing || activity.isDestroyed) PurchaseStepResult.Failure()
                         else {
-                            tracker.track("initiate_pay", paymentProperties("initiated", "google_play", flow, source, packageId,
-                                orderId, "sdk_launch", amount = price, currency = currency) + mapOf("af_content_id" to sku), session.userId)
+                            val values = paymentProperties("initiated", "google_play", flow, source, packageId,
+                                orderId, "sdk_launch", amount = price, currency = currency) + mapOf("af_content_id" to sku)
+                            tracker.track("initiate_pay", values + paymentRechargeProperties(values, session.userId), session.userId)
                             val result = billing.purchase(
                                 activity,
                                 sku,
