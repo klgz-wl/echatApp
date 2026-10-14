@@ -23,4 +23,10 @@ class PaymentEventQueueTest {
         }
         assertNull(thirdPartyPaymentAnalyticsName("poll_timeout"))
     }
+
+    @Test fun `未知三方支付渠道字段使用非空诊断占位避免后台丢弃事件`() {
+        assertEquals("unknown", thirdPartyPaymentDiagnosticValue(null))
+        assertEquals("unknown", thirdPartyPaymentDiagnosticValue(""))
+        assertEquals("payu_web", thirdPartyPaymentDiagnosticValue(" payu_web "))
+    }
 }

@@ -23,10 +23,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
                 while (currentCoroutineContext().isActive) {
                     val snapshot = state.value
                     val record = snapshot.record
-                    val pollable = record?.thirdParty == true || record?.stage in setOf(
-                        PaymentStage.OFFICIAL_LAUNCHED,
-                        PaymentStage.AWAITING_FULFILLMENT,
-                    )
+                    val pollable = shouldAutoPollPayment(record)
                     if (snapshot.epoch == sessions.current?.epoch && pollable && record?.orderId != null && record.unresolved &&
                         record.openedAt != null && (record.key != observedKey || record.stage !in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))) engine.poll(record.key)
                     observedKey = record?.key
@@ -68,4 +65,13 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { /* 不改写支付成功；页面支持再次刷新。 */ }
     }
+}
+
+internal fun shouldAutoPollPayment(record: PaymentRecord?): Boolean {
+    if (record == null) return false
+    if (record.thirdParty) return record.initialized?.openMode != "external_browser"
+    return record.stage in setOf(
+        PaymentStage.OFFICIAL_LAUNCHED,
+        PaymentStage.AWAITING_FULFILLMENT,
+    )
 }

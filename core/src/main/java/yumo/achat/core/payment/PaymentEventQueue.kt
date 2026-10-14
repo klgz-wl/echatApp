@@ -57,7 +57,7 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
         val name = thirdPartyPaymentAnalyticsName(type)
         if (name != null) tracker.track(name, buildMap {
             put("package_id", record.productId); put("entry_source", record.source); put("af_order_id", record.orderId.orEmpty())
-            put("channel_code", record.initialized?.channelCode.orEmpty()); put("open_mode", record.initialized?.openMode.orEmpty())
+            put("channel_code", thirdPartyPaymentDiagnosticValue(record.initialized?.channelCode)); put("open_mode", thirdPartyPaymentDiagnosticValue(record.initialized?.openMode))
             put("payment_flow", "SERVICE"); put("page_name", details?.page ?: "recharge_paywall")
             record.openedAt?.let { put("duration", (now - it).coerceAtLeast(0)) }; error?.let { put("fail_reason", it) }
         }, record.userId)
@@ -65,7 +65,7 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
         scope.launch {
             try {
                 val init = record.initialized
-                val event = PaymentClientEvent(type, init?.channelCode, init?.openMode,
+                val event = PaymentClientEvent(type, thirdPartyPaymentDiagnosticValue(init?.channelCode), thirdPartyPaymentDiagnosticValue(init?.openMode),
                     page = details?.page ?: "recharge_paywall", url = details?.url,
                     occurredAt = paymentTimestamp(now), openedAt = record.openedAt?.let(::paymentTimestamp),
                     closedAt = now.takeIf { type in setOf("user_cancel", "paid_on_close", "timeout_cancel") }?.let(::paymentTimestamp),
@@ -103,3 +103,6 @@ internal fun thirdPartyPaymentAnalyticsName(type: String): String? = when (type)
     "timeout_cancel" -> "3rdpayment_timeout_cancel"
     else -> null
 }
+
+internal fun thirdPartyPaymentDiagnosticValue(value: String?): String =
+    value?.trim()?.takeIf(String::isNotEmpty) ?: "unknown"

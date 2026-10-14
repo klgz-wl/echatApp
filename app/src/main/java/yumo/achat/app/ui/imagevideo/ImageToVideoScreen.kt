@@ -1273,7 +1273,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         val observer = LifecycleEventObserver { _, event ->
             val route = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
             if (event == Lifecycle.Event.ON_RESUME && route?.openMode == "external_browser") {
-                topUpPaymentController.refreshPayment(route)
+                topUpPaymentController.closeThirdParty(route)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
