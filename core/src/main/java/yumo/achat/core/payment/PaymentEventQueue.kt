@@ -56,10 +56,15 @@ class PaymentEventQueue @Inject constructor(@ApplicationContext context: Context
     override fun record(record: PaymentRecord, type: String, now: Long, error: String?, details: PaymentClientEventDetails?) {
         val name = thirdPartyPaymentAnalyticsName(type)
         if (name != null) tracker.track(name, buildMap {
-            put("package_id", record.productId); put("entry_source", record.source); put("af_order_id", record.orderId.orEmpty())
+            val outcome = thirdPartyPaymentAnalyticsOutcome(type)
+            putAll(paymentProperties(outcome.status, thirdPartyPaymentDiagnosticValue(record.initialized?.channelCode), "SERVICE", record.source,
+                record.productId, record.orderId, outcome.stage, error))
+            put("af_content_id", record.productId)
             put("channel_code", thirdPartyPaymentDiagnosticValue(record.initialized?.channelCode)); put("open_mode", thirdPartyPaymentDiagnosticValue(record.initialized?.openMode))
             put("payment_flow", "SERVICE"); put("page_name", details?.page ?: "recharge_paywall")
+            putAll(paymentPriceProperties(record.quotePrice, record.quoteCurrency, record.quoteSource))
             record.openedAt?.let { put("duration", (now - it).coerceAtLeast(0)) }; error?.let { put("fail_reason", it) }
+            putAll(paymentRechargeProperties(this, record.userId))
         }, record.userId)
         val order = record.orderId ?: return
         scope.launch {
@@ -102,6 +107,18 @@ internal fun thirdPartyPaymentAnalyticsName(type: String): String? = when (type)
     "user_cancel" -> "3rdpayment_user_cancel"
     "timeout_cancel" -> "3rdpayment_timeout_cancel"
     else -> null
+}
+
+internal data class ThirdPartyPaymentAnalyticsOutcome(val status: String, val stage: String)
+
+internal fun thirdPartyPaymentAnalyticsOutcome(type: String): ThirdPartyPaymentAnalyticsOutcome = when (type) {
+    "link_error" -> ThirdPartyPaymentAnalyticsOutcome("failed", "link_error")
+    "paid_while_open" -> ThirdPartyPaymentAnalyticsOutcome("paid", "fulfilled")
+    "paid_on_close" -> ThirdPartyPaymentAnalyticsOutcome("paid", "fulfilled")
+    "user_cancel" -> ThirdPartyPaymentAnalyticsOutcome("closed", "checkout_close")
+    "timeout_cancel" -> ThirdPartyPaymentAnalyticsOutcome("unknown", "poll_timeout")
+    "page_load_error" -> ThirdPartyPaymentAnalyticsOutcome("failed", "page_load_error")
+    else -> ThirdPartyPaymentAnalyticsOutcome("initiated", type)
 }
 
 internal fun thirdPartyPaymentDiagnosticValue(value: String?): String =

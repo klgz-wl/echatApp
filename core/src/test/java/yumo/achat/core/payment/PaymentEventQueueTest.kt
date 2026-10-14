@@ -29,4 +29,11 @@ class PaymentEventQueueTest {
         assertEquals("unknown", thirdPartyPaymentDiagnosticValue(""))
         assertEquals("payu_web", thirdPartyPaymentDiagnosticValue(" payu_web "))
     }
+
+    @Test fun `三方支付paid诊断事件不使用主支付成功口径`() {
+        assertEquals(ThirdPartyPaymentAnalyticsOutcome("paid", "fulfilled"), thirdPartyPaymentAnalyticsOutcome("paid_while_open"))
+        assertEquals(ThirdPartyPaymentAnalyticsOutcome("paid", "fulfilled"), thirdPartyPaymentAnalyticsOutcome("paid_on_close"))
+        assertEquals(ThirdPartyPaymentAnalyticsOutcome("failed", "link_error"), thirdPartyPaymentAnalyticsOutcome("link_error"))
+        assertEquals(ThirdPartyPaymentAnalyticsOutcome("unknown", "poll_timeout"), thirdPartyPaymentAnalyticsOutcome("timeout_cancel"))
+    }
 }

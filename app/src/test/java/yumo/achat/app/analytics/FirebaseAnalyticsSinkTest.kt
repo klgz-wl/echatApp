@@ -22,6 +22,38 @@ class FirebaseAnalyticsSinkTest {
     }
 
     @Test
+    fun `firebase sink applies firebase parameter limit locally and preserves payment keys`() {
+        val client = FakeFirebaseClient()
+        val sink = FirebaseAnalyticsSink(client)
+        val parameters = (1..30).associate { "key$it" to it.toLong() } + mapOf(
+            "user_id" to "user",
+            "af_order_id" to "order",
+            "package_id" to "coins",
+            "af_content_id" to "sku",
+            "af_price" to 4.99,
+            "af_currency" to "USD",
+            "af_revenue" to 4.99,
+            "entry_source" to "store",
+            "trigger" to "store",
+            "self_user_id" to "user",
+            "af_success" to "true",
+            "failed_reason" to "none",
+        )
+
+        sink.event("pay_result", parameters)
+
+        assertEquals("f_pay_result", client.eventName)
+        assertEquals(25, client.parameters.size)
+        for (key in listOf("user_id", "af_order_id", "package_id", "af_content_id", "af_price", "af_currency",
+            "af_revenue", "entry_source", "trigger", "self_user_id", "af_success", "failed_reason")) {
+            assertEquals(parameters[key], client.parameters[key])
+        }
+        assertEquals(1L, client.parameters["key1"])
+        assertEquals(13L, client.parameters["key13"])
+        assertEquals(null, client.parameters["key14"])
+    }
+
+    @Test
     fun `campaign attribution sets properties and emits unprefixed campaign details`() {
         val client = FakeFirebaseClient()
         val sink = FirebaseAnalyticsSink(client)

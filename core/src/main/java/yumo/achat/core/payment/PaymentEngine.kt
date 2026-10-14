@@ -226,7 +226,8 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (record.openedAt != null) return@guarded
         val opened = record.copy(openedAt = now, deadline = now + config.duration(record.initialized?.maxQuerySeconds) * 1000L, stage = PaymentStage.CHECKOUT)
         save(opened, session, true)
-        tracker.track("initiate_pay", paymentValues(opened, "initiated", "checkout_open"), session.userId)
+        val values = paymentValues(opened, "initiated", "checkout_open")
+        tracker.track("initiate_pay", values + paymentRechargeProperties(values, session.userId), session.userId)
         event(opened, "page_opened")
     }
     suspend fun pageEvent(key: String, type: String, details: PaymentClientEventDetails? = null) = guarded { session ->
@@ -371,10 +372,15 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
     }
     private fun paymentValues(record: PaymentRecord, status: String, stage: String, reason: String? = null): Map<String, Any> =
         paymentProperties(status, record.initialized?.channelCode ?: "unknown", "SERVICE", record.source, record.productId,
-            record.orderId, stage, reason) + paymentPriceProperties(record.quotePrice, record.quoteCurrency, record.quoteSource)
+            record.orderId, stage, reason) + paymentPriceProperties(record.quotePrice, record.quoteCurrency, record.quoteSource) +
+            mapOf("af_content_id" to (record.initialized?.sdkParams?.productId?.takeIf { it.isNotBlank() } ?: record.productId))
         // 查单接口没有实付金额，报价仅用于 af_price，不计入 af_revenue。
     private fun reportPayment(record: PaymentRecord, status: String, stage: String, reason: String? = null, once: String? = null) {
-        tracker.paymentResult(paymentValues(record, status, stage, reason), record.userId, once)
+        val values = paymentValues(record, status, stage, reason)
+        tracker.paymentResult(values, record.userId, once)
+        if (status == "success") {
+            tracker.purchaseSuccess(values, record.userId, once?.let { "$it:purchase_success" } ?: record.orderId?.let { "payment:$it:purchase_success" })
+        }
     }
     suspend fun shown(key: String) = guarded { session ->
         val record = current(key, session) ?: return@guarded

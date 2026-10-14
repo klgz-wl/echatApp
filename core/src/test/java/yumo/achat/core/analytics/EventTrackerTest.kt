@@ -13,7 +13,7 @@ class EventTrackerTest {
         assertEquals(1L, result["is_success"]); assertEquals(3L, result["count"]); assertEquals(1.5, result["amount"])
         assertFalse(result.containsKey("invalid")); assertFalse(result.containsKey("nested")); assertFalse(result.containsKey("bad-key"))
         assertEquals(100, (result["description"] as String).length)
-        assertEquals(25, analyticsParameters((1..30).associate { "key$it" to it }).size)
+        assertEquals(30, analyticsParameters((1..30).associate { "key$it" to it }).size)
     }
     @Test fun `支付参数使用官方名称且仅成功主事件携带收入`() {
         val tracker = RecordingTracker()
@@ -31,6 +31,24 @@ class EventTrackerTest {
         assertEquals("recharge", main["af_content_type"])
         for (key in listOf("amount", "currency", "price", "value", "order_id", "type", "is_success")) {
             assertFalse(result.containsKey(key)); assertFalse(main.containsKey(key))
+        }
+    }
+    @Test fun `支付事件补齐AF充值兼容字段`() {
+        val tracker = RecordingTracker()
+        val values = paymentProperties("failed", "google_play", "SERVICE", "generation", "coins_100", "order-1",
+            "sdk_launch", "billing_unavailable", amount = 1.99, currency = "usd") + mapOf("af_content_id" to "play.sku.100")
+
+        tracker.paymentResult(values, "user")
+
+        val result = tracker.events.single { it.name == "pay_result" }.values
+        val custom = tracker.events.single { it.name == "payment_custom" }.values
+        for (event in listOf(result, custom)) {
+            assertEquals("recharge", event["af_content_type"])
+            assertEquals("user", event["self_user_id"])
+            assertEquals("generation", event["trigger"])
+            assertEquals("billing_unavailable", event["failed_reason"])
+            assertEquals("false", event["af_success"])
+            assertEquals("play.sku.100", event["af_content_id"])
         }
     }
     @Test fun `取消失败待处理无金额或无币种时不记录收入`() {
@@ -54,6 +72,18 @@ class EventTrackerTest {
         tracker.paymentResult(values, "user")
         assertTrue(tracker.events.all { it.values["af_price"] == 5.99 && it.values["af_currency"] == "EUR" })
         assertTrue(tracker.events.none { "af_revenue" in it.values })
+    }
+    @Test fun `purchase success第三方报价不伪造成真实收入`() {
+        val tracker = RecordingTracker()
+        val values = paymentProperties("success", "channel", "SERVICE", "home", "package", "order",
+            "fulfilled") + paymentPriceProperties(5.99, "EUR", "catalog_quote")
+
+        tracker.purchaseSuccess(values, "user")
+
+        val event = tracker.events.single()
+        assertEquals(5.99, event.values["af_price"])
+        assertEquals("EUR", event.values["af_currency"])
+        assertFalse(event.values.containsKey("af_revenue"))
     }
     @Test fun `取消待处理未知不当作成功且未知实付金额不伪造`() {
         for (status in listOf("cancelled", "pending", "closed", "unknown", "failed")) {
@@ -95,6 +125,7 @@ class EventTrackerTest {
         assertEquals("play.sku.100", event.values["af_content_id"])
         assertEquals("recharge", event.values["af_content_type"])
         assertEquals("user", event.values["self_user_id"])
+        assertEquals("store", event.values["trigger"])
         assertEquals(4.99, event.values["af_price"])
         assertEquals(4.99, event.values["af_revenue"])
         assertEquals("USD", event.values["af_currency"])

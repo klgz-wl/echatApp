@@ -26,7 +26,7 @@ internal class FirebaseAnalyticsSink(
     override fun initialize() = client.initialize()
     override fun identify(userId: String?) = client.identify(userId)
     override fun event(name: String, parameters: Map<String, Any>) {
-        if (analyticsEnabled) client.event(AnalyticsPlatform.FIREBASE.eventName(name), parameters)
+        if (analyticsEnabled) client.event(AnalyticsPlatform.FIREBASE.eventName(name), firebaseAnalyticsParameters(parameters))
     }
 
     fun recordCampaignAttribution(data: JsonObject) {
@@ -51,6 +51,37 @@ internal class FirebaseAnalyticsSink(
             },
         )
     }
+}
+
+private val firebasePriorityParameters = listOf(
+    "event_time",
+    "user_id",
+    "af_order_id",
+    "package_id",
+    "af_content_id",
+    "af_price",
+    "af_currency",
+    "af_revenue",
+    "entry_source",
+    "trigger",
+    "self_user_id",
+    "af_success",
+    "status",
+    "pay_method",
+    "payment_flow",
+    "failed_reason",
+)
+
+internal fun firebaseAnalyticsParameters(parameters: Map<String, Any>): Map<String, Any> {
+    val result = linkedMapOf<String, Any>()
+    firebasePriorityParameters.forEach { key ->
+        parameters[key]?.let { result[key] = it }
+    }
+    parameters.forEach { (key, value) ->
+        if (result.size >= 25) return@forEach
+        if (!result.containsKey(key)) result[key] = value
+    }
+    return result
 }
 
 internal class FirebaseSdkClient(
