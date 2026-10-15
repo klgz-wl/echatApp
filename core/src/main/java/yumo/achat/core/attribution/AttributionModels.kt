@@ -39,8 +39,9 @@ interface AttributionStorage {
     suspend fun writeAttribution(data: JsonObject)
 }
 fun interface LoginAttributionProvider { suspend fun forLogin(): LoginAttribution }
-data class AttributionConfiguration(val timeoutMillis: Long, val retryAttempts: Int, val retryIntervalMillis: Long, val cacheWaitMillis: Long = 100) {
-    init { require(timeoutMillis > 0 && retryAttempts > 0 && retryIntervalMillis > 0 && cacheWaitMillis > 0) }
+data class AttributionConfiguration(val timeoutMillis: Long, val retryAttempts: Int, val retryIntervalMillis: Long, val cacheWaitMillis: Long = 100,
+    val loginTimeoutMillis: Long = 8000, val homeTimeoutMillis: Long = 10000) {
+    init { require(timeoutMillis > 0 && retryAttempts > 0 && retryIntervalMillis > 0 && cacheWaitMillis > 0 && loginTimeoutMillis > 0 && homeTimeoutMillis > 0) }
 }
 
 /** 缺失或未知状态不是已确认的自然流量。 */

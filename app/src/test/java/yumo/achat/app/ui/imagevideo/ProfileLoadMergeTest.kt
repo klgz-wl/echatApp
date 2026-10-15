@@ -46,4 +46,15 @@ class ProfileLoadMergeTest {
         assertEquals(true, merged.isNewProfile)
         assertEquals("New name", merged.profileName)
     }
+
+    @Test
+    fun `reported profile mode is not replaced by older startup response`() {
+        val current = AchatBackendUiState(isNewProfile = false)
+        val startup = UserProfile(
+            id = "user-1", username = null, nickname = null, name = null,
+            avatarUrl = null, largeAvatarUrl = null, isNew = true,
+        )
+
+        assertEquals(false, current.withLoadedProfile(startup, "user-1", preserveCurrent = true).isNewProfile)
+    }
 }

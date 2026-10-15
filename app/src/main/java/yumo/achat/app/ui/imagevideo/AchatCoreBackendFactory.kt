@@ -21,7 +21,7 @@ internal fun createAchatRepository(context: Context): AchatRepository {
     return AchatRepository(
         context = context,
         configuration = achatBackendConfiguration(),
-        attribution = if (AnalyticsConsent.granted(context)) {
+        attribution = if (AnalyticsConsent.granted(context) && BuildConfig.ENABLE_APPSFLYER) {
             AchatAttributionRuntime.get(context)
         } else {
             NoOpBackendAttribution(achatBackendConfiguration())

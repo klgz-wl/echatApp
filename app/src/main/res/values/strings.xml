@@ -5,6 +5,7 @@
     <string name="region_offline">An internet connection is required. Please connect and try again.</string>
     <string name="region_reference">Ref: %1$s</string>
     <string name="region_retry">Retry</string>
+    <string name="startup_unavailable">Couldn’t finish starting. Please try again.</string>
     <string name="region_exit">Exit</string>
     <string name="template_loading_more">Loading more…</string>
     <string name="template_load_more_retry">Couldn’t load more. Retry</string>

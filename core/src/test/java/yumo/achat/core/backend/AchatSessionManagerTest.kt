@@ -170,6 +170,23 @@ class AchatSessionManagerTest {
     }
 
     @Test
+    fun `fresh anonymous epoch reaches attribution even when token is reused`() = runBlocking {
+        val existing = session("same-access", "same-refresh").copy(epoch = "old-epoch")
+        val replacement = session("same-access", "same-refresh").copy(epoch = "new-epoch")
+        val attribution = FakeAttribution()
+        val manager = AchatSessionManager(
+            FakeSessionStore(existing),
+            FakeAuthApi(loginResult = Result.success(replacement)),
+            attribution = attribution,
+        )
+
+        manager.session()
+        manager.startupSession()
+
+        assertEquals(listOf("old-epoch", "new-epoch"), attribution.reportedSessions.map { it.epoch })
+    }
+
+    @Test
     fun `concurrent first login failure is shared without request storm`() = runBlocking {
         val store = FakeSessionStore(null)
         val api = FakeAuthApi(loginResult = Result.failure(IllegalStateException("offline")))

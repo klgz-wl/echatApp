@@ -28,5 +28,13 @@ class ThinkingDataAnalytics @Inject constructor(@ApplicationContext private val 
         shareIdentity()
     }
     override fun event(name: String, parameters: Map<String, Any>) { TDAnalytics.track(yumo.achat.core.analytics.AnalyticsPlatform.THINKING_DATA.eventName(name), JSONObject(parameters)) }
+    /** Called directly for every real AppsFlyer conversion callback after SDK initialization. */
+    fun attributionResult(result: ThinkingDataAttributionResult, currentUserId: String?) {
+        runCatching {
+            identify(currentUserId)
+            val event = result.toEvent()
+            TDAnalytics.track(event.name, JSONObject(event.parameters))
+        }
+    }
     private fun shareIdentity() { if (policy.appsFlyer) TDAnalytics.enableThirdPartySharing(TDThirdPartyShareType.TD_APPS_FLYER) }
 }

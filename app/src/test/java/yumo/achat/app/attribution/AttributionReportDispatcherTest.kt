@@ -6,6 +6,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -13,6 +14,44 @@ import java.util.concurrent.atomic.AtomicInteger
 import yumo.achat.core.backend.AuthSession
 
 class AttributionReportDispatcherTest {
+    @Test
+    fun `real report publishes receipt for current epoch and snapshot`() {
+        var now = 41L
+        val dispatcher = AttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            retryDelay = {},
+            report = { _, _ -> now = 73L },
+            nowNanos = { now },
+        )
+        val snapshot = buildJsonObject { put("af_status", "Organic") }
+        dispatcher.updateSession(session("user-1").copy(epoch = "epoch-one"))
+        dispatcher.updateSnapshot(snapshot)
+
+        val receipt = dispatcher.receipts.value
+        assertNotNull(receipt)
+        assertEquals("epoch-one", receipt?.epoch)
+        assertEquals(snapshot, receipt?.snapshot)
+        assertEquals(73L, receipt?.reportedAtNanos)
+    }
+
+    @Test
+    fun `same user with new epoch requires new report`() {
+        var reports = 0
+        val dispatcher = AttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            retryDelay = {},
+            report = { _, _ -> reports++ },
+        )
+        val snapshot = buildJsonObject { put("af_status", "Non-organic") }
+        dispatcher.updateSnapshot(snapshot)
+        dispatcher.updateSession(session("user-1").copy(epoch = "first"))
+        dispatcher.updateSession(session("user-1").copy(epoch = "second"))
+
+        assertEquals(2, reports)
+        assertEquals("second", dispatcher.receipts.value?.epoch)
+    }
     @Test
     fun `report waits for both snapshot and session and dedupes key`() {
         val reports = mutableListOf<String>()
@@ -100,7 +139,7 @@ class AttributionReportDispatcherTest {
     }
 
     @Test
-    fun `successful digest prevents duplicate report after dispatcher recreation`() {
+    fun `persisted digest is not a current process receipt`() {
         val store = MemoryAttributionDeliveryStore()
         var reports = 0
         fun dispatcher() = AttributionReportDispatcher(
@@ -122,7 +161,7 @@ class AttributionReportDispatcherTest {
             updateSnapshot(snapshot)
         }
 
-        assertEquals(1, reports)
+        assertEquals(2, reports)
     }
 
     @Test
@@ -157,5 +196,6 @@ class AttributionReportDispatcherTest {
         refreshToken = "refresh",
         sessionId = "session",
         isAnonymous = true,
+        epoch = "epoch-one",
     )
 }

@@ -9,6 +9,11 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
@@ -41,6 +46,8 @@ internal object AchatAttributionRuntime {
         }
 }
 
+internal data class HomeGateTarget(val epoch: String?, val snapshot: JsonObject?)
+
 internal class AppsFlyerBackendAttribution(
     context: Context,
 ) : BackendAttribution {
@@ -59,6 +66,8 @@ internal class AppsFlyerBackendAttribution(
             enabled = BuildConfig.ENABLE_APPSFLYER,
             diagnosticLogging = BuildConfig.APPSFLYER_DIAGNOSTIC_LOGGING,
             eventQueueCapacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
+            minSessionIntervalSeconds = BuildConfig.APPSFLYER_MIN_SESSION_INTERVAL_SECONDS,
+            requestTimeoutMillis = BuildConfig.APPSFLYER_REQUEST_TIMEOUT_MILLIS.toLong(),
         ),
     )
     private val storage = AppAttributionStorage(appContext)
@@ -72,12 +81,17 @@ internal class AppsFlyerBackendAttribution(
             retryAttempts = BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS,
             retryIntervalMillis = BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong(),
             cacheWaitMillis = BuildConfig.ATTRIBUTION_CACHE_WAIT_MS.toLong(),
+            loginTimeoutMillis = BuildConfig.ATTRIBUTION_LOGIN_TIMEOUT_MS.toLong(),
+            homeTimeoutMillis = BuildConfig.ATTRIBUTION_HOME_TIMEOUT_MS.toLong(),
         ),
     )
     private val client = AchatBackendClient(backendConfiguration)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutableSuccessfulReports = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val successfulReports = mutableSuccessfulReports.asSharedFlow()
+    private val mutableSession = MutableStateFlow<AuthSession?>(null)
+    private val mutableHomeGateRevision = MutableStateFlow(0L)
+    val homeGateRevision = mutableHomeGateRevision.asStateFlow()
     private val reporter = AttributionReportDispatcher(
         attempts = BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1),
         scope = scope,
@@ -92,6 +106,7 @@ internal class AppsFlyerBackendAttribution(
             client.reportAttribution(JSONObject(payload.toString()))
         },
         onReported = { session -> mutableSuccessfulReports.tryEmit(session.userId) },
+        nowNanos = System::nanoTime,
         deliveryStore = SharedPreferencesAttributionDeliveryStore(
             appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE),
         ),
@@ -101,10 +116,48 @@ internal class AppsFlyerBackendAttribution(
         scope.launch {
             coordinator.snapshots.filterNotNull().collect { data ->
                 reporter.updateSnapshot(data)
+                mutableHomeGateRevision.value += 1L
             }
         }
-        storage.cachedSnapshotBlocking()?.let(reporter::updateSnapshot)
     }
+
+    val reportReceipts: StateFlow<ReportReceipt?> get() = reporter.receipts
+    val conversionCallbacks get() = source.conversionCallbacks
+    fun currentSessionEpoch(): String? = mutableSession.value?.epoch
+    fun currentGateTarget(): HomeGateTarget = HomeGateTarget(mutableSession.value?.epoch, coordinator.snapshots.value)
+    fun isCurrentReceipt(receipt: ReportReceipt): Boolean =
+        mutableSession.value?.epoch == receipt.epoch && coordinator.snapshots.value == receipt.snapshot
+
+    suspend fun awaitSplashPreAuthWindow() { coordinator.awaitInitial() }
+    suspend fun awaitSplashPostAuthWindow() { coordinator.awaitAfterAuth() }
+    suspend fun awaitHomeWindow() { coordinator.awaitHome() }
+
+    suspend fun awaitHomeDataGate() {
+        while (true) {
+            val snapshot = coordinator.snapshots.value ?: return
+            val session = mutableSession.value
+            if (session == null) {
+                mutableSession.first { it != null }
+                continue
+            }
+            val selected = combine(coordinator.snapshots, mutableSession, reporter.receipts, reporter.exhausted) { data, active, receipt, _ ->
+                Triple(data, active, receipt)
+            }.first { (data, active, receipt) ->
+                data != snapshot || active?.epoch != session.epoch ||
+                    (receipt?.epoch == session.epoch && receipt.snapshot == snapshot) ||
+                    reporter.isExhausted(session.epoch, snapshot)
+            }
+            if (selected.first != snapshot || selected.second?.epoch != session.epoch) continue
+            if (reporter.isExhausted(session.epoch, snapshot)) throw AttributionReportExhaustedException()
+            val receipt = selected.third ?: continue
+            val elapsedNanos = (System.nanoTime() - receipt.reportedAtNanos).coerceAtLeast(0L)
+            val remainingNanos = (BuildConfig.ATTRIBUTION_HOME_DATA_DELAY_MS.toLong() * 1_000_000L - elapsedNanos).coerceAtLeast(0L)
+            if (remainingNanos > 0L) delay((remainingNanos + 999_999L) / 1_000_000L)
+            if (coordinator.snapshots.value == snapshot && mutableSession.value?.epoch == session.epoch) return
+        }
+    }
+
+    fun retryHomeReport() = reporter.retryPending()
 
     fun onActivityResumed(activity: Activity) {
         source.onActivityResumed(activity)
@@ -125,6 +178,9 @@ internal class AppsFlyerBackendAttribution(
     fun snapshots(): StateFlow<JsonObject?> = coordinator.snapshots
 
     override suspend fun report(session: AuthSession) {
+        val epochChanged = mutableSession.value?.epoch != session.epoch
+        mutableSession.value = session
+        if (epochChanged) mutableHomeGateRevision.value += 1L
         reporter.updateSession(session)
     }
 }

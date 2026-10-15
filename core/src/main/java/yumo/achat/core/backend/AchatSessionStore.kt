@@ -31,6 +31,7 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
                 refreshToken = json.getString("refreshToken"),
                 sessionId = json.getString("sessionId"),
                 isAnonymous = json.optBoolean("isAnonymous", true),
+                epoch = json.optString("epoch").takeIf(String::isNotBlank) ?: UUID.randomUUID().toString(),
             )
         }.getOrNull()
     }
@@ -53,6 +54,7 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
             .put("refreshToken", session.refreshToken)
             .put("sessionId", session.sessionId)
             .put("isAnonymous", session.isAnonymous)
+            .put("epoch", session.epoch)
         preferences.edit().putString(KEY_AUTH_SESSION, json.toString()).apply()
     }
 

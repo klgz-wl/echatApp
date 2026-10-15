@@ -28,7 +28,12 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     private val mutableStartStatus = MutableStateFlow(AttributionStartStatus(AttributionStartStage.NOT_REQUESTED))
     val startStatus = mutableStartStatus.asStateFlow()
     private val foregroundStart = ForegroundAttributionStart<Activity>(
-        valid = { !it.isFinishing && !it.isDestroyed }, start = ::startWithActivity)
+        valid = { !it.isFinishing && !it.isDestroyed }, start = ::startWithActivity,
+        timeoutMillis = config.requestTimeoutMillis,
+        minIntervalMillis = config.minSessionIntervalSeconds * 1_000L)
+    private val callbackSequencer = AppsFlyerConversionCallbackSequencer()
+    private val callbackEvents = ConversionCallbackEvents<AppsFlyerConversionCallback>()
+    val conversionCallbacks = callbackEvents.events
     private var gaidRequested = false
     private val mutable = MutableStateFlow<ConversionResult>(ConversionResult.Pending)
     override val conversion = mutable.asStateFlow()
@@ -47,14 +52,14 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                 mutable.value = ConversionResult.Failed
                 return@launch
             }
-            if (retry && mutable.value is ConversionResult.Success) return@launch
+            if (retry && (mutable.value as? ConversionResult.Success)?.data?.get("af_status")?.toString()?.contains("Non-organic", ignoreCase = true) == true) return@launch
             if (mutableStartStatus.value.stage == AttributionStartStage.NOT_REQUESTED)
                 updateStartStatus(AttributionStartStage.WAITING_FOR_ACTIVITY)
             foregroundStart.request(retry)
         }
     }
 
-    private fun startWithActivity(activity: Activity): Boolean {
+    private fun startWithActivity(activity: Activity, attempt: Long): Boolean {
         if (!gaidRequested) {
             gaidRequested = true
             scope.launch(Dispatchers.IO) {
@@ -67,13 +72,27 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             synchronized(sdkLock) { AppsFlyerLib.getInstance().apply {
                 if (!ready) {
                     setDebugLog(config.debugLogging)
+                    setMinTimeBetweenSessions(config.minSessionIntervalSeconds)
                     init(config.devKey, object : AppsFlyerConversionListener {
                         override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
                             val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
-                            mutable.value = if (!snapshot.hasValidAttribution()) ConversionResult.Failed else ConversionResult.Success(snapshot)
+                            val status = (snapshot["af_status"] as? JsonPrimitive)?.contentOrNull
+                            val callbackAttempt = foregroundStart.latestAttempt
+                            callbackEvents.publish(callbackSequencer.success(status, callbackAttempt))
+                            scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
+                            if (snapshot.hasValidAttribution()) {
+                                val current = (mutable.value as? ConversionResult.Success)?.data
+                                val mediaAlreadyKnown = (current?.get("af_status") as? JsonPrimitive)
+                                    ?.contentOrNull?.equals("Non-organic", ignoreCase = true) == true
+                                if (!mediaAlreadyKnown || status.equals("Non-organic", ignoreCase = true))
+                                    mutable.value = ConversionResult.Success(snapshot)
+                            } else if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
                             diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
                         }
                         override fun onConversionDataFail(message: String?) {
+                            val callbackAttempt = foregroundStart.latestAttempt
+                            callbackEvents.publish(callbackSequencer.failure(callbackAttempt))
+                            scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
                             if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
                             // 仅提取 SDK 已知格式中的 HTTP 数字，不输出任意回调原文。
                             val status = Regex("^Launch status code: ([0-9]{3})$")
@@ -93,12 +112,22 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                 // 延迟启动必须传当前 Activity；Application Context 会遗漏已经发生的首次前台事件。
                 start(activity, config.devKey, object : AppsFlyerRequestListener {
                     override fun onSuccess() {
-                        updateStartStatus(AttributionStartStage.REQUEST_ACCEPTED)
+                        scope.launch {
+                            if (attempt == foregroundStart.latestAttempt) {
+                                foregroundStart.launchAccepted(attempt)
+                                updateStartStatus(AttributionStartStage.REQUEST_ACCEPTED)
+                            }
+                        }
                         // 请求被接收不等于取得安装归因，conversion 只由 ConversionListener 更新。
                     }
                     override fun onError(code: Int, description: String) {
-                        updateStartStatus(AttributionStartStage.REQUEST_FAILED, code)
-                        if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
+                        scope.launch {
+                            if (attempt == foregroundStart.latestAttempt) {
+                                foregroundStart.launchFailed(attempt)
+                                updateStartStatus(AttributionStartStage.REQUEST_FAILED, code)
+                                if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
+                            }
+                        }
                     }
                 })
                 started = true
@@ -111,6 +140,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             } }
             return true
         } catch (_: Exception) {
+            foregroundStart.launchFailed(attempt)
             updateStartStatus(AttributionStartStage.INITIALIZATION_FAILED)
             if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
             return false

@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import yumo.achat.app.BuildConfig
@@ -20,6 +21,8 @@ import yumo.achat.core.backend.AchatSessionStore
 import yumo.achat.core.config.ClientIdentity
 import yumo.achat.core.integration.thinkingdata.ThinkingDataAnalytics
 import yumo.achat.core.integration.thinkingdata.ThinkingDataConfig
+import yumo.achat.core.integration.thinkingdata.ThinkingDataAttributionResult
+import yumo.achat.core.integration.appsflyer.AppsFlyerAnalytics
 import yumo.achat.core.network.ApiResponse
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
@@ -58,6 +61,7 @@ internal object AchatAnalyticsRuntime {
             backend = consentGranted && BuildConfig.ENABLE_BACKEND_ANALYTICS,
         )
         val attributionRuntime = if (policy.appsFlyer) AchatAttributionRuntime.get(context) else null
+        var thinkingDataAttributionSink: ThinkingDataAnalytics? = null
         var firebaseCampaignSink: FirebaseAnalyticsSink? = null
         val sinks = buildList {
             if (consentGranted && (policy.firebase || BuildConfig.ENABLE_FIREBASE_CRASHLYTICS || BuildConfig.ENABLE_FIREBASE_MESSAGING)) {
@@ -82,7 +86,7 @@ internal object AchatAnalyticsRuntime {
                         debugMode = BuildConfig.TD_DEBUG_MODE,
                     ),
                     policy = policy,
-                ),
+                ).also { thinkingDataAttributionSink = it },
             )
             // 数数必须先初始化并开启 AppsFlyer 身份分享，再允许 AF init/start。
             attributionRuntime?.let { add(it.analyticsSink()) }
@@ -132,6 +136,7 @@ internal object AchatAnalyticsRuntime {
             },
             attributionSnapshots = attributionRuntime?.snapshots(),
             campaignAttributionSink = firebaseCampaignSink,
+            thinkingDataAttributionSink = thinkingDataAttributionSink,
         )
         val preferences = eventPreferences
         hub.foregroundAnalytics = ForegroundAnalytics(
@@ -160,6 +165,7 @@ internal class AppAnalyticsHub(
     private val commonParameters: () -> Map<String, Any> = { emptyMap() },
     private val attributionSnapshots: StateFlow<JsonObject?>? = null,
     private val campaignAttributionSink: FirebaseAnalyticsSink? = null,
+    private val thinkingDataAttributionSink: ThinkingDataAnalytics? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : EventTracker {
     internal lateinit var foregroundAnalytics: ForegroundAnalytics
@@ -169,7 +175,29 @@ internal class AppAnalyticsHub(
 
     fun initialize() {
         if (!initialized.compareAndSet(false, true)) return
-        sinks.forEach { runCatching { it.initialize() } }
+        sinks.forEach { sink ->
+            if (sink is AppsFlyerAnalytics && thinkingDataAttributionSink != null) {
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    sink.conversionCallbacks.collect { callback ->
+                        synchronized(sinkLocks.getValue(thinkingDataAttributionSink)) {
+                            runCatching {
+                                thinkingDataAttributionSink.attributionResult(
+                                    ThinkingDataAttributionResult(
+                                        callbackId = callback.callbackId,
+                                        requestAttempt = callback.requestAttempt,
+                                        appVersion = BuildConfig.VERSION_NAME,
+                                        attributionStatus = callback.attributionStatus,
+                                        failureReason = callback.failureReason,
+                                    ),
+                                    activeUserId,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            runCatching { sink.initialize() }
+        }
         scope.launch {
             queue.events.collect { event ->
                 val values = analyticsParameters(

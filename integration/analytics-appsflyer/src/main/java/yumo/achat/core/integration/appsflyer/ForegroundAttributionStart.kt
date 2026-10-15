@@ -2,15 +2,25 @@ package yumo.achat.core.integration.appsflyer
 
 import java.lang.ref.WeakReference
 
-/** 由主线程串行调用；仅弱持有已获业务准入的前台宿主，后台请求留到下一次前台。 */
+/** Main-thread owner of the current foreground host and two independent SDK in-flight guards. */
 internal class ForegroundAttributionStart<T : Any>(
     private val valid: (T) -> Boolean,
-    private val start: (T) -> Boolean,
+    private val start: (T, Long) -> Boolean,
+    private val timeoutMillis: Long = 15_000,
+    private val minIntervalMillis: Long = 1_000,
+    private val nowMillis: () -> Long = { android.os.SystemClock.elapsedRealtime() },
 ) {
     private var host = WeakReference<T>(null)
     private var requested = false
-    private var submitted = false
     private var retryPending = false
+    private var nextAttempt = 0L
+    @Volatile private var activeAttempt = 0L
+    private var launchPending = false
+    private var conversionPending = false
+    private var startedAt = 0L
+    private var lastStartedAt: Long? = null
+
+    val latestAttempt: Long get() = activeAttempt
 
     fun attach(value: T) { host = WeakReference(value); dispatch() }
     fun detach(value: T) { if (host.get() === value) host.clear() }
@@ -19,14 +29,40 @@ internal class ForegroundAttributionStart<T : Any>(
         retryPending = retryPending || retry
         dispatch()
     }
+    fun launchAccepted(attempt: Long) { if (attempt == activeAttempt) { launchPending = false; dispatch() } }
+    fun launchFailed(attempt: Long) {
+        if (attempt == activeAttempt) {
+            launchPending = false
+            conversionPending = false
+            dispatch()
+        }
+    }
+    fun conversionFinished(attempt: Long = activeAttempt) {
+        if (attempt == activeAttempt) { conversionPending = false; dispatch() }
+    }
     private fun dispatch() {
-        if (!requested || (submitted && !retryPending)) return
+        if (!requested || (activeAttempt > 0 && !retryPending)) return
         val current = host.get()?.takeIf(valid) ?: return
+        val now = nowMillis()
+        if ((launchPending || conversionPending) && now - startedAt < timeoutMillis) return
+        if (lastStartedAt?.let { now - it < minIntervalMillis } == true) return
         retryPending = false
-        submitted = start(current)
+        val attempt = ++nextAttempt
+        activeAttempt = attempt
+        launchPending = true
+        conversionPending = true
+        startedAt = now
+        lastStartedAt = now
+        if (!start(current, attempt)) {
+            // A synchronous init/start exception cannot leave a conversion wait behind.
+            if (attempt == activeAttempt) {
+                launchPending = false
+                conversionPending = false
+            }
+        }
     }
 }
 
 enum class AttributionStartStage { NOT_REQUESTED, WAITING_FOR_ACTIVITY, START_CALLED, REQUEST_ACCEPTED, REQUEST_FAILED, INITIALIZATION_FAILED, DISABLED }
-/** 仅保留阶段和 SDK 数值错误码，不保存可能含 URL／凭据的 SDK 原始错误文本。 */
+/** Only retains the SDK numeric error code; callback text may contain URLs or credentials. */
 data class AttributionStartStatus(val stage: AttributionStartStage, val errorCode: Int? = null)

@@ -39,14 +39,14 @@ class AchatRepository(
     private val client = AchatBackendClient(configuration)
     private val sessionManager = AchatSessionManager.application(context, configuration, attribution, onLoginResult)
 
-    suspend fun loadHomeData(): AchatHomeData = withContext(Dispatchers.IO) {
-        val startupSession = sessionManager.startupSession()
+    suspend fun authenticateStartup(): AuthSession = withContext(Dispatchers.IO) {
+        sessionManager.startupSession()
+    }
+
+    suspend fun loadStartupProfile(): UserProfile = userProfileSnapshot()
+
+    suspend fun loadHomeData(startupSession: AuthSession, startupProfile: UserProfile): AchatHomeData = withContext(Dispatchers.IO) {
         coroutineScope {
-            val profile = async {
-                sessionManager.authenticated(client::userProfile).also {
-                    check(it.isNew != null) { "Profile is missing is_new" }
-                }
-            }
             val currency = async {
                 optionalBackendValue { sessionManager.authenticated(client::userCurrency) }
             }
@@ -75,7 +75,7 @@ class AchatRepository(
 
             AchatHomeData(
                 session = startupSession,
-                profile = profile.await(),
+                profile = startupProfile,
                 currency = currency.await(),
                 videoTemplates = loadedVideoTemplates.templates,
                 imageTemplates = loadedImageTemplates.templates,

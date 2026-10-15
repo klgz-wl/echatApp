@@ -69,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
@@ -134,13 +135,16 @@ import java.util.Locale
 import java.net.URI
 import org.json.JSONArray
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import yumo.achat.app.R
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
@@ -148,6 +152,10 @@ import yumo.achat.app.analytics.GenerationAnalytics
 import yumo.achat.app.analytics.GenerationAnalyticsContext
 import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.attribution.AchatAttributionRuntime
+import yumo.achat.app.attribution.AppsFlyerBackendAttribution
+import yumo.achat.core.backend.AchatRepository
+import yumo.achat.core.backend.AuthSession
+import yumo.achat.core.backend.UserProfile
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
 import yumo.achat.core.backend.StoreUserInfo
@@ -320,7 +328,7 @@ internal fun AchatBackendUiState.withLoadedProfile(
     fallbackId: String,
     preserveCurrent: Boolean,
 ): AchatBackendUiState = if (preserveCurrent) {
-    copy(isNewProfile = profile?.isNew ?: isNewProfile)
+    copy(isNewProfile = isNewProfile ?: profile?.isNew)
 } else {
     copy(
         profileName = profile?.displayName ?: profileName,
@@ -512,11 +520,92 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { createAchatRepository(context) }
+    val attributionRuntime = remember(context) {
+        if (AnalyticsConsent.granted(context) && BuildConfig.ENABLE_APPSFLYER) AchatAttributionRuntime.get(context) else null
+    }
+    val startupController = remember(attributionRuntime) {
+        HomeStartupController(
+            awaitPreAuth = { attributionRuntime?.awaitSplashPreAuthWindow() },
+            awaitPostAuth = { attributionRuntime?.awaitSplashPostAuthWindow() },
+            awaitHomeWindow = { attributionRuntime?.awaitHomeWindow() },
+            awaitHomeDataGate = { attributionRuntime?.awaitHomeDataGate() },
+            networkTimeoutMillis = BuildConfig.STARTUP_TIMEOUT_MS.toLong(),
+        )
+    }
+    var startup by remember { mutableStateOf<Pair<AuthSession, UserProfile>?>(null) }
+    var startupError by remember { mutableStateOf<String?>(null) }
+    var startupRetry by remember { mutableIntStateOf(0) }
+    var automaticSessionRestarts by remember { mutableIntStateOf(0) }
+    LaunchedEffect(repository, startupRetry) {
+        if (startup != null) return@LaunchedEffect
+        startupError = null
+        try {
+            startup = startupController.startup(repository::authenticateStartup, repository::loadStartupProfile)
+        } catch (_: TimeoutCancellationException) {
+            startupError = context.getString(R.string.startup_unavailable)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            startupError = context.getString(R.string.startup_unavailable)
+        }
+    }
+    val ready = startup
+    LaunchedEffect(attributionRuntime, ready?.first?.epoch) {
+        if (ready == null || attributionRuntime == null) return@LaunchedEffect
+        attributionRuntime.homeGateRevision.collectLatest {
+            val currentEpoch = attributionRuntime.currentSessionEpoch()
+            if (currentEpoch != null && currentEpoch != ready.first.epoch) {
+                startup = null
+                startupError = context.getString(R.string.startup_unavailable)
+                if (automaticSessionRestarts == 0) {
+                    automaticSessionRestarts += 1
+                    startupRetry += 1
+                }
+            }
+        }
+    }
+    if (ready == null) {
+        StartupSplash(error = startupError, onRetry = { startupRetry += 1 }, modifier = modifier)
+        return
+    }
+    ImageToVideoHomeScreen(
+        repository = repository,
+        attributionRuntime = attributionRuntime,
+        startupController = startupController,
+        startupSession = ready.first,
+        startupProfile = ready.second,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun StartupSplash(error: String?, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().background(AchatDeepNavy), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (error == null) CircularProgressIndicator(color = AchatCyan)
+            else {
+                Text(error, color = Color.White)
+                Text(stringResource(R.string.template_feed_retry), color = AchatCyan, modifier = Modifier.clickable(onClick = onRetry))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageToVideoHomeScreen(
+    repository: AchatRepository,
+    attributionRuntime: AppsFlyerBackendAttribution?,
+    startupController: HomeStartupController,
+    startupSession: AuthSession,
+    startupProfile: UserProfile,
+    modifier: Modifier,
+) {
+    val localContext = LocalContext.current
+    val context = localContext.applicationContext
     val localTaskStore = remember(context) { LocalGenerationTaskStore(context) }
     val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
-    val attributionRuntime = remember(context) {
-        if (AnalyticsConsent.granted(context)) AchatAttributionRuntime.get(context) else null
-    }
+    val homeGateRevision by attributionRuntime?.homeGateRevision?.collectAsState()
+        ?: remember { mutableStateOf(0L) }
     val screenScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
@@ -526,6 +615,10 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var startupReloadSerial by remember { mutableIntStateOf(0) }
     var videoTemplateRequestSerial by remember { mutableStateOf(0L) }
     var imageTemplateRequestSerial by remember { mutableStateOf(0L) }
+    val templateRequestJobs = remember { arrayOfNulls<Job>(2) }
+    DisposableEffect(homeGateRevision) {
+        onDispose { templateRequestJobs.forEach { it?.cancel() } }
+    }
     val topUpPaymentViewModel: TopUpPaymentViewModel = hiltViewModel()
     val topUpPaymentController = topUpPaymentViewModel.controller
     val profileEditingViewModel: ProfileEditingViewModel = viewModel()
@@ -581,6 +674,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             profileName = profile.displayName,
             profileId = profile.id,
             profileAvatarUrl = profile.largeAvatarUrl ?: profile.avatarUrl,
+            isNewProfile = profile.isNew,
         )
     }
 
@@ -645,6 +739,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         append: Boolean = false,
     ) {
         val modality = if (section == TemplateSection.Video) "video" else "image"
+        val gateRevisionAtStart = homeGateRevision
+        val gateTargetAtStart = attributionRuntime?.currentGateTarget()
         val requestSerial = when (section) {
             TemplateSection.Video -> ++videoTemplateRequestSerial
             TemplateSection.Image -> ++imageTemplateRequestSerial
@@ -667,13 +763,29 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 imagePaginationErrorMessage = null,
             )
         }
-        screenScope.launch {
-            val result = repository.loadTemplates(
-                modality = modality,
-                sortBy = sortBy,
-                categoryId = categoryId,
-                page = page,
-            )
+        val jobIndex = if (section == TemplateSection.Video) 0 else 1
+        templateRequestJobs[jobIndex]?.cancel()
+        templateRequestJobs[jobIndex] = screenScope.launch {
+            val result = try {
+                startupController.loadTemplates {
+                    if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
+                            gateTargetAtStart != attributionRuntime.currentGateTarget())) {
+                        throw CancellationException("Home attribution changed")
+                    }
+                    repository.loadTemplates(
+                        modality = modality,
+                        sortBy = sortBy,
+                        categoryId = categoryId,
+                        page = page,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                TemplateLoadResult(templates = emptyList(), errorMessage = error.message ?: "Backend unavailable")
+            }
+            if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
+                    gateTargetAtStart != attributionRuntime.currentGateTarget())) return@launch
             val isLatestRequest = when (section) {
                 TemplateSection.Video -> requestSerial == videoTemplateRequestSerial
                 TemplateSection.Image -> requestSerial == imageTemplateRequestSerial
@@ -690,7 +802,8 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     }
 
     fun retryTemplates(section: TemplateSection) {
-        if (templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
+        if (backendState.errorMessage != null || templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
+            attributionRuntime?.retryHomeReport()
             startupReloadSerial += 1
             return
         }
@@ -1007,12 +1120,30 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         analytics.initialize()
     }
 
-    LaunchedEffect(attributionRuntime, repository) {
-        attributionRuntime?.successfulReports?.collectLatest { userId ->
-            if (analytics.currentUserId() != userId) return@collectLatest
+    LaunchedEffect(startupSession, startupProfile) {
+        analytics.identify(startupSession.userId)
+        analytics.mode(if (startupProfile.isNew == true) "B" else "A")
+        applyProfile(startupProfile)
+        topUpPaymentViewModel.syncSession(startupSession)
+        topUpPaymentViewModel.startReconciliation()
+    }
+
+    LaunchedEffect(attributionRuntime, repository, startupSession) {
+        attributionRuntime?.reportReceipts?.filterNotNull()?.collectLatest { receipt ->
+            if (receipt.epoch != startupSession.epoch) return@collectLatest
+            attributionRuntime.awaitHomeDataGate()
             repeat(BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1)) { attempt ->
-                val profile = runCatching { repository.userProfileSnapshot() }.getOrNull()
-                if (profile != null && analytics.currentUserId() == userId) {
+                val profile = try {
+                    withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.userProfileSnapshot() }
+                } catch (_: TimeoutCancellationException) {
+                    null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+                if (profile != null && attributionRuntime.isCurrentReceipt(receipt) &&
+                    attributionRuntime.reportReceipts.value == receipt && analytics.currentUserId() == startupSession.userId) {
                     applyProfile(profile)
                     analytics.mode(if (profile.isNew == true) "B" else "A")
                     return@collectLatest
@@ -1024,10 +1155,12 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(context, startupReloadSerial) {
+    LaunchedEffect(context, startupReloadSerial, homeGateRevision) {
         val profileRevisionAtStart = profileRevision
         val videoRequestSerialAtStart = videoTemplateRequestSerial
         val imageRequestSerialAtStart = imageTemplateRequestSerial
+        val gateRevisionAtStart = homeGateRevision
+        val gateTargetAtStart = attributionRuntime?.currentGateTarget()
         backendState = backendState.copy(
             isLoading = true,
             errorMessage = null,
@@ -1036,15 +1169,18 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             videoTemplateErrorMessage = null,
             imageTemplateErrorMessage = null,
         )
-        runCatching {
-            withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.loadHomeData() }
-        }.onSuccess { homeData ->
-            analytics.identify(homeData.session.userId)
-            topUpPaymentViewModel.syncSession(homeData.session)
-            topUpPaymentViewModel.startReconciliation()
-            if (profileRevision == profileRevisionAtStart) {
-                analytics.mode(if (homeData.profile?.isNew == true) "B" else "A")
+        try {
+            val homeData = startupController.loadHome {
+                if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
+                        gateTargetAtStart != attributionRuntime.currentGateTarget())) {
+                    throw CancellationException("Home attribution changed")
+                }
+                withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) {
+                    repository.loadHomeData(startupSession, startupProfile)
+                }
             }
+            if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
+                    gateTargetAtStart != attributionRuntime.currentGateTarget())) return@LaunchedEffect
             val applyStartupVideo = videoRequestSerialAtStart == videoTemplateRequestSerial
             val applyStartupImage = imageRequestSerialAtStart == imageTemplateRequestSerial
             backendState = backendState.withLoadedProfile(
@@ -1075,7 +1211,14 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
                 videoCategories = homeData.videoCategories,
                 imageCategories = homeData.imageCategories,
             )
-        }.onFailure { error ->
+        } catch (_: TimeoutCancellationException) {
+            if (attributionRuntime != null && gateTargetAtStart != attributionRuntime.currentGateTarget()) return@LaunchedEffect
+            backendState = backendState.copy(isLoading = false, errorMessage = "Backend unavailable", videoTemplatesLoading = false, imageTemplatesLoading = false)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
+                    gateTargetAtStart != attributionRuntime.currentGateTarget())) return@LaunchedEffect
             val rawMessage = error.message ?: "Backend unavailable"
             val applyStartupVideo = videoRequestSerialAtStart == videoTemplateRequestSerial
             val applyStartupImage = imageRequestSerialAtStart == imageTemplateRequestSerial

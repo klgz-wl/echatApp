@@ -9,6 +9,7 @@ data class AuthSession(
     val refreshToken: String,
     val sessionId: String,
     val isAnonymous: Boolean,
+    val epoch: String = java.util.UUID.randomUUID().toString(),
 )
 
 data class UserProfile(

@@ -24,7 +24,7 @@ internal class AchatSessionManager(
     private val attributionReportGuard = Any()
     private var loginFailure: TimedAuthFailure? = null
     private var recoveryFailure: TimedAuthFailure? = null
-    private var lastAttributionReportToken: String? = null
+    private var lastAttributionReportEpoch: String? = null
 
     suspend fun session(): AuthSession = ensureSession()
 
@@ -132,9 +132,9 @@ internal class AchatSessionManager(
 
     private suspend fun reportAttribution(session: AuthSession) {
         val shouldReport = synchronized(attributionReportGuard) {
-            if (lastAttributionReportToken == session.token) false
+            if (lastAttributionReportEpoch == session.epoch) false
             else {
-                lastAttributionReportToken = session.token
+                lastAttributionReportEpoch = session.epoch
                 true
             }
         }
@@ -143,7 +143,7 @@ internal class AchatSessionManager(
             attribution.report(session)
         } catch (_: Exception) {
             synchronized(attributionReportGuard) {
-                if (lastAttributionReportToken == session.token) lastAttributionReportToken = null
+                if (lastAttributionReportEpoch == session.epoch) lastAttributionReportEpoch = null
             }
             // Attribution is telemetry; a report retry/failure must not break authentication.
         }

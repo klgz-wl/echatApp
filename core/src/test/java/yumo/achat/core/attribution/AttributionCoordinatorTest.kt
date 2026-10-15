@@ -9,6 +9,33 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AttributionCoordinatorTest {
+    @Test fun `Organic does not finish stage early and global retry continues`() = runBlocking {
+        val source = Source()
+        val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30),
+            AttributionConfiguration(80, 10, 10, loginTimeoutMillis = 80, homeTimeoutMillis = 80))
+        val waiting = async { repo.awaitInitial() }
+        delay(10)
+        source.conversion.value = ConversionResult.Success(data("Organic"))
+        delay(15)
+        assertFalse(waiting.isCompleted)
+        assertFalse(waiting.await())
+        assertNotNull(repo.snapshots.value)
+        assertTrue(source.retries.get() > 0)
+    }
+
+    @Test fun `post auth window starts after authentication and media ends home early`() = runBlocking {
+        val source = Source()
+        val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30),
+            AttributionConfiguration(20, 10, 10, loginTimeoutMillis = 120, homeTimeoutMillis = 120))
+        assertFalse(repo.awaitInitial())
+        delay(40)
+        val waiting = async { repo.awaitAfterAuth() }
+        delay(30)
+        assertFalse(waiting.isCompleted)
+        source.conversion.value = ConversionResult.Success(data("Non-organic"))
+        assertTrue(waiting.await())
+        assertTrue(repo.awaitHome())
+    }
     private class Source : ConversionSource {
         override val conversion = MutableStateFlow<ConversionResult>(ConversionResult.Pending)
         var starts = 0
@@ -17,6 +44,7 @@ class AttributionCoordinatorTest {
         var succeedAt = Int.MAX_VALUE
         override fun startAttribution() { starts++ }
         override fun retryAttribution() {
+            if ((conversion.value as? ConversionResult.Success)?.data?.isMediaAttribution() == true) return
             if (retries.incrementAndGet() == succeedAt) conversion.value = ConversionResult.Success(buildJsonObject { put("af_status", "Non-organic") })
             else conversion.value = ConversionResult.Failed
         }
@@ -33,11 +61,11 @@ class AttributionCoordinatorTest {
 
     @Test fun `启动等待有效回调但不再选择展示模式`() = runBlocking {
         for (status in listOf("Organic", "Non-organic")) {
-            val source = Source(); val repo = coordinator(source, timeout = 1000)
+            val source = Source(); val repo = coordinator(source, timeout = 70)
             val waiting = async { repo.awaitInitial() }
             delay(20); assertFalse(waiting.isCompleted)
             source.conversion.value = ConversionResult.Success(data(status))
-            assertTrue(waiting.await())
+            assertEquals(status == "Non-organic", waiting.await())
         }
     }
     @Test fun `首次失败或超时放行登录但不伪造自然归因`() = runBlocking {
@@ -81,7 +109,7 @@ class AttributionCoordinatorTest {
         assertEquals(false, repo.awaitInitial())
         source.conversion.value = ConversionResult.Success(data("Non-organic"))
         assertEquals("Non-organic", repo.forLogin().extraData["af_status"]!!.jsonPrimitive.content)
-        assertEquals(false, repo.awaitInitial())
+        assertEquals(true, repo.awaitInitial())
         assertEquals(false, coordinator(Source(), storage).awaitInitial())
         assertEquals(1, source.starts)
     }
@@ -92,20 +120,15 @@ class AttributionCoordinatorTest {
         assertTrue(pending.awaitAll().all { it })
         assertEquals(1, source.starts)
     }
-    @Test fun `全局归因最多重试十次成功后提前停止`() = runBlocking {
-        for (successAt in listOf(3, Int.MAX_VALUE)) {
-            val source = Source().apply { conversion.value = ConversionResult.Failed; succeedAt = successAt }
-            val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30), AttributionConfiguration(20, 10, 10))
-            assertEquals(false, repo.awaitInitial())
-            val expected = minOf(successAt, 10)
-            withTimeout(2000) { while (source.retries.get() < expected) delay(5) }
-            delay(80)
-            assertEquals(expected, source.retries.get()); assertEquals(false, repo.awaitInitial())
-            if (successAt == 3) {
-                assertEquals("Non-organic", repo.snapshots.value?.get("af_status")?.jsonPrimitive?.content)
-                assertEquals("Non-organic", repo.forLogin().extraData["af_status"]?.jsonPrimitive?.content)
-            }
-        }
+    @Test fun `全局重试超过十次后媒体成功才停止`() = runBlocking {
+        val source = Source().apply { conversion.value = ConversionResult.Failed; succeedAt = 12 }
+        val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30), AttributionConfiguration(20, 10, 10))
+        assertEquals(false, repo.awaitInitial())
+        withTimeout(2000) { while (source.retries.get() < 12) delay(5) }
+        delay(80)
+        assertEquals(12, source.retries.get())
+        assertTrue(repo.awaitInitial())
+        assertEquals("Non-organic", repo.snapshots.value?.get("af_status")?.jsonPrimitive?.content)
     }
     @Test fun `缓存读写卡住不阻塞归因超时路由`() = runBlocking {
         val source = Source()
