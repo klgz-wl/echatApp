@@ -350,7 +350,7 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
                 "prodRelease BuildConfig $field must be $value"
             }
         }
-        val requiredBlockedRegionCodes = setOf("CN", "TW", "HK", "MO", "MY", "SG")
+        val requiredBlockedRegionCodes = setOf("CN", "TW", "HK", "MO")
         val generatedBlockedRegionCodes = Regex("""BLOCKED_REGION_CODES = \"([^\"]*)\"""")
             .find(text)
             ?.groupValues

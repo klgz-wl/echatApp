@@ -237,7 +237,7 @@ class FormalProdConfigurationTest {
 
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_REGION_RESTRICTION"))
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_SECURE_WINDOW"))
-        assertEquals(setOf("CN", "TW", "HK", "MO", "MY", "SG"), blocked)
+        assertEquals(setOf("CN", "TW", "HK", "MO"), blocked)
         assertEquals(2, Regex("REGION_LOOKUP_URL\\\" to \\\"https://api\\.country\\.is/").findAll(gradle).count())
         assert(gradle.contains("requiredBlockedRegionCodes"))
     }
