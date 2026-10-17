@@ -5,6 +5,8 @@ data class AppsFlyerConfig(
     val debugLogging: Boolean,
     val enabled: Boolean,
     val diagnosticLogging: Boolean,
+    val gcd: GcdRecheckConfig,
+    val canCollect: () -> Boolean,
     val eventQueueCapacity: Int = 64,
     val minSessionIntervalSeconds: Int = 1,
     val requestTimeoutMillis: Long = 15_000,

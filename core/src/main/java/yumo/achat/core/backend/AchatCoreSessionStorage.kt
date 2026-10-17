@@ -53,6 +53,7 @@ class AchatCoreSessionStorage @Inject constructor(
                 refreshToken = session.refreshToken,
                 sessionId = previous?.sessionId.orEmpty(),
                 isAnonymous = previous?.isAnonymous ?: true,
+                epoch = previous?.epoch ?: session.epoch,
             )
         check(store.saveSessionIfTokenUnchanged(previous?.token, updated)) {
             "Host session changed while Core payment refreshed"

@@ -22,37 +22,56 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     private val config: AppsFlyerConfig) : AnalyticsSink, AttributionIdProvider, ConversionSource {
     @Volatile private var ready = false
     @Volatile private var started = false
+    @Volatile private var sdkMediaObserved = false
     private val sdkLock = Any()
     private val pendingEvents = PendingAppsFlyerEvents(config.eventQueueCapacity)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutableStartStatus = MutableStateFlow(AttributionStartStatus(AttributionStartStage.NOT_REQUESTED))
     val startStatus = mutableStartStatus.asStateFlow()
+    private val conversionState = AppsFlyerConversionState()
+    override val conversion = conversionState.conversion
     private val foregroundStart = ForegroundAttributionStart<Activity>(
         valid = { !it.isFinishing && !it.isDestroyed }, start = ::startWithActivity,
         timeoutMillis = config.requestTimeoutMillis,
         minIntervalMillis = config.minSessionIntervalSeconds * 1_000L)
+    private val gcdClient = GcdAttributionClient(config.gcd, context.packageName, config.devKey)
+    private val gcd = GcdRecheckCoordinator<Activity>(
+        scope = scope,
+        minIntervalMillis = config.gcd.minIntervalMillis,
+        timeoutMillis = config.gcd.timeoutMillis,
+        nowNanos = System::nanoTime,
+        uid = ::currentId,
+        eligible = { ready && config.enabled && config.canCollect() && !sdkMediaObserved },
+        validHost = { !it.isFinishing && !it.isDestroyed },
+        fetch = gcdClient::fetch,
+        onMedia = conversionState::httpMedia,
+    )
     private val callbackSequencer = AppsFlyerConversionCallbackSequencer()
     private val callbackEvents = ConversionCallbackEvents<AppsFlyerConversionCallback>()
     val conversionCallbacks = callbackEvents.events
     private var gaidRequested = false
-    private val mutable = MutableStateFlow<ConversionResult>(ConversionResult.Pending)
-    override val conversion = mutable.asStateFlow()
     @Volatile private var gaid: String? = null
     /** 仅在地区检查通过后，由 MainActivity 的 RESUMED 生命周期绑定。 */
-    fun onActivityResumed(activity: Activity) { foregroundStart.attach(activity) }
-    fun onActivityPaused(activity: Activity) { foregroundStart.detach(activity) }
+    fun onActivityResumed(activity: Activity) { foregroundStart.attach(activity); gcd.attach(activity) }
+    fun onActivityPaused(activity: Activity) { foregroundStart.detach(activity); gcd.detach(activity) }
+    fun onAccessRevoked() { foregroundStart.revokeAccess(); gcd.revokeAccess() }
 
     override fun initialize() = startAttribution()
     override fun startAttribution() { requestStart(retry = false) }
     override fun retryAttribution() { requestStart(retry = true) }
     private fun requestStart(retry: Boolean) {
         scope.launch {
-            if (!config.enabled) {
+            if (!config.enabled || !config.canCollect()) {
                 updateStartStatus(AttributionStartStage.DISABLED)
-                mutable.value = ConversionResult.Failed
+                conversionState.sdkFailure()
                 return@launch
             }
-            if (retry && (mutable.value as? ConversionResult.Success)?.data?.get("af_status")?.toString()?.contains("Non-organic", ignoreCase = true) == true) return@launch
+            val known = conversionState.data
+            if (known?.isMediaAttribution() == true) return@launch
+            if (known?.hasValidAttribution() == true) {
+                gcd.request()
+                return@launch
+            }
             if (mutableStartStatus.value.stage == AttributionStartStage.NOT_REQUESTED)
                 updateStartStatus(AttributionStartStage.WAITING_FOR_ACTIVITY)
             foregroundStart.request(retry)
@@ -76,24 +95,28 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                     init(config.devKey, object : AppsFlyerConversionListener {
                         override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
                             val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
+                            if (snapshot.isMediaAttribution()) sdkMediaObserved = true
                             val status = (snapshot["af_status"] as? JsonPrimitive)?.contentOrNull
                             val callbackAttempt = foregroundStart.latestAttempt
                             callbackEvents.publish(callbackSequencer.success(status, callbackAttempt))
-                            scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
-                            if (snapshot.hasValidAttribution()) {
-                                val current = (mutable.value as? ConversionResult.Success)?.data
-                                val mediaAlreadyKnown = (current?.get("af_status") as? JsonPrimitive)
-                                    ?.contentOrNull?.equals("Non-organic", ignoreCase = true) == true
-                                if (!mediaAlreadyKnown || status.equals("Non-organic", ignoreCase = true))
-                                    mutable.value = ConversionResult.Success(snapshot)
-                            } else if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
-                            diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
+                            scope.launch {
+                                conversionState.sdkSnapshot(snapshot)
+                                if (snapshot.isMediaAttribution()) gcd.sdkMedia()
+                                else if (status.equals("Organic", ignoreCase = true)) {
+                                    foregroundStart.dropPendingRetry()
+                                    gcd.sdkOrganic()
+                                }
+                                foregroundStart.conversionFinished(callbackAttempt)
+                                diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
+                            }
                         }
                         override fun onConversionDataFail(message: String?) {
                             val callbackAttempt = foregroundStart.latestAttempt
                             callbackEvents.publish(callbackSequencer.failure(callbackAttempt))
-                            scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
-                            if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
+                            scope.launch {
+                                conversionState.sdkFailure()
+                                foregroundStart.conversionFinished(callbackAttempt)
+                            }
                             // 仅提取 SDK 已知格式中的 HTTP 数字，不输出任意回调原文。
                             val status = Regex("^Launch status code: ([0-9]{3})$")
                                 .matchEntire(message.orEmpty().trim())?.groupValues?.get(1)
@@ -101,13 +124,17 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                         }
                         override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
                             val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
-                            if (snapshot.hasValidAttribution()) mutable.value = ConversionResult.Success(snapshot)
+                            if (snapshot.isMediaAttribution()) sdkMediaObserved = true
+                            if (snapshot.hasValidAttribution()) scope.launch {
+                                conversionState.sdkSnapshot(snapshot)
+                                if (snapshot.isMediaAttribution()) gcd.sdkMedia()
+                            }
                         }
                         override fun onAttributionFailure(message: String?) { /* 保留已有安装归因。 */ }
                     }, context)
                     ready = true
                 }
-                if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Pending
+                conversionState.startPending()
                 updateStartStatus(AttributionStartStage.START_CALLED)
                 // 延迟启动必须传当前 Activity；Application Context 会遗漏已经发生的首次前台事件。
                 start(activity, config.devKey, object : AppsFlyerRequestListener {
@@ -125,7 +152,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                             if (attempt == foregroundStart.latestAttempt) {
                                 foregroundStart.launchFailed(attempt)
                                 updateStartStatus(AttributionStartStage.REQUEST_FAILED, code)
-                                if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
+                                conversionState.sdkFailure()
                             }
                         }
                     }
@@ -142,7 +169,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
         } catch (_: Exception) {
             foregroundStart.launchFailed(attempt)
             updateStartStatus(AttributionStartStage.INITIALIZATION_FAILED)
-            if (mutable.value !is ConversionResult.Success) mutable.value = ConversionResult.Failed
+            conversionState.sdkFailure()
             return false
         }
     }

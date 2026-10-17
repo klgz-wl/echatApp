@@ -19,7 +19,9 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import yumo.achat.app.BuildConfig
+import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.ui.imagevideo.achatBackendConfiguration
 import yumo.achat.core.attribution.AttributionConfiguration
 import yumo.achat.core.attribution.AttributionCoordinator
@@ -36,6 +38,7 @@ import yumo.achat.core.backend.BackendAttribution
 import yumo.achat.core.config.ClientIdentity
 import yumo.achat.core.integration.appsflyer.AppsFlyerAnalytics
 import yumo.achat.core.integration.appsflyer.AppsFlyerConfig
+import yumo.achat.core.integration.appsflyer.GcdRecheckConfig
 
 internal object AchatAttributionRuntime {
     @Volatile private var instance: AppsFlyerBackendAttribution? = null
@@ -65,6 +68,12 @@ internal class AppsFlyerBackendAttribution(
             debugLogging = BuildConfig.APPSFLYER_DEBUG_LOGGING && BuildConfig.DEBUG,
             enabled = BuildConfig.ENABLE_APPSFLYER,
             diagnosticLogging = BuildConfig.APPSFLYER_DIAGNOSTIC_LOGGING,
+            canCollect = { AnalyticsConsent.granted(appContext) },
+            gcd = GcdRecheckConfig(
+                baseUrl = BuildConfig.APPSFLYER_GCD_BASE_URL.toHttpUrl(),
+                minIntervalMillis = BuildConfig.APPSFLYER_GCD_MIN_INTERVAL_MS.toLong(),
+                timeoutMillis = BuildConfig.APPSFLYER_GCD_TIMEOUT_MS.toLong(),
+            ),
             eventQueueCapacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
             minSessionIntervalSeconds = BuildConfig.APPSFLYER_MIN_SESSION_INTERVAL_SECONDS,
             requestTimeoutMillis = BuildConfig.APPSFLYER_REQUEST_TIMEOUT_MILLIS.toLong(),
@@ -166,6 +175,10 @@ internal class AppsFlyerBackendAttribution(
 
     fun onActivityPaused(activity: Activity) {
         source.onActivityPaused(activity)
+    }
+
+    fun onAccessRevoked() {
+        source.onAccessRevoked()
     }
 
     override suspend fun forLogin(installDeviceId: String): LoginAttribution =

@@ -74,4 +74,36 @@ class ForegroundAttributionStartTest {
         f.now = 1_000; f.succeeds = true; f.start.request(retry = true)
         assertEquals(listOf(valid, valid), f.started.map { it.first })
     }
+
+    @Test fun `Organic callback clears a queued SDK restart`() {
+        val f = Fixture()
+        f.start.attach(Host())
+        f.start.request()
+        val first = f.started.single().second
+        f.start.request(retry = true)
+        f.start.dropPendingRetry()
+        f.now = 1_000
+        f.start.launchAccepted(first)
+        f.start.conversionFinished(first)
+
+        assertEquals(1, f.started.size)
+    }
+
+    @Test fun `revoked access removes foreground SDK host and pending retry`() {
+        val f = Fixture()
+        val host = Host()
+        f.start.attach(host)
+        f.start.request()
+        val first = f.started.single().second
+        f.start.request(retry = true)
+        f.start.revokeAccess()
+        f.now = 1_000
+        f.start.launchAccepted(first)
+        f.start.conversionFinished(first)
+        f.start.request(retry = true)
+        assertEquals(1, f.started.size)
+        f.start.attach(host)
+        f.start.request(retry = true)
+        assertEquals(2, f.started.size)
+    }
 }

@@ -29,6 +29,12 @@ internal class ForegroundAttributionStart<T : Any>(
         retryPending = retryPending || retry
         dispatch()
     }
+    fun dropPendingRetry() { retryPending = false }
+    fun revokeAccess() {
+        host.clear()
+        requested = false
+        retryPending = false
+    }
     fun launchAccepted(attempt: Long) { if (attempt == activeAttempt) { launchPending = false; dispatch() } }
     fun launchFailed(attempt: Long) {
         if (attempt == activeAttempt) {

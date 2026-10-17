@@ -52,10 +52,16 @@ fun attributionPayload(data: JsonObject, identity: ClientIdentity, deviceId: Str
     fun value(vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
         (data[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
     }
+    val mediaSource = value("media_source", "network")?.lowercase().orEmpty()
+    val metaShaped = value("is_fb")?.equals("true", ignoreCase = true) == true ||
+        listOf("facebook", "instagram", "meta ads", "audience network").any(mediaSource::contains) ||
+        value("adset", "adset_id") != null
     return LoginAttribution("appsflyer", deviceId, afUid.ifBlank { value("af_uid").orEmpty() },
         value("media_source", "network"), value("campaign"), value("campaign_id", "af_c_id"),
-        value("af_adset", "adgroup"), value("af_adset_id", "adgroup_id"),
-        value("af_ad", "creative"), value("af_ad_id", "creative_id"),
+        if (metaShaped) value("af_adset", "adset") else value("af_adset", "adgroup"),
+        if (metaShaped) value("af_adset_id", "adset_id") else value("af_adset_id", "adgroup_id"),
+        if (metaShaped) value("af_ad", "adgroup", "creative") else value("af_ad", "creative"),
+        if (metaShaped) value("af_ad_id", "adgroup_id", "creative_id") else value("af_ad_id", "creative_id"),
         value("af_channel", "channel"), value("country_code", "country"), "android",
         identity.versionName, identity.packageName, data)
 }

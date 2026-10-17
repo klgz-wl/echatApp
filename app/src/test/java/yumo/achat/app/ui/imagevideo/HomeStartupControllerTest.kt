@@ -1,6 +1,8 @@
 package yumo.achat.app.ui.imagevideo
 
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
+import javax.net.ssl.SSLException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -69,5 +71,73 @@ class HomeStartupControllerTest {
         assertThrows(IllegalStateException::class.java) { runBlocking { controller.loadHome { calls += "home" } } }
         assertThrows(IllegalStateException::class.java) { runBlocking { controller.loadTemplates { calls += "page" } } }
         assertEquals(listOf("window", "gate", "window", "gate"), calls)
+    }
+
+    @Test fun `transient TLS login and profile IO failures recover within their stage budgets`() = runBlocking {
+        var authAttempts = 0
+        var profileAttempts = 0
+        val controller = HomeStartupController(
+            awaitPreAuth = {}, awaitPostAuth = {}, awaitHomeWindow = {}, awaitHomeDataGate = {},
+            networkTimeoutMillis = 3_000,
+        )
+
+        val result = controller.startup(
+            authenticate = {
+                authAttempts++
+                if (authAttempts < 3) throw SSLException("Unable to parse TLS packet header")
+                "session"
+            },
+            profile = {
+                profileAttempts++
+                if (profileAttempts == 1) throw IOException("unexpected end of stream")
+                "profile"
+            },
+        )
+
+        assertEquals("session" to "profile", result)
+        assertEquals(3, authAttempts)
+        assertEquals(2, profileAttempts)
+    }
+
+    @Test fun `persistent network failure stops after three attempts`() = runBlocking {
+        var attempts = 0
+        val controller = HomeStartupController(
+            awaitPreAuth = {}, awaitPostAuth = {}, awaitHomeWindow = {}, awaitHomeDataGate = {},
+            networkTimeoutMillis = 3_000,
+        )
+
+        assertThrows(IOException::class.java) {
+            runBlocking {
+                controller.startup(
+                    authenticate = { attempts++; throw IOException("offline") },
+                    profile = { "profile" },
+                )
+            }
+        }
+        assertEquals(3, attempts)
+    }
+
+    @Test fun `profile retry waits past cached refresh failure`() = runBlocking {
+        var firstFailureAtNanos = 0L
+        var attempts = 0
+        val controller = HomeStartupController(
+            awaitPreAuth = {}, awaitPostAuth = {}, awaitHomeWindow = {}, awaitHomeDataGate = {},
+            networkTimeoutMillis = 5_000,
+        )
+
+        val result = controller.startup(
+            authenticate = { "session" },
+            profile = {
+                attempts++
+                if (firstFailureAtNanos == 0L) firstFailureAtNanos = System.nanoTime()
+                if ((System.nanoTime() - firstFailureAtNanos) < 1_000_000_000L) {
+                    throw IOException("cached refresh failure")
+                }
+                "profile"
+            },
+        )
+
+        assertEquals("session" to "profile", result)
+        assertEquals(2, attempts)
     }
 }

@@ -49,6 +49,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var sessionCoordinatorProvider: Lazy<SessionCoordinator>
     @Inject lateinit var rechargeNotificationsProvider: Lazy<RechargeNotifications>
     private var businessStarted = false
+    private var attributionStarted = false
+    private var regionAllowed = false
 
     private fun beginBusinessStartup() {
         if (businessStarted) return
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
         }
         if (AnalyticsConsent.granted(this) && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             AchatAttributionRuntime.get(this).onActivityResumed(this)
+            attributionStarted = true
         }
         lifecycleScope.launch {
             billingProvider.get().recovered.collect { orderId ->
@@ -87,7 +90,18 @@ class MainActivity : ComponentActivity() {
                 val state by gate.state.collectAsState()
                 LaunchedEffect(Unit) { gate.check() }
                 LaunchedEffect(state.allowed) {
-                    if (state.allowed) beginBusinessStartup()
+                    regionAllowed = state.allowed
+                    if (state.allowed) {
+                        val wasStarted = businessStarted
+                        beginBusinessStartup()
+                        if (wasStarted && AnalyticsConsent.granted(this@MainActivity) &&
+                            lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                            AchatAttributionRuntime.get(this@MainActivity).onActivityResumed(this@MainActivity)
+                            attributionStarted = true
+                        }
+                    } else if (attributionStarted) {
+                        AchatAttributionRuntime.get(this@MainActivity).onAccessRevoked()
+                    }
                 }
                 BackHandler(enabled = !state.allowed) { finishAndRemoveTask() }
                 when {
@@ -104,8 +118,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (businessStarted && AnalyticsConsent.granted(this)) {
+        if (businessStarted && regionAllowed && AnalyticsConsent.granted(this)) {
             AchatAttributionRuntime.get(this).onActivityResumed(this)
+            attributionStarted = true
         }
     }
 
@@ -134,7 +149,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        if (businessStarted && AnalyticsConsent.granted(this)) {
+        if (attributionStarted) {
             AchatAttributionRuntime.get(this).onActivityPaused(this)
         }
         super.onPause()

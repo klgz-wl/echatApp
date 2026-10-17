@@ -178,4 +178,47 @@ class AttributionCoordinatorTest {
         assertEquals(raw, payload.extraData); assertEquals(JsonPrimitive(true), raw["is_first_launch"])
         assertEquals(JsonPrimitive(123), raw["campaign_id"])
     }
+
+    @Test fun `Meta GCD adset and adgroup map to separate business levels`() {
+        val raw = Json.parseToJsonElement("""{
+            "af_status":"Non-organic","is_fb":true,"media_source":"Facebook Ads",
+            "adset":"set-name","adset_id":"set-id","adgroup":"ad-name","adgroup_id":"ad-id",
+            "nested":{"enabled":true,"counts":[1,null]}
+        }""").jsonObject
+        val identity = ClientIdentity("android.package", "2.0", 30)
+        val login = attributionPayload(raw, identity, "device", "af-uid")
+        val report = deviceAttributionReport(raw, identity, "device", "user")
+
+        assertEquals("set-name", login.adgroup)
+        assertEquals("set-id", login.adgroupId)
+        assertEquals("ad-name", login.creative)
+        assertEquals("ad-id", login.creativeId)
+        assertEquals(JsonPrimitive("set-name"), report["adgroup"])
+        assertEquals(JsonPrimitive("ad-name"), report["creative"])
+        assertEquals(raw.getValue("nested"), login.extraData.getValue("nested"))
+    }
+
+    @Test fun `Meta mapping prefers af fields without promoting an ad to a missing adset`() {
+        val identity = ClientIdentity("android.package", "2.0", 30)
+        val preferred = Json.parseToJsonElement("""{
+            "af_status":"Non-organic","is_fb":true,
+            "af_adset":"sdk-set","af_adset_id":"sdk-set-id","adset":"gcd-set","adset_id":"gcd-set-id",
+            "af_ad":"sdk-ad","af_ad_id":"sdk-ad-id","adgroup":"gcd-ad","adgroup_id":"gcd-ad-id"
+        }""").jsonObject
+        val adOnly = Json.parseToJsonElement("""{
+            "af_status":"Non-organic","is_fb":true,"adgroup":"ad-name","adgroup_id":"ad-id"
+        }""").jsonObject
+        val generic = Json.parseToJsonElement("""{
+            "af_status":"Non-organic","media_source":"other","adgroup":"generic-set","adgroup_id":"generic-set-id",
+            "creative":"generic-ad","creative_id":"generic-ad-id"
+        }""").jsonObject
+
+        assertEquals("sdk-set", attributionPayload(preferred, identity, "device", "af").adgroup)
+        assertEquals("sdk-ad", attributionPayload(preferred, identity, "device", "af").creative)
+        assertEquals(null, attributionPayload(adOnly, identity, "device", "af").adgroup)
+        assertEquals(null, attributionPayload(adOnly, identity, "device", "af").adgroupId)
+        assertEquals("ad-name", attributionPayload(adOnly, identity, "device", "af").creative)
+        assertEquals("generic-set", attributionPayload(generic, identity, "device", "af").adgroup)
+        assertEquals("generic-ad", attributionPayload(generic, identity, "device", "af").creative)
+    }
 }
