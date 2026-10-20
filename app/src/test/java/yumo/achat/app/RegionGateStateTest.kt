@@ -18,7 +18,8 @@ class RegionGateStateTest {
         assertTrue(shouldEnableSecureWindow(configured = true, debug = false))
         assertTrue(shouldEnableRegionRestriction(configured = true, debug = false))
         assertFalse(shouldEnableSecureWindow(configured = true, debug = true))
-        assertFalse(shouldEnableRegionRestriction(configured = true, debug = true))
+        assertTrue(shouldEnableRegionRestriction(configured = true, debug = true))
+        assertFalse(shouldEnableRegionRestriction(configured = false, debug = true))
     }
 
     @Test

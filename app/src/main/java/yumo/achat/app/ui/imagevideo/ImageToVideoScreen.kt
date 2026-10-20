@@ -80,6 +80,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1156,6 +1157,7 @@ private fun ImageToVideoHomeScreen(
     }
 
     LaunchedEffect(context, startupReloadSerial, homeGateRevision) {
+        withFrameNanos { }
         val profileRevisionAtStart = profileRevision
         val videoRequestSerialAtStart = videoTemplateRequestSerial
         val imageRequestSerialAtStart = imageTemplateRequestSerial

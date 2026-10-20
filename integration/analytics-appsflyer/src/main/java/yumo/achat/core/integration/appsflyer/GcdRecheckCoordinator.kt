@@ -3,42 +3,43 @@ package yumo.achat.core.integration.appsflyer
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import yumo.achat.core.attribution.AttributionResultSource
 import yumo.achat.core.attribution.isMediaAttribution
 
-/** Process-owned GCD slot. Call its entry points from the owner's main-thread scope. */
+/** Two finite process opportunities: one after SDK Organic and one after the first home frame. */
 internal class GcdRecheckCoordinator<H : Any>(
     private val scope: CoroutineScope,
-    private val minIntervalMillis: Long,
     private val timeoutMillis: Long,
-    private val nowNanos: () -> Long,
     private val uid: () -> String,
     private val eligible: () -> Boolean,
     private val validHost: (H) -> Boolean,
     private val fetch: suspend (String) -> JsonObject?,
-    private val onMedia: (JsonObject) -> Unit,
+    private val referrer: suspend (String) -> JsonObject?,
+    private val onResult: (AttributionResultSource, JsonObject) -> Unit,
 ) {
     private var host = WeakReference<H>(null)
     private var allowed = false
     private var organicSeen = false
     private var mediaKnown = false
+    private var preAttempted = false
+    private var homeAttempted = false
     private var inFlight: Job? = null
-    private var lastStartedNanos: Long? = null
+    private val mutablePreHomeComplete = MutableStateFlow(false)
+    val preHomeComplete = mutablePreHomeComplete.asStateFlow()
 
-    init {
-        require(minIntervalMillis > 0)
-        require(timeoutMillis > 0)
-    }
+    init { require(timeoutMillis > 0) }
 
     fun attach(value: H) {
         allowed = true
         host = WeakReference(value)
-        request()
+        startPreHomeIfReady()
     }
 
     fun detach(value: H) {
@@ -57,48 +58,65 @@ internal class GcdRecheckCoordinator<H : Any>(
     fun sdkOrganic() {
         if (mediaKnown) return
         organicSeen = true
-        request()
+        startPreHomeIfReady()
     }
 
     fun sdkMedia() {
         mediaKnown = true
+        mutablePreHomeComplete.value = true
         inFlight?.cancel()
     }
 
-    fun request() {
-        if (!organicSeen || mediaKnown || !allowed || !eligible()) return
-        if (host.get()?.takeIf(validHost) == null || inFlight != null) return
+    private fun startPreHomeIfReady() {
+        if (!organicSeen || preAttempted || mediaKnown || inFlight != null) return
+        if (!requestAllowed()) return
         val requestUid = uid().takeIf(String::isNotBlank) ?: return
-        val now = nowNanos()
-        if (lastStartedNanos?.let { now - it < minIntervalMillis * 1_000_000L } == true) return
-
-        val job = scope.launch(start = CoroutineStart.LAZY) {
-            if (!allowed || !eligible() || mediaKnown || host.get()?.takeIf(validHost) == null ||
-                uid() != requestUid) return@launch
-            lastStartedNanos = nowNanos()
-            val result = try {
-                withTimeout(timeoutMillis) { fetch(requestUid) }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                null
-            }
-            if (result?.isMediaAttribution() == true && allowed && eligible() && !mediaKnown &&
-                host.get()?.takeIf(validHost) != null && uid() == requestUid) {
-                val boundResult = JsonObject(result + ("af_uid" to JsonPrimitive(requestUid)))
-                onMedia(boundResult)
-                mediaKnown = true
-            }
-        }
-        inFlight = job
-        job.invokeOnCompletion {
-            scope.launch {
-                if (inFlight === job) {
-                    inFlight = null
-                    request()
-                }
-            }
-        }
-        job.start()
+        preAttempted = true
+        launch(Opportunity.PRE_HOME, requestUid)
     }
+
+    suspend fun verifyHome() {
+        inFlight?.join()
+        if (mediaKnown || homeAttempted) return
+        homeAttempted = true
+        if (!requestAllowed()) return
+        val requestUid = uid().takeIf(String::isNotBlank) ?: return
+        val job = launch(Opportunity.HOME, requestUid)
+        job.join()
+    }
+
+    private fun launch(opportunity: Opportunity, requestUid: String): Job = scope.launch {
+        try {
+            val result = withTimeoutOrNull(timeoutMillis) { fetch(requestUid) } ?: return@launch
+            if (!responseAllowed(requestUid)) return@launch
+            val bound = JsonObject(result + ("af_uid" to JsonPrimitive(requestUid)))
+            onResult(AttributionResultSource.GCD_HTTP, bound)
+            if (bound.isMediaAttribution()) {
+                mediaKnown = true
+                return@launch
+            }
+            val supplement = withTimeoutOrNull(timeoutMillis) { referrer(requestUid) }
+            if (supplement != null && responseAllowed(requestUid)) {
+                onResult(AttributionResultSource.GOOGLE_INSTALL_REFERRER, supplement)
+                mediaKnown = supplement.isMediaAttribution()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // This opportunity is finite; preserve prior evidence and let the caller continue.
+        } finally {
+            if (opportunity == Opportunity.PRE_HOME) mutablePreHomeComplete.value = true
+        }
+    }.also { job ->
+        inFlight = job
+        job.invokeOnCompletion { if (inFlight === job) inFlight = null }
+    }
+
+    private fun requestAllowed(): Boolean =
+        allowed && eligible() && host.get()?.takeIf(validHost) != null
+
+    private fun responseAllowed(requestUid: String): Boolean =
+        !mediaKnown && requestAllowed() && uid() == requestUid
+
+    private enum class Opportunity { PRE_HOME, HOME }
 }

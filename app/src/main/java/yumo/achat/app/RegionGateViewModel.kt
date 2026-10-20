@@ -32,7 +32,7 @@ internal data class RegionGateState(
 )
 
 internal fun shouldEnableSecureWindow(configured: Boolean, debug: Boolean): Boolean = configured && !debug
-internal fun shouldEnableRegionRestriction(configured: Boolean, debug: Boolean): Boolean = configured && !debug
+internal fun shouldEnableRegionRestriction(configured: Boolean, @Suppress("UNUSED_PARAMETER") debug: Boolean): Boolean = configured
 internal fun regionNetworkConnected(hasInternet: Boolean, captivePortal: Boolean): Boolean =
     hasInternet && !captivePortal
 

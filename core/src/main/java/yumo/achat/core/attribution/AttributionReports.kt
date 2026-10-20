@@ -19,13 +19,29 @@ interface AttributionReportApi {
     @POST("attribution/report") suspend fun report(@Body payload: JsonObject): ApiResponse<Unit>
 }
 
-fun deviceAttributionReport(data: JsonObject, identity: ClientIdentity, deviceId: String, userId: String?): JsonObject {
-    val attribution = attributionPayload(data, identity, deviceId, "")
+fun deviceAttributionReport(
+    data: JsonObject,
+    identity: ClientIdentity,
+    deviceId: String,
+    userId: String?,
+    metadata: AttributionReportMetadata? = null,
+): JsonObject {
+    val source = metadata?.source ?: AttributionResultSource.APPSFLYER_SDK
+    val attribution = attributionPayload(data, identity, deviceId, "", source)
     val extraData = data.withAppUserId(userId)
     return buildJsonObject {
         put("device_id", deviceId); put("package_name", identity.packageName)
         put("platform", "android"); put("app_version", identity.versionName)
-        put("attribution_source", "AppsFlyer")
+        put("attribution_source", if (source == AttributionResultSource.GOOGLE_INSTALL_REFERRER) "GooglePlayInstallReferrer" else "AppsFlyer")
+        metadata?.let {
+            put("report_id", it.reportId)
+            put("startup_elapsed_ms", it.startupElapsedMillis)
+            put("attribution_result_index", it.resultIndex)
+            put("attribution_stage", it.stage.wireName)
+            put("attribution_result_source", it.source.wireName)
+            put("is_install_referrer_supplement", it.source == AttributionResultSource.GOOGLE_INSTALL_REFERRER)
+            put("is_gcd_http_result", it.source == AttributionResultSource.GCD_HTTP)
+        }
         userId?.let { put("user_id", it) }
         attribution.afUid.takeIf { it.isNotBlank() }?.let { put("af_uid", it) }
         attribution.network?.let { put("network", it) }

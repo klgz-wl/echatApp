@@ -28,7 +28,6 @@ import org.junit.Test
 class GcdAttributionClientTest {
     private val config = GcdRecheckConfig(
         baseUrl = "https://gcdsdk.appsflyer.com/install_data/v4.0/".toHttpUrl(),
-        minIntervalMillis = 5_000,
         timeoutMillis = 10_000,
     )
 

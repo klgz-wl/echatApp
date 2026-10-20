@@ -63,6 +63,7 @@ internal object AchatAnalyticsRuntime {
         val attributionRuntime = if (policy.appsFlyer) AchatAttributionRuntime.get(context) else null
         var thinkingDataAttributionSink: ThinkingDataAnalytics? = null
         var firebaseCampaignSink: FirebaseAnalyticsSink? = null
+        var backendAttributionSink: BackendHttpAnalyticsSink? = null
         val sinks = buildList {
             if (consentGranted && (policy.firebase || BuildConfig.ENABLE_FIREBASE_CRASHLYTICS || BuildConfig.ENABLE_FIREBASE_MESSAGING)) {
                 add(
@@ -109,7 +110,7 @@ internal object AchatAnalyticsRuntime {
                     store = SharedPreferencesBackendRequestStore(
                         context.getSharedPreferences("${BuildConfig.ANALYTICS_STORAGE_NAME}_backend", Context.MODE_PRIVATE),
                     ),
-                ),
+                ).also { backendAttributionSink = it },
             )
         }
         val eventPreferences = context.getSharedPreferences(BuildConfig.ANALYTICS_STORAGE_NAME, Context.MODE_PRIVATE)
@@ -137,6 +138,7 @@ internal object AchatAnalyticsRuntime {
             attributionSnapshots = attributionRuntime?.snapshots(),
             campaignAttributionSink = firebaseCampaignSink,
             thinkingDataAttributionSink = thinkingDataAttributionSink,
+            backendAttributionSink = backendAttributionSink,
         )
         val preferences = eventPreferences
         hub.foregroundAnalytics = ForegroundAnalytics(
@@ -166,6 +168,7 @@ internal class AppAnalyticsHub(
     private val attributionSnapshots: StateFlow<JsonObject?>? = null,
     private val campaignAttributionSink: FirebaseAnalyticsSink? = null,
     private val thinkingDataAttributionSink: ThinkingDataAnalytics? = null,
+    private val backendAttributionSink: BackendHttpAnalyticsSink? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : EventTracker {
     internal lateinit var foregroundAnalytics: ForegroundAnalytics
@@ -176,21 +179,47 @@ internal class AppAnalyticsHub(
     fun initialize() {
         if (!initialized.compareAndSet(false, true)) return
         sinks.forEach { sink ->
-            if (sink is AppsFlyerAnalytics && thinkingDataAttributionSink != null) {
+            if (sink is AppsFlyerAnalytics && (thinkingDataAttributionSink != null || backendAttributionSink != null)) {
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     sink.conversionCallbacks.collect { callback ->
-                        synchronized(sinkLocks.getValue(thinkingDataAttributionSink)) {
-                            runCatching {
-                                thinkingDataAttributionSink.attributionResult(
-                                    ThinkingDataAttributionResult(
-                                        callbackId = callback.callbackId,
-                                        requestAttempt = callback.requestAttempt,
-                                        appVersion = BuildConfig.VERSION_NAME,
-                                        attributionStatus = callback.attributionStatus,
-                                        failureReason = callback.failureReason,
-                                    ),
-                                    activeUserId,
-                                )
+                        val callbackUserId = activeUserId
+                        thinkingDataAttributionSink?.let { thinkingData ->
+                            synchronized(sinkLocks.getValue(thinkingData)) {
+                                runCatching {
+                                    thinkingData.attributionResult(
+                                        ThinkingDataAttributionResult(
+                                            callbackId = callback.callbackId,
+                                            requestAttempt = callback.requestAttempt,
+                                            appVersion = BuildConfig.VERSION_NAME,
+                                            attributionStatus = callback.attributionStatus,
+                                            failureReason = callback.failureReason,
+                                        ),
+                                        callbackUserId,
+                                    )
+                                }
+                            }
+                        }
+                        backendAttributionSink?.let { backend ->
+                            synchronized(sinkLocks.getValue(backend)) {
+                                runCatching {
+                                    try {
+                                        backend.identify(callbackUserId)
+                                        val parameters = mutableMapOf<String, Any>(
+                                            "callback_id" to callback.callbackId,
+                                            "request_attempt" to callback.requestAttempt,
+                                            "app_version" to BuildConfig.VERSION_NAME,
+                                            "platform" to "android",
+                                        )
+                                        callback.attributionStatus?.let { parameters["attribution_status"] = it }
+                                        callback.failureReason?.let { parameters["failure_reason"] = it }
+                                        backend.event(
+                                            if (callback.attributionStatus != null) "attribution_success" else "attribution_failure",
+                                            parameters,
+                                        )
+                                    } finally {
+                                        backend.identify(activeUserId)
+                                    }
+                                }
                             }
                         }
                     }

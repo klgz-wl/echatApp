@@ -19,12 +19,11 @@ import yumo.achat.core.attribution.hasValidAttribution
 
 data class GcdRecheckConfig(
     val baseUrl: HttpUrl,
-    val minIntervalMillis: Long,
     val timeoutMillis: Long,
 ) {
     init {
         require(baseUrl.scheme == "https" && baseUrl.encodedPath.endsWith('/'))
-        require(minIntervalMillis > 0 && timeoutMillis > 0)
+        require(timeoutMillis > 0)
     }
 }
 

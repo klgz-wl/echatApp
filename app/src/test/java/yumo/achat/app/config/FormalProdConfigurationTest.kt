@@ -238,6 +238,10 @@ class FormalProdConfigurationTest {
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_REGION_RESTRICTION"))
         assertEquals("true", prod.getProperty("build.boolean.ENABLE_SECURE_WINDOW"))
         assertEquals(setOf("CN", "TW", "HK", "MO"), blocked)
+        assertEquals("10000", app.getProperty("build.int.INSTALL_REFERRER_REQUEST_TIMEOUT_MS"))
+        assertEquals("3000", app.getProperty("build.int.ATTRIBUTION_STORAGE_TIMEOUT_MS"))
+        assertEquals("achat_install_referrer", app.getProperty("build.string.INSTALL_REFERRER_STORAGE_NAME"))
+        assertFalse(app.containsKey("build.int.APPSFLYER_GCD_MIN_INTERVAL_MS"))
         assertEquals(2, Regex("REGION_LOOKUP_URL\\\" to \\\"https://api\\.country\\.is/").findAll(gradle).count())
         assert(gradle.contains("requiredBlockedRegionCodes"))
     }

@@ -2,6 +2,8 @@ package yumo.achat.core.attribution
 
 import yumo.achat.core.config.ClientIdentity
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -21,16 +23,52 @@ data class LoginAttribution(
     @SerialName("extra_data") val extraData: JsonObject,
 ) { override fun toString() = "LoginAttribution(归因标识已隐藏)" }
 
+@Serializable
+enum class AttributionResultSource(val wireName: String) {
+    APPSFLYER_SDK("appsflyer_sdk"),
+    GCD_HTTP("gcd_http"),
+    GOOGLE_INSTALL_REFERRER("google_install_referrer"),
+}
+
+@Serializable
+enum class AttributionStage(val wireName: String) {
+    SPLASH("splash"),
+    POST_LOGIN("post_login"),
+    HOME("home"),
+    STARTUP_RECOVERY("startup_recovery"),
+}
+
+data class AttributionReportMetadata(
+    val reportId: String,
+    val startupElapsedMillis: Long,
+    val resultIndex: Long,
+    val stage: AttributionStage,
+    val source: AttributionResultSource,
+)
+
+data class AttributionResult(val source: AttributionResultSource, val data: JsonObject)
+
 sealed interface ConversionResult {
     data object Pending : ConversionResult
-    data class Success(val data: JsonObject) : ConversionResult
+    data class Success(
+        val data: JsonObject,
+        val source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
+    ) : ConversionResult
     data object Failed : ConversionResult
 }
 
 interface ConversionSource {
     val conversion: StateFlow<ConversionResult>
+    val results: Flow<AttributionResult>
+        get() = conversion.mapNotNull { value ->
+            (value as? ConversionResult.Success)?.let { AttributionResult(it.source, it.data) }
+        }
     fun startAttribution()
     fun retryAttribution() = startAttribution()
+    suspend fun verifyHomeAttribution() = Unit
+    suspend fun awaitPreHomeConfirmation(): Boolean = false
+    val preHomeConfirmation: StateFlow<Boolean>? get() = null
+    suspend fun stopAttributionAcquisition(restored: AttributionResult? = null) = Unit
     fun attributionUid(): String
     fun advertisingId(): String?
 }
@@ -48,7 +86,13 @@ data class AttributionConfiguration(val timeoutMillis: Long, val retryAttempts: 
 fun JsonObject.hasValidAttribution(): Boolean =
     (get("af_status") as? JsonPrimitive)?.contentOrNull?.lowercase() in setOf("organic", "non-organic")
 
-fun attributionPayload(data: JsonObject, identity: ClientIdentity, deviceId: String, afUid: String): LoginAttribution {
+fun attributionPayload(
+    data: JsonObject,
+    identity: ClientIdentity,
+    deviceId: String,
+    afUid: String,
+    source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
+): LoginAttribution {
     fun value(vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
         (data[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
     }
@@ -56,7 +100,12 @@ fun attributionPayload(data: JsonObject, identity: ClientIdentity, deviceId: Str
     val metaShaped = value("is_fb")?.equals("true", ignoreCase = true) == true ||
         listOf("facebook", "instagram", "meta ads", "audience network").any(mediaSource::contains) ||
         value("adset", "adset_id") != null
-    return LoginAttribution("appsflyer", deviceId, afUid.ifBlank { value("af_uid").orEmpty() },
+    val loginSource = if (source == AttributionResultSource.GOOGLE_INSTALL_REFERRER) {
+        "google_play_install_referrer"
+    } else {
+        "appsflyer"
+    }
+    return LoginAttribution(loginSource, deviceId, afUid.ifBlank { value("af_uid").orEmpty() },
         value("media_source", "network"), value("campaign"), value("campaign_id", "af_c_id"),
         if (metaShaped) value("af_adset", "adset") else value("af_adset", "adgroup"),
         if (metaShaped) value("af_adset_id", "adset_id") else value("af_adset_id", "adgroup_id"),

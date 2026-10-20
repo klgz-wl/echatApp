@@ -9,8 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -38,8 +41,11 @@ class AttributionCoordinator @Inject constructor(
     private val started = AtomicBoolean(false)
     private val deadlines = mutableMapOf<Stage, Long>()
     private var latest: JsonObject? = null
+    private val accepted = mutableSetOf<Pair<AttributionResultSource, JsonObject>>()
     private val mutableSnapshots = MutableStateFlow<JsonObject?>(null)
     val snapshots = mutableSnapshots.asStateFlow()
+    private val mutableResults = MutableSharedFlow<AttributionResult>(replay = 16, extraBufferCapacity = 16)
+    val results = mutableResults.asSharedFlow()
     private enum class Stage { PRE_AUTH, POST_AUTH, HOME }
 
     private val cacheLoaded = scope.launch {
@@ -51,8 +57,8 @@ class AttributionCoordinator @Inject constructor(
     }
     init {
         scope.launch {
-            source.conversion.collect { result ->
-                if (result is ConversionResult.Success) accept(result.data)
+            source.results.collect { result ->
+                accept(result.data, result.source)
             }
         }
         scope.launch {
@@ -63,8 +69,13 @@ class AttributionCoordinator @Inject constructor(
             }
         }
     }
-    private suspend fun accept(data: JsonObject) = dataLock.withLock {
+    private suspend fun accept(
+        data: JsonObject,
+        source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
+    ) = dataLock.withLock {
         if (!data.hasValidAttribution()) return@withLock
+        val sourced = source to data
+        if (accepted.add(sourced)) mutableResults.tryEmit(AttributionResult(source, data))
         if (mutableSnapshots.value?.isMediaAttribution() == true && !data.isMediaAttribution()) return@withLock
         latest = data
         mutableSnapshots.value = data
@@ -75,14 +86,15 @@ class AttributionCoordinator @Inject constructor(
         scope.launch {
             while (true) {
                 delay(config.retryIntervalMillis)
-                if (snapshots.value?.isMediaAttribution() == true) return@launch
+                if (snapshots.value?.hasValidAttribution() == true ||
+                    (source.conversion.value as? ConversionResult.Success)?.data?.hasValidAttribution() == true) return@launch
                 runCatching { source.retryAttribution() }
             }
         }
     }
     private suspend fun awaitStage(stage: Stage, timeoutMillis: Long): Boolean {
         ensureGlobalRetry()
-        (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data) }
+        (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data, it.source) }
         if (snapshots.value?.isMediaAttribution() == true) return true
         val deadline = synchronized(deadlines) {
             deadlines.getOrPut(stage) { System.nanoTime() + timeoutMillis * 1_000_000L }
@@ -90,17 +102,31 @@ class AttributionCoordinator @Inject constructor(
         val remainingNanos = deadline - System.nanoTime()
         if (remainingNanos <= 0L) return snapshots.value?.isMediaAttribution() == true
         withTimeoutOrNull((remainingNanos + 999_999L) / 1_000_000L) {
-            snapshots.first { it?.isMediaAttribution() == true }
+            val confirmation = source.preHomeConfirmation
+            if (confirmation == null) {
+                snapshots.first { it?.isMediaAttribution() == true }
+            } else {
+                combine(snapshots, confirmation) { data, confirmed -> data to confirmed }
+                    .first { (data, confirmed) ->
+                        data?.isMediaAttribution() == true ||
+                            (data?.hasValidAttribution() == true && confirmed)
+                    }
+            }
         }
         return snapshots.value?.isMediaAttribution() == true
     }
     suspend fun awaitInitial(): Boolean = awaitStage(Stage.PRE_AUTH, config.timeoutMillis)
     suspend fun awaitAfterAuth(): Boolean = awaitStage(Stage.POST_AUTH, config.loginTimeoutMillis)
-    suspend fun awaitHome(): Boolean = awaitStage(Stage.HOME, config.homeTimeoutMillis)
+    suspend fun awaitHome(): Boolean {
+        ensureGlobalRetry()
+        source.verifyHomeAttribution()
+        (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data, it.source) }
+        return snapshots.value?.isMediaAttribution() == true
+    }
     override suspend fun forLogin(): LoginAttribution {
         awaitInitial()
         withTimeoutOrNull(config.cacheWaitMillis) { cacheLoaded.join() }
-        (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data) }
+        (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data, it.source) }
         val data = dataLock.withLock { latest } ?: JsonObject(emptyMap())
         return attributionPayload(data, identity, source.advertisingId() ?: sessions.deviceId(), source.attributionUid())
     }

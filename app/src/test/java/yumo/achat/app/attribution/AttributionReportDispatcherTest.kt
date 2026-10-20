@@ -1,193 +1,152 @@
 package yumo.achat.app.attribution
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
+import yumo.achat.core.attribution.AttributionResultSource
+import yumo.achat.core.attribution.AttributionStage
 import yumo.achat.core.backend.AuthSession
 
 class AttributionReportDispatcherTest {
-    @Test
-    fun `real report publishes receipt for current epoch and snapshot`() {
-        var now = 41L
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 1,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ -> now = 73L },
-            nowNanos = { now },
-        )
-        val snapshot = buildJsonObject { put("af_status", "Organic") }
-        dispatcher.updateSession(session("user-1").copy(epoch = "epoch-one"))
-        dispatcher.updateSnapshot(snapshot)
+    @Test fun `failed old result is deferred while newer result is delivered`() = runBlocking {
+        val store = MemoryLedgerStore()
+        val organic = buildJsonObject { put("af_status", "Organic") }
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val sent = mutableListOf<String>()
+        var ids = 0
+        val dispatcher = dispatcher(store, attempts = 1, newId = { "id-${++ids}" }) { _, result, _ ->
+            sent += result.data["af_status"].toString()
+            if (result.data == organic) error("offline")
+        }
+        dispatcher.updateResult(AttributionResultSource.APPSFLYER_SDK, organic)
+        dispatcher.updateResult(AttributionResultSource.GCD_HTTP, media)
+        dispatcher.updateSession(session("user"))
+        yield()
 
-        val receipt = dispatcher.receipts.value
-        assertNotNull(receipt)
-        assertEquals("epoch-one", receipt?.epoch)
-        assertEquals(snapshot, receipt?.snapshot)
-        assertEquals(73L, receipt?.reportedAtNanos)
+        assertEquals(listOf("\"Organic\"", "\"Non-organic\""), sent)
+        assertEquals(media, dispatcher.currentResult()?.data)
+        assertNotNull(dispatcher.receipts.value)
     }
 
-    @Test
-    fun `same user with new epoch requires new report`() {
-        var reports = 0
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 1,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ -> reports++ },
-        )
-        val snapshot = buildJsonObject { put("af_status", "Non-organic") }
-        dispatcher.updateSnapshot(snapshot)
-        dispatcher.updateSession(session("user-1").copy(epoch = "first"))
-        dispatcher.updateSession(session("user-1").copy(epoch = "second"))
-
-        assertEquals(2, reports)
-        assertEquals("second", dispatcher.receipts.value?.epoch)
-    }
-    @Test
-    fun `report waits for both snapshot and session and dedupes key`() {
-        val reports = mutableListOf<String>()
-        val reportedUsers = mutableListOf<String>()
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 3,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { session, data -> reports += "${session.userId}:${data["campaign"]}" },
-            onReported = { reportedUsers += it.userId },
-        )
-
-        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
-        assertEquals(emptyList<String>(), reports)
-        dispatcher.updateSession(session("user-1"))
-        dispatcher.updateSession(session("user-1"))
-        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
-
-        assertEquals(1, reports.size)
-        assertEquals(listOf("user-1"), reportedUsers)
-    }
-
-    @Test
-    fun `failed report retries within configured bound`() {
+    @Test fun `concurrent kicks do not multiply one failed retry batch`() = runBlocking {
+        val store = MemoryLedgerStore()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
         var attempts = 0
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 3,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ ->
-                attempts += 1
-                if (attempts < 3) error("offline")
-            },
-        )
+        val dispatcher = dispatcher(store, attempts = 2) { _, _, _ ->
+            attempts++
+            entered.complete(Unit)
+            release.await()
+            error("offline")
+        }
+        dispatcher.updateResult(AttributionResultSource.APPSFLYER_SDK, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("user"))
+        entered.await()
+        dispatcher.updateSession(session("user"))
+        release.complete(Unit)
+        yield()
 
-        dispatcher.updateSession(session("user-1"))
-        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
-
-        assertEquals(3, attempts)
-    }
-
-    @Test
-    fun `exhausted report does not start another retry batch`() {
-        val attempts = AtomicInteger()
-        val excessive = CountDownLatch(1)
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 3,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-            retryDelay = {},
-            report = { _, _ ->
-                if (attempts.incrementAndGet() > 3) excessive.countDown()
-                error("offline")
-            },
-        )
-
-        dispatcher.updateSession(session("user-1"))
-        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
-
-        excessive.await(500, TimeUnit.MILLISECONDS)
-        assertEquals(3, attempts.get())
-    }
-
-    @Test
-    fun `exhausted report retries on explicit foreground opportunity`() {
-        var attempts = 0
-        var online = false
-        val dispatcher = AttributionReportDispatcher(
-            attempts = 2,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ ->
-                attempts += 1
-                if (!online) error("offline")
-            },
-        )
-
-        dispatcher.updateSession(session("user-1"))
-        dispatcher.updateSnapshot(buildJsonObject { put("campaign", "spring") })
         assertEquals(2, attempts)
+    }
 
+    @Test fun `report metadata keeps stable id and marks recovered stage`() = runBlocking {
+        val store = MemoryLedgerStore()
+        val metadata = mutableListOf<yumo.achat.core.attribution.AttributionReportMetadata>()
+        val dispatcher = LedgerAttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            store = store,
+            startupId = "current-startup",
+            startupNanos = 10,
+            retryDelay = {},
+            report = { _, _, value -> metadata += value },
+            nowNanos = { 1_000_010 },
+            newId = { "stable-id" },
+        )
+        store.record(
+            AttributionResultSource.GCD_HTTP,
+            buildJsonObject { put("af_status", "Organic") },
+            startupId = "old-startup",
+            id = { "result" },
+        )
+        dispatcher.updateSession(session("user"))
+        yield()
+
+        assertEquals("stable-id", metadata.single().reportId)
+        assertEquals(AttributionStage.STARTUP_RECOVERY, metadata.single().stage)
+        assertEquals(AttributionResultSource.GCD_HTTP, metadata.single().source)
+    }
+
+    @Test fun `explicit retry resumes a deferred report with the same report id`() = runBlocking {
+        val store = MemoryLedgerStore()
+        var online = false
+        val reportIds = mutableListOf<String>()
+        val dispatcher = dispatcher(store, attempts = 1, newId = { "stable" }) { _, _, metadata ->
+            reportIds += metadata.reportId
+            if (!online) error("offline")
+        }
+        dispatcher.updateResult(AttributionResultSource.APPSFLYER_SDK, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("user"))
+        yield()
         online = true
         dispatcher.retryPending()
+        yield()
 
-        assertEquals(3, attempts)
+        assertEquals(listOf("stable", "stable"), reportIds)
+        assertNotNull(dispatcher.receipts.value)
     }
 
-    @Test
-    fun `persisted digest is not a current process receipt`() {
-        val store = MemoryAttributionDeliveryStore()
-        var reports = 0
-        fun dispatcher() = AttributionReportDispatcher(
-            attempts = 1,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ -> reports += 1 },
-            deliveryStore = store,
-        )
-        val snapshot = buildJsonObject { put("campaign", "spring"); put("media_source", "network") }
-        val sameSnapshotDifferentOrder = buildJsonObject { put("media_source", "network"); put("campaign", "spring") }
-
-        dispatcher().apply {
-            updateSession(session("user-1"))
-            updateSnapshot(sameSnapshotDifferentOrder)
+    @Test fun `outbox persistence failure becomes observable storage failure`() {
+        val failing = object : AttributionLedgerStore {
+            override fun snapshot(): AttributionLedger = error("corrupt")
+            override fun record(source: AttributionResultSource, data: JsonObject, startupId: String, id: () -> String) = error("corrupt")
+            override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger = error("corrupt")
+            override fun markSucceeded(reportId: String, atMillis: Long) = error("corrupt")
         }
-        dispatcher().apply {
-            updateSession(session("user-1"))
-            updateSnapshot(snapshot)
-        }
-
-        assertEquals(2, reports)
+        val dispatcher = dispatcher(failing, attempts = 1) { _, _, _ -> }
+        dispatcher.updateSession(session("user"))
+        assertEquals(true, dispatcher.storageFailed())
     }
 
-    @Test
-    fun `failed digest persistence does not claim cross process delivery`() {
-        val store = object : AttributionDeliveryStore {
-            override fun wasReported(digest: String) = false
-            override fun markReported(digest: String) = false
-        }
-        var reports = 0
-        fun dispatcher() = AttributionReportDispatcher(
-            attempts = 1,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            retryDelay = {},
-            report = { _, _ -> reports += 1 },
-            deliveryStore = store,
-        )
-        val snapshot = buildJsonObject { put("campaign", "spring") }
+    private fun dispatcher(
+        store: AttributionLedgerStore,
+        attempts: Int,
+        newId: () -> String = { "id" },
+        report: suspend (AuthSession, StoredAttributionResult, yumo.achat.core.attribution.AttributionReportMetadata) -> Unit,
+    ) = LedgerAttributionReportDispatcher(
+        attempts = attempts,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        store = store,
+        startupId = "startup",
+        startupNanos = 0,
+        retryDelay = {},
+        report = report,
+        newId = newId,
+    )
 
-        repeat(2) {
-            dispatcher().apply {
-                updateSession(session("user-1"))
-                updateSnapshot(snapshot)
-            }
+    private class MemoryLedgerStore : AttributionLedgerStore {
+        private var ledger = AttributionLedger.empty()
+        override fun snapshot() = ledger
+        override fun record(
+            source: AttributionResultSource,
+            data: JsonObject,
+            startupId: String,
+            id: () -> String,
+        ): StoredAttributionResult = ledger.record(source, data, startupId, id).also { ledger = it.ledger }.result
+        override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger =
+            ledger.ensureReports(userId, reportId).also { ledger = it }
+        override fun markSucceeded(reportId: String, atMillis: Long) {
+            ledger = ledger.markSucceeded(reportId, atMillis)
         }
-
-        assertEquals(2, reports)
     }
 
     private fun session(userId: String) = AuthSession(

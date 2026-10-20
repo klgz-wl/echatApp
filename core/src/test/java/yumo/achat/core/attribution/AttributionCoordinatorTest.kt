@@ -9,7 +9,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AttributionCoordinatorTest {
-    @Test fun `Organic does not finish stage early and global retry continues`() = runBlocking {
+    @Test fun `Organic without auxiliary capability waits stage but stops SDK retry`() = runBlocking {
         val source = Source()
         val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30),
             AttributionConfiguration(80, 10, 10, loginTimeoutMillis = 80, homeTimeoutMillis = 80))
@@ -20,7 +20,22 @@ class AttributionCoordinatorTest {
         assertFalse(waiting.isCompleted)
         assertFalse(waiting.await())
         assertNotNull(repo.snapshots.value)
-        assertTrue(source.retries.get() > 0)
+        val retriesAfterOrganic = source.retries.get()
+        delay(30)
+        assertEquals(retriesAfterOrganic, source.retries.get())
+    }
+
+    @Test fun `Organic arriving during wait finishes when auxiliary confirmation completes`() = runBlocking {
+        val source = Source().apply { supportsConfirmation = true }
+        val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30),
+            AttributionConfiguration(500, 10, 10, loginTimeoutMillis = 500, homeTimeoutMillis = 500))
+        val waiting = async { repo.awaitInitial() }
+        delay(20)
+        source.conversion.value = ConversionResult.Success(data("Organic"))
+        delay(20)
+        assertFalse(waiting.isCompleted)
+        source.confirmation.value = true
+        assertFalse(waiting.await())
     }
 
     @Test fun `post auth window starts after authentication and media ends home early`() = runBlocking {
@@ -42,6 +57,9 @@ class AttributionCoordinatorTest {
         var gaid: String? = "test-gaid"
         val retries = java.util.concurrent.atomic.AtomicInteger()
         var succeedAt = Int.MAX_VALUE
+        var supportsConfirmation = false
+        val confirmation = MutableStateFlow(false)
+        override val preHomeConfirmation get() = if (supportsConfirmation) confirmation else null
         override fun startAttribution() { starts++ }
         override fun retryAttribution() {
             if ((conversion.value as? ConversionResult.Success)?.data?.isMediaAttribution() == true) return
@@ -162,6 +180,31 @@ class AttributionCoordinatorTest {
         assertEquals(JsonPrimitive(true), extra["is_first_launch"])
         assertEquals(JsonPrimitive(123), extra["campaign_id"])
         assertFalse(deviceAttributionReport(raw, ClientIdentity("test.package", "2.0", 30), "device", null).containsKey("user_id"))
+    }
+
+    @Test fun `独立补报携带稳定结果元数据并区分来源`() {
+        val raw = buildJsonObject { put("af_status", "Organic"); put("af_uid", "af-uid") }
+        val payload = deviceAttributionReport(
+            data = raw,
+            identity = ClientIdentity("test.package", "2.0", 30),
+            deviceId = "device",
+            userId = "user",
+            metadata = AttributionReportMetadata(
+                reportId = "report-1",
+                startupElapsedMillis = 321,
+                resultIndex = 2,
+                stage = AttributionStage.HOME,
+                source = AttributionResultSource.GCD_HTTP,
+            ),
+        )
+
+        assertEquals(JsonPrimitive("report-1"), payload["report_id"])
+        assertEquals(JsonPrimitive(321), payload["startup_elapsed_ms"])
+        assertEquals(JsonPrimitive(2), payload["attribution_result_index"])
+        assertEquals(JsonPrimitive("home"), payload["attribution_stage"])
+        assertEquals(JsonPrimitive("gcd_http"), payload["attribution_result_source"])
+        assertEquals(JsonPrimitive(true), payload["is_gcd_http_result"])
+        assertEquals(JsonPrimitive(false), payload["is_install_referrer_supplement"])
     }
     @Test fun `回调字段映射保留数据类型并采用真实Android身份`() {
         val raw = conversionJson(mapOf("af_status" to "Non-organic", "media_source" to "Facebook Ads",

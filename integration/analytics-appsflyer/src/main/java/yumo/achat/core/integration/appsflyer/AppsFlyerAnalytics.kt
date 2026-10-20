@@ -22,7 +22,8 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     private val config: AppsFlyerConfig) : AnalyticsSink, AttributionIdProvider, ConversionSource {
     @Volatile private var ready = false
     @Volatile private var started = false
-    @Volatile private var sdkMediaObserved = false
+    @Volatile private var sdkMediaObserved = config.restoredAttribution?.data?.isMediaAttribution() == true
+    @Volatile private var acquisitionSuppressed = config.restoredAttribution != null
     private val sdkLock = Any()
     private val pendingEvents = PendingAppsFlyerEvents(config.eventQueueCapacity)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -30,29 +31,40 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     val startStatus = mutableStartStatus.asStateFlow()
     private val conversionState = AppsFlyerConversionState()
     override val conversion = conversionState.conversion
+    override val results = conversionState.results
     private val foregroundStart = ForegroundAttributionStart<Activity>(
         valid = { !it.isFinishing && !it.isDestroyed }, start = ::startWithActivity,
         timeoutMillis = config.requestTimeoutMillis,
         minIntervalMillis = config.minSessionIntervalSeconds * 1_000L)
     private val gcdClient = GcdAttributionClient(config.gcd, context.packageName, config.devKey)
+    private val installReferrer = InstallReferrerAttributionClient(
+        context, config.installReferrerStorageName, config.installReferrerPaidMediums,
+    )
     private val gcd = GcdRecheckCoordinator<Activity>(
         scope = scope,
-        minIntervalMillis = config.gcd.minIntervalMillis,
         timeoutMillis = config.gcd.timeoutMillis,
-        nowNanos = System::nanoTime,
         uid = ::currentId,
-        eligible = { ready && config.enabled && config.canCollect() && !sdkMediaObserved },
+        eligible = { ready && config.enabled && config.canCollect() && !sdkMediaObserved && !acquisitionSuppressed },
         validHost = { !it.isFinishing && !it.isDestroyed },
         fetch = gcdClient::fetch,
-        onMedia = conversionState::httpMedia,
+        referrer = { afUid -> withTimeoutOrNull(config.installReferrerTimeoutMillis) { installReferrer.supplement(afUid) } },
+        onResult = conversionState::auxiliarySnapshot,
     )
     private val callbackSequencer = AppsFlyerConversionCallbackSequencer()
     private val callbackEvents = ConversionCallbackEvents<AppsFlyerConversionCallback>()
     val conversionCallbacks = callbackEvents.events
     private var gaidRequested = false
     @Volatile private var gaid: String? = null
+    init {
+        config.restoredAttribution?.let(conversionState::restoreSnapshot)
+        if (sdkMediaObserved) gcd.sdkMedia()
+    }
     /** 仅在地区检查通过后，由 MainActivity 的 RESUMED 生命周期绑定。 */
-    fun onActivityResumed(activity: Activity) { foregroundStart.attach(activity); gcd.attach(activity) }
+    fun onActivityResumed(activity: Activity) {
+        foregroundStart.attach(activity)
+        gcd.attach(activity)
+        if (sdkMediaObserved && !started) requestStart(retry = true)
+    }
     fun onActivityPaused(activity: Activity) { foregroundStart.detach(activity); gcd.detach(activity) }
     fun onAccessRevoked() { foregroundStart.revokeAccess(); gcd.revokeAccess() }
 
@@ -67,9 +79,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                 return@launch
             }
             val known = conversionState.data
-            if (known?.isMediaAttribution() == true) return@launch
-            if (known?.hasValidAttribution() == true) {
-                gcd.request()
+            if (known?.hasValidAttribution() == true && started) {
                 return@launch
             }
             if (mutableStartStatus.value.stage == AttributionStartStage.NOT_REQUESTED)
@@ -95,6 +105,11 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                     init(config.devKey, object : AppsFlyerConversionListener {
                         override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
                             val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
+                            if (acquisitionSuppressed) {
+                                val callbackAttempt = foregroundStart.latestAttempt
+                                scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
+                                return
+                            }
                             if (snapshot.isMediaAttribution()) sdkMediaObserved = true
                             val status = (snapshot["af_status"] as? JsonPrimitive)?.contentOrNull
                             val callbackAttempt = foregroundStart.latestAttempt
@@ -150,6 +165,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                     override fun onError(code: Int, description: String) {
                         scope.launch {
                             if (attempt == foregroundStart.latestAttempt) {
+                                started = false
                                 foregroundStart.launchFailed(attempt)
                                 updateStartStatus(AttributionStartStage.REQUEST_FAILED, code)
                                 conversionState.sdkFailure()
@@ -167,6 +183,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             } }
             return true
         } catch (_: Exception) {
+            started = false
             foregroundStart.launchFailed(attempt)
             updateStartStatus(AttributionStartStage.INITIALIZATION_FAILED)
             conversionState.sdkFailure()
@@ -183,6 +200,21 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     }
     override fun advertisingId(): String? = gaid
     override fun attributionUid(): String = currentId()
+    override suspend fun verifyHomeAttribution() = withContext(Dispatchers.Main.immediate) { gcd.verifyHome() }
+    override suspend fun awaitPreHomeConfirmation(): Boolean {
+        gcd.preHomeComplete.first { it }
+        return true
+    }
+    override val preHomeConfirmation = gcd.preHomeComplete
+    override suspend fun stopAttributionAcquisition(restored: AttributionResult?) {
+        withContext(Dispatchers.Main.immediate) {
+            acquisitionSuppressed = true
+            sdkMediaObserved = true
+            restored?.let(conversionState::restoreSnapshot)
+            foregroundStart.dropPendingRetry()
+            gcd.sdkMedia()
+        }
+    }
     override fun identify(userId: String?) {
         pendingEvents.identify(userId)
         synchronized(sdkLock) {

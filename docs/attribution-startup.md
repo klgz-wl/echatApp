@@ -1,19 +1,31 @@
 # Android 归因与首页加载
 
-本页记录当前 `echatApp` 运行链路的约定。实际入口为 `MainActivity` → 地区准入 → `ImageToVideoScreen`，认证和接口由 `AchatRepository` / `AchatSessionManager` / `AchatBackendClient` 执行。Core/Hilt 参考路径不代替此入口的验收。
+本页记录 `echatApp` 当前真实运行链路。入口为 `MainActivity` → 地区准入 → `ImageToVideoScreen`，认证和接口由 `AchatRepository` / `AchatSessionManager` / `AchatBackendClient` 执行。
 
-## 启动和首页
+## 地区准入
 
-地区检查通过后初始化数数并订阅归因结果，再允许 AppsFlyer 使用当前 RESUMED Activity 启动。Splash 在同一页面内顺序执行：本进程归因最多 3 秒、真实匿名认证最多 30 秒、认证成功后归因最多 8 秒、首次 profile 最多 30 秒。只有有效 Non-organic 能提前结束归因阶段；Organic、失败、未知或无回调等满阶段窗口。首次 profile 的 `is_new` 决定 A/B，认证或 profile 失败留在 Splash 供 Retry。
+prod Debug 与 Release 均启用 Splash 地区检查，受限名单固定为 `CN,HK,MO,TW`；中国大陆、香港、澳门、台湾之外的有效地区全部允许。dev 保持关闭。未知、无效或查询失败不能作为其他地区放行。地区通过前不创建或启动归因、统计和业务依赖。
 
-首页壳在首次 profile 后显示。首页归因窗口最多 10 秒；有本进程有效 Organic 或 Non-organic 快照时，模板和分类等待当前会话 epoch、当前快照的 `POST /api/v1/attribution/report` 业务成功，以及从成功回执单调时间起算的剩余 1 秒。没有有效实时快照时，窗口结束后直接加载。首页刷新、模板分类切换和分页也经过同一门禁；已满间隔的回执直接复用。补报后 profile 独立等待同一回执的剩余间隔后刷新 A/B，不阻塞首页。
+## 统一归因链
 
-归因快照改变或会话 epoch 改变时，旧首页请求失效并重新等待当前目标；当前目标补报耗尽后显示错误，Retry 合并重启有限重试。失败后迟到的不同媒体快照会触发自动恢复。安装归因缓存仅为登录参数提供历史值，不充当本进程实时快照或补报回执。全局 SDK 重试直到取得媒体结果；补报和后续 profile 各自最多 10 次，与全局 SDK 重试无关。
+进程内采用 `AppsFlyer SDK → 前置单次 GCD → 必要时 Google Play Install Referrer`。SDK `Non-organic` 立即结束辅助确认；SDK `Organic` 独立保存后发起一次前置 GCD。GCD 的 Organic 和 Non-organic 均按 `gcd_http` 来源保存；仅 GCD 也明确 Organic 时读取同安装缓存或 Google Play Install Referrer，只有有效 `gclid`，或白名单付费 `utm_medium` 与有效 `utm_source` 同时存在，才生成 `google_install_referrer` 媒体补充结果。
 
-## 事件
+前置和首页 GCD 各最多一次、串行执行、不轮询。首页基础界面完成首帧后，若仍无媒体结果，再使用独立的一次 GCD 机会；页面重进、刷新、分页和 Retry 不增加机会。失败、超时、无 UID、坏 JSON 或未知状态均有限结束，不伪造 Organic。
 
-仅真实 AppsFlyer conversion 回调产生归因结果事件。每次有效 Organic／Non-organic 回调向数数发送 `s_attribution_success`；conversion 失败或无效状态发送 `s_attribution_failure`。手动参数仅包括 `callback_id`、`request_attempt`、`app_version`、`platform` 以及对应的 `attribution_status` 或 `failure_reason`。事件通过数数专属出口，不进入四端业务队列。SDK Launch 响应、页面超时及自有接口失败不产生这两个事件。数数后台实收需另行核验。
+## 持久化与补报
 
-## 配置与验证
+私有 SharedPreferences `achat_attribution.xml` 中，`install_attribution_ledger_v1` 保存来源化结果、稳定 resultId、安装内递增 index，以及按稳定 userId 建立的 reportId/outbox。写入使用同步 `commit`，先落盘再请求 `POST /api/v1/attribution/report`。旧键 `appsflyer_install_attribution` 仅用于登录兼容，不为其伪造来源或新报告。
 
-超时、重试、SDK 最短会话间隔和本地在途保护配置在 `config/app.properties`，由 Gradle 生成当前 flavor 的 BuildConfig。保留各 flavor 的 SDK 身份、业务域名、地区规则、Firebase 与签名配置。单元测试验证阶段顺序、请求保护、补报回执、首页门禁与事件映射；设备验收另查真实归因、前后台、弱网、服务端补报后数据可见性和数数后台实收。构建通过不等于平台验收。
+同一来源与完整 JSON 重复时复用结果；不同来源独立保存。每个 userId + resultId 的 `report_id` 在重试、令牌刷新和重启后保持不变。只有 HTTP 与业务 `code == 0` 且成功状态再次落盘，才算补报成功。请求新增：`report_id`、`startup_elapsed_ms`、`attribution_result_index`、`attribution_stage`、`attribution_result_source`、`is_install_referrer_supplement`、`is_gcd_http_result`。
+
+## Splash 与首页
+
+Splash 保留认证前最多 3 秒、认证后最多 8 秒窗口。媒体结果立即完成；Organic 在前置 GCD/Referrer 链结束后可提前完成。没有有效结果时按阶段超时放行，不能推造自然归因。
+
+首页基础页面先显示 loading，首帧后触发一次 home verification。若存在有效结果，首页数据等待当前稳定用户的最终结果真实补报成功，并共享成功后剩余 1000ms；跨进程已成功媒体记录不恢复旧单调时间，也不重新等待。补报耗尽显示可重试错误，待报记录继续保留。
+
+## 事件与验收
+
+只有真实 AppsFlyer conversion 回调产生 `attribution_success` / `attribution_failure`。数数接收 `s_` 事件，自有后台接收 `z_` 事件；AppsFlyer、Firebase、GCD、Referrer 和页面超时不接收或伪造这两类手动回调事件。
+
+2026-10-20 已通过完整 Gradle `test`、`:app:assembleDevDebug`、`:app:generateProdDebugBuildConfig` 和 `:app:lintDevDebug`；Lint 为 0 Error，并保留项目现有 Warning。Google Play 实际来源、AppsFlyer/数数/后台实收、断网杀进程恢复以及服务端 `report_id` 幂等和旧结果防回退仍需真机与后台联调，构建通过不代表平台验收。
