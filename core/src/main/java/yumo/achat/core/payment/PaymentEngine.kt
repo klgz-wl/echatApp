@@ -126,7 +126,6 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             // 建单失败且无 ID 时无法安全查回；不恢复旧占位，下一次购买可重新建单。
             save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
             notifyFailure(session)
-            reportPayment(record, "unknown", "order_creation", "order_unknown")
             return@guarded
         }
         initialize(record, session)
@@ -190,7 +189,6 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             save(record.copy(stage = stage, error = error), session, false)
             notifyFailure(session)
             event(record, "link_error", error)
-            reportPayment(record, if (terminal || stage == PaymentStage.ACCESS_DENIED) "failed" else "unknown", "initialize", error)
         }
     }
     private suspend fun resume(record: PaymentRecord, session: Session) {
@@ -246,12 +244,10 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         val visible = publish && mutable.value.checkoutVisible
         if (publish) mutable.value = PaymentViewState(session.epoch, record, visible, busy = closing)
         var next = record
-        var serverStatus: String? = null
         try {
             val response = repository.status(record.orderId!!, session)
             owner(session)
             if (response.orderId != record.orderId) throw PaymentFailure.InvalidResponse
-            serverStatus = response.status
             next = when {
                 response.successful -> record.copy(stage = PaymentStage.SUCCESS, error = null)
                 response.terminalFailure -> record.copy(stage = PaymentStage.FAILED, error = "payment_failed")
@@ -267,34 +263,27 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (next.stage == PaymentStage.SUCCESS) {
             save(next, session, false, publish)
             event(next, if (closing) "paid_on_close" else "paid_while_open")
-            reportPayment(next, "success", "fulfilled", once = "payment:${next.orderId}:fulfilled")
+            tracker.purchaseSuccess(paymentValues(next, "success", "fulfilled"), next.userId,
+                next.orderId?.let { "payment:$it:fulfilled:purchase_success" })
             return next
         }
         val timeout = next.unresolved && next.expired(clock.now())
         if (closing && timeout) {
             if (record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
-                reportPayment(record, "unknown", "poll_timeout", "poll_timeout")
                 if (record.thirdParty) event(record, "timeout_cancel")
             }
             next = next.copy(stage = PaymentStage.TIMED_OUT)
         } else if (closing) {
             event(record, "user_cancel")
-            if (next.unresolved) reportPayment(record, "closed", "checkout_close")
             if (next.unresolved) next = next.copy(stage = PaymentStage.CLOSED)
         } else if (timeout) {
             if (record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
-                reportPayment(record, "unknown", "poll_timeout", "poll_timeout")
                 if (record.thirdParty) event(record, "timeout_cancel")
             }
             next = next.copy(stage = PaymentStage.TIMED_OUT)
         }
-        if (next.stage == PaymentStage.FAILED && record.stage != PaymentStage.FAILED)
-            reportPayment(next, if (serverStatus == "cancelled") "cancelled" else "failed", "server_status",
-                when (serverStatus) { "cancelled" -> "server_cancelled"; "expired" -> "payment_expired"; else -> "payment_failed" }, "payment:${next.orderId}:failed")
-        if (next.stage == PaymentStage.AWAITING_FULFILLMENT && record.stage != next.stage)
-            reportPayment(next, "pending", "awaiting_fulfillment", once = "payment:${next.orderId}:awaiting_fulfillment")
         if (!closing && next.unresolved && record.stage in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT)) next = next.copy(stage = record.stage)
         save(next, session, visible && !closing && !timeout && next.stage != PaymentStage.FAILED, publish)
         if (publish && next.stage == PaymentStage.FAILED && record.stage != PaymentStage.FAILED) notifyFailure(session)
@@ -374,14 +363,6 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         paymentProperties(status, record.initialized?.channelCode ?: "unknown", "SERVICE", record.source, record.productId,
             record.orderId, stage, reason) + paymentPriceProperties(record.quotePrice, record.quoteCurrency, record.quoteSource) +
             mapOf("af_content_id" to (record.initialized?.sdkParams?.productId?.takeIf { it.isNotBlank() } ?: record.productId))
-        // 查单接口没有实付金额，报价仅用于 af_price，不计入 af_revenue。
-    private fun reportPayment(record: PaymentRecord, status: String, stage: String, reason: String? = null, once: String? = null) {
-        val values = paymentValues(record, status, stage, reason)
-        tracker.paymentResult(values, record.userId, once)
-        if (status == "success") {
-            tracker.purchaseSuccess(values, record.userId, once?.let { "$it:purchase_success" } ?: record.orderId?.let { "payment:$it:purchase_success" })
-        }
-    }
     suspend fun shown(key: String) = guarded { session ->
         val record = current(key, session) ?: return@guarded
         if (record.stage == PaymentStage.SUCCESS && record.successShownAt == null) {

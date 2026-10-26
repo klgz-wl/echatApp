@@ -61,14 +61,11 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
         mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.BUSY, revision = revision)
         var reportedOrder: String? = null
         var price: Double? = null
+        var priceAmountMicros: Long? = null
         var currency: String? = null
         fun paymentValues(status: String, stage: String, reason: String? = null): Map<String, Any> =
             paymentProperties(status, "google_play", flow, source, packageId, reportedOrder,
                 stage, reason, price, currency) + mapOf("af_content_id" to sku)
-        fun report(status: String, stage: String, reason: String? = null, includeRevenue: Boolean = true) {
-            tracker.paymentResult(paymentValues(status, stage, reason), session.userId,
-                reportedOrder?.takeIf { status == "success" }?.let { "play:$it:consumed" }, includeRevenue)
-        }
         kotlinx.coroutines.withContext(Dispatchers.Main.immediate) {
             try {
                 val result = orchestrator.purchase(
@@ -82,6 +79,7 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                         else {
                             val result = billing.queryProducts(listOf(sku))
                             result.data?.firstOrNull { it.id == sku }?.let {
+                                priceAmountMicros = it.priceAmountMicros
                                 price = it.priceAmountMicros.toDouble() / 1_000_000
                                 currency = it.currencyCode
                                 onStoreQuote(price, currency)
@@ -103,6 +101,8 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                                 orderId,
                                 obfuscatedAccountId ?: session.userId,
                                 obfuscatedProfileId ?: orderId,
+                                priceAmountMicros,
+                                currency,
                             )
                             when (result.data?.purchaseState) {
                                 PurchaseState.PURCHASED -> PurchaseStepResult.Success(result.data.purchaseToken)
@@ -119,17 +119,11 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                     (result as? ConsumablePurchaseResult.Failure)?.stage, revision, price, currency)
                 when (result) {
                     is ConsumablePurchaseResult.Success -> {
-                        if (config.backendOwnedFulfillment) {
-                            report("pending", "play_accepted")
-                        } else {
-                            report("success", "play_consumed", includeRevenue = false)
+                        if (!config.backendOwnedFulfillment) {
                             tracker.purchaseSuccess(paymentValues("success", "play_consumed"), session.userId,
                                 reportedOrder?.let { "play:$it:purchase_success" })
                         }
                     }
-                    is ConsumablePurchaseResult.Failure -> report(if (result.code == BillingResponseCode.CANCELLED) "cancelled" else "failed",
-                        result.stage.name.lowercase(java.util.Locale.ROOT), if (result.code == BillingResponseCode.CANCELLED) "user_cancelled" else result.stage.name.lowercase(java.util.Locale.ROOT))
-                    is ConsumablePurchaseResult.Pending -> report("pending", "play_pending")
                     else -> Unit
                 }
                 if (result is ConsumablePurchaseResult.Success && !config.backendOwnedFulfillment && sessions.current?.epoch == session.epoch) {
@@ -142,7 +136,7 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                 mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.PENDING, revision = revision)
                 throw cancelled
             }
-            catch (_: Exception) { mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.FAILED, revision = revision); report("unknown", "unexpected", "unexpected_error") }
+            catch (_: Exception) { mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.FAILED, revision = revision) }
             finally { lease.close() }
         }
     }

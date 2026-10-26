@@ -38,19 +38,17 @@ class PaymentEngineTest {
             PaymentEventSink { _, type, _, _, _ -> events += type }, PaymentClock { now }, config, tracker)
         suspend fun login(id: String = "user") { sessions.saveLogin(AuthResponse("token", "refresh", id)) }
     }
-    @Test fun `第三方已支付待发币不记成功成功去重且不猜测实付金额`() = runBlocking {
+    @Test fun `第三方已支付待发币不记成功且完成后订单报价只记一次收入`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
-        engine.buy("coins", "generation"); val key = engine.state.value.record!!.key
+        engine.buy("coins", "generation", CoinProduct("coins", "coin", "Coins", 9.99, originalPrice = 2.99)); val key = engine.state.value.record!!.key
         engine.opened(key); engine.opened(key)
         assertEquals(1, f.tracker.events.count { it.name == "initiate_pay" })
         f.api.status = "paid"; engine.poll(key)
         assertFalse(f.tracker.events.any { it.values["status"] == "success" })
-        assertTrue(f.tracker.events.any { it.values["status"] == "pending" })
+        assertFalse(f.tracker.events.any { it.name == "purchase_success" })
         f.api.fulfillment = "fulfilled"; engine.poll(key); engine.poll(key); engine.restore()
         val successes = f.tracker.events.filter { it.values["status"] == "success" }
-        assertEquals(setOf("pay_result", "payment_custom", "purchase_success"), successes.map { it.name }.toSet())
-        assertEquals(3, successes.size)
-        assertTrue(successes.all { it.values["entry_source"] == "generation" && !it.values.containsKey("af_revenue") && it.user == "user" })
+        assertEquals(listOf("purchase_success"), successes.map { it.name })
         val purchase = successes.single { it.name == "purchase_success" }
         assertEquals("channel", purchase.values["pay_method"])
         assertEquals("SERVICE", purchase.values["payment_flow"])
@@ -59,27 +57,41 @@ class PaymentEngineTest {
         assertEquals("recharge", purchase.values["af_content_type"])
         assertEquals("user", purchase.values["self_user_id"])
         assertEquals("generation", purchase.values["trigger"])
+        assertEquals(2.99, purchase.values["af_revenue"])
+        assertEquals("USD", purchase.values["af_currency"])
+        assertEquals("catalog_quote", purchase.values["price_source"])
+        assertEquals(2.99, f.store.records.single().quotePrice)
         assertFalse(f.tracker.events.any { it.name.startsWith("purchase_client") })
+    }
+    @Test fun `第三方重启后沿用建单报价且目录改价不影响原订单`() = runBlocking {
+        val f = Fixture(); f.login(); var engine = f.engine()
+        var catalog = CoinProduct("coins", "coin", "Coins", 9.99, originalPrice = 2.99)
+        engine.buy("coins", "store", catalog)
+        val key = engine.state.value.record!!.key
+        catalog = catalog.copy(originalPrice = 19.99)
+        assertEquals(19.99, catalog.displayPrice)
+        engine = f.engine(); engine.restore()
+        f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+        engine.poll(key); engine.poll(key)
+        assertEquals(2.99, f.tracker.events.single { it.name == "purchase_success" }.values["af_revenue"])
+        assertEquals(2.99, f.store.records.single().quotePrice)
     }
     @Test fun `服务端取消订单单独记录取消不记交易失败`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
         engine.buy("coins", "home_balance"); val key = engine.state.value.record!!.key
         engine.opened(key); f.api.status = "cancelled"; engine.poll(key)
-        assertTrue(f.tracker.events.any { it.values["status"] == "cancelled" })
-        assertFalse(f.tracker.events.any { it.values["status"] == "failed" })
+        assertFalse(f.tracker.events.any { it.name == "purchase_success" })
     }
     @Test fun `关闭与轮询超时埋点不是交易失败`() = runBlocking {
         val f = Fixture(); f.login(); val engine = f.engine()
         engine.buy("coins", "home_balance"); val key = engine.state.value.record!!.key
         engine.opened(key); engine.close(key)
-        assertTrue(f.tracker.events.any { it.values["status"] == "closed" })
-        assertFalse(f.tracker.events.any { it.values["status"] == "failed" })
+        assertFalse(f.tracker.events.any { it.name == "purchase_success" })
         val timeout = Fixture(); timeout.login(); val waiting = timeout.engine()
         waiting.buy("coins", "home_balance"); val timeoutKey = waiting.state.value.record!!.key
         waiting.opened(timeoutKey); timeout.now += 600_001; waiting.poll(timeoutKey)
         assertTrue(timeout.events.contains("timeout_cancel"))
-        assertTrue(timeout.tracker.events.any { it.values["status"] == "unknown" && it.values["stage"] == "poll_timeout" })
-        assertFalse(timeout.tracker.events.any { it.values["status"] == "failed" })
+        assertFalse(timeout.tracker.events.any { it.name == "purchase_success" })
     }
     @Test fun `外部浏览器超时也记录超时取消`() = runBlocking {
         val f = Fixture(); f.login(); f.api.openMode = "external_browser"; val engine = f.engine()
@@ -452,10 +464,9 @@ class PaymentEngineTest {
         f.api.fulfillment = "fulfilled"
         engine.poll(key)
         assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
-        val success = f.tracker.events.first { it.name == "pay_result" && it.values["status"] == "success" }
-        assertEquals(4.99, success.values["af_price"])
-        assertEquals("google_play", success.values["price_source"])
         val purchase = f.tracker.events.single { it.name == "purchase_success" }
+        assertEquals(4.99, purchase.values["af_price"])
+        assertEquals("google_play", purchase.values["price_source"])
         assertEquals("google_play", purchase.values["pay_method"])
         assertEquals("SERVICE", purchase.values["payment_flow"])
         assertEquals("server-sku", purchase.values["af_content_id"])
@@ -472,6 +483,7 @@ class PaymentEngineTest {
         coroutineScope { launch { engine.poll(key) }; launch { engine.close(key) } }
         assertEquals(PaymentStage.SUCCESS,engine.state.value.record?.stage)
         assertEquals(1,f.events.count { it.startsWith("paid_") })
+        assertEquals(1, f.tracker.events.count { it.name == "purchase_success" })
         engine.shown(key); val shown=engine.state.value.record?.successShownAt
         f.now+=1000; engine.shown(key); assertEquals(shown,engine.state.value.record?.successShownAt)
     }

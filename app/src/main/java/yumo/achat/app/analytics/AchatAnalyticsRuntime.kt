@@ -17,6 +17,7 @@ import yumo.achat.core.analytics.EventApi
 import yumo.achat.core.analytics.EventTracker
 import yumo.achat.core.analytics.ReportEventRequest
 import yumo.achat.core.analytics.analyticsParameters
+import yumo.achat.core.analytics.businessRevenueParameters
 import yumo.achat.core.backend.AchatSessionStore
 import yumo.achat.core.config.ClientIdentity
 import yumo.achat.core.integration.thinkingdata.ThinkingDataAnalytics
@@ -230,11 +231,11 @@ internal class AppAnalyticsHub(
         scope.launch {
             queue.events.collect { event ->
                 val values = analyticsParameters(
-                    event.parameters + commonParameters() + mapOf(
+                    event.parameters + (commonParameters() - "af_revenue") + mapOf(
                         "event_time" to event.eventTime,
                         "user_id" to event.userId.orEmpty(),
                     ),
-                )
+                ).let { businessRevenueParameters(event.name, it) }
                 var allAccepted = true
                 sinks.forEach { sink ->
                     synchronized(sinkLocks.getValue(sink)) {

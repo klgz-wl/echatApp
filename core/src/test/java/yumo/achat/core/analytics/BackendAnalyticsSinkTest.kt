@@ -46,16 +46,16 @@ class BackendAnalyticsSinkTest {
             sink.initialize()
             sink.identify("user-original")
             val tracker = RecordingTracker()
-            tracker.paymentResult(paymentProperties("success", "google_play", "LEGACY", "home", "package", "order-test",
+            tracker.purchaseSuccess(paymentProperties("success", "google_play", "LEGACY", "home", "package", "order-test",
                 "play_consumed", amount = 2.99, currency = "USD") + mapOf("af_content_id" to "sku-test"), "user-original")
-            sink.event("payment_custom", tracker.events.last().values + ("event_time" to 1700000000123L))
+            sink.event("purchase_success", tracker.events.last().values + ("event_time" to 1700000000123L))
             val body = withTimeout(5000) { received.await() }
             val response = withTimeout(5000) { completed.await() }
             assertTrue(response.isSuccessful)
             assertEquals(0, response.body()!!.code)
             assertNull(response.body()!!.data)
             assertEquals(setOf("device_id", "event_type", "event_time", "user_id", "package_name", "app_version", "platform", "parameters"), body.keys)
-            assertEquals("z_payment_custom", body.getValue("event_type").jsonPrimitive.content)
+            assertEquals("z_purchase_success", body.getValue("event_type").jsonPrimitive.content)
             assertEquals(1700000000123L, body.getValue("event_time").jsonPrimitive.long)
             assertEquals("device-test", body.getValue("device_id").jsonPrimitive.content)
             assertEquals("user-original", body.getValue("user_id").jsonPrimitive.content)

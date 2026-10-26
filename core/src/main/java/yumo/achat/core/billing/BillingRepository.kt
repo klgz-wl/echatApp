@@ -37,11 +37,12 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
     suspend fun queryProducts(ids: List<String>): BillingResult<List<BillingProduct>> =
         if (ids.isEmpty()) BillingResult.success(emptyList()) else manager.queryProducts(ids, BillingProductType.IN_APP)
     suspend fun purchase(activity: Activity, productId: String, ownerUserId: String, businessOrderId: String,
-        obfuscatedAccountId: String, obfuscatedProfileId: String): BillingResult<BillingPurchase> {
+        obfuscatedAccountId: String, obfuscatedProfileId: String, priceAmountMicros: Long?, currency: String?): BillingResult<BillingPurchase> {
         val request = withContext(Dispatchers.Main.immediate) {
             manager.launchPurchaseFlow(activity, productId, BillingProductType.IN_APP,
                 userId = obfuscatedAccountId, orderId = obfuscatedProfileId,
-                ownerUserId = ownerUserId, businessOrderId = businessOrderId)
+                ownerUserId = ownerUserId, businessOrderId = businessOrderId,
+                priceAmountMicros = priceAmountMicros, priceCurrencyCode = currency)
         }
         // 与参考实现一致：取消页面观察不会把 Play 全局回调交给下一笔订单。
         return withContext(NonCancellable) { manager.waitForPurchaseResult(request) }
@@ -66,9 +67,7 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
         val result = consume(purchase.purchaseToken)
         if (!result.isSuccess || owner == null || sessions.current?.userId != owner) return
         (tracked.businessOrderId ?: tracked.orderId)?.let { orderId ->
-            events.paymentResult(mapOf("status" to "success", "af_success" to "true", "pay_method" to "google_play",
-                "payment_flow" to "restored", "entry_source" to "restored", "af_content_id" to tracked.productId,
-                "af_order_id" to orderId, "stage" to "play_consumed"), owner, "play:$orderId:consumed")
+            events.reportRecoveredPurchase(tracked, owner, orderId)
         }
         try {
             wallet.refreshBalance()
@@ -77,4 +76,11 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { /* 消费结果不因余额刷新失败而重复执行；下次前台继续读取真实余额。 */ }
     }
+}
+
+internal fun EventTracker.reportRecoveredPurchase(tracked: PendingPurchaseRecord, owner: String, orderId: String) {
+    purchaseSuccess(paymentProperties("success", "google_play", "restored", "restored", tracked.productId,
+        orderId, "play_consumed", amount = tracked.priceAmountMicros?.takeIf { it >= 0 }?.toDouble()?.div(1_000_000),
+        currency = tracked.priceCurrencyCode) + mapOf("af_content_id" to tracked.productId),
+        owner, "play:$orderId:purchase_success")
 }

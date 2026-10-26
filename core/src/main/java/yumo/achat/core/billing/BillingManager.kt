@@ -195,6 +195,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
         orderId: String? = null,
         ownerUserId: String? = null,
         businessOrderId: String? = null,
+        priceAmountMicros: Long? = null,
+        priceCurrencyCode: String? = null,
     ): PurchaseRequest {
         Timber.d("[Billing] LaunchPurchase started")
 
@@ -276,6 +278,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                     userId = userId,
                     ownerUserId = ownerUserId,
                     businessOrderId = businessOrderId,
+                    priceAmountMicros = priceAmountMicros,
+                    priceCurrencyCode = priceCurrencyCode,
                 ),
             )
             Timber.d("[Billing] launchBillingFlow OK, waiting for user action...")
@@ -465,6 +469,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                                     userId = pendingRecord?.userId ?: request.userId,
                                     ownerUserId = pendingRecord?.ownerUserId,
                                     businessOrderId = pendingRecord?.businessOrderId,
+                                    priceAmountMicros = pendingRecord?.priceAmountMicros,
+                                    priceCurrencyCode = pendingRecord?.priceCurrencyCode,
                                 ),
                             )
                             purchaseRequestCoordinator.complete(request, BillingResult.success(domainPurchase))
@@ -482,6 +488,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                                 userId = pendingRecord?.userId ?: request?.userId,
                                 ownerUserId = pendingRecord?.ownerUserId,
                                 businessOrderId = pendingRecord?.businessOrderId,
+                                priceAmountMicros = pendingRecord?.priceAmountMicros,
+                                priceCurrencyCode = pendingRecord?.priceCurrencyCode,
                             ),
                         )
                         if (request != null) {
@@ -635,6 +643,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                     userId = json.optString("userId").takeIf(String::isNotBlank),
                     ownerUserId = json.optString("ownerUserId").takeIf(String::isNotBlank),
                     businessOrderId = json.optString("businessOrderId").takeIf(String::isNotBlank),
+                    priceAmountMicros = json.optLong("priceAmountMicros").takeIf { json.has("priceAmountMicros") },
+                    priceCurrencyCode = json.optString("priceCurrencyCode").takeIf(String::isNotBlank),
                 )
             }.onFailure { Timber.e("恢复待处理购买记录失败") }.getOrNull()
         }
@@ -649,6 +659,8 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                 .put("userId", record.userId.orEmpty())
                 .put("ownerUserId", record.ownerUserId.orEmpty())
                 .put("businessOrderId", record.businessOrderId.orEmpty())
+                .apply { record.priceAmountMicros?.let { put("priceAmountMicros", it) } }
+                .put("priceCurrencyCode", record.priceCurrencyCode.orEmpty())
                 .toString()
         }
         pendingPurchasePreferences?.edit()?.putStringSet(PENDING_PURCHASES_KEY, encoded)?.commit()

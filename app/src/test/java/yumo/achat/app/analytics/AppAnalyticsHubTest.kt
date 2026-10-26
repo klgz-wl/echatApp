@@ -24,6 +24,23 @@ import kotlinx.serialization.json.put
 import retrofit2.Response
 
 class AppAnalyticsHubTest {
+    @Test fun `four enabled sinks receive one purchase and merged parameters cannot leak revenue elsewhere`() {
+        val sinks = List(4) { CountingSink(expectedEvents = 2) }
+        val hub = AppAnalyticsHub(BusinessEventQueue(8), sinks,
+            commonParameters = { mapOf("af_revenue" to 99.0, "platform" to "android") })
+        hub.track("initiate_pay", mapOf("af_revenue" to 8.0), "user")
+        hub.track("purchase_success", mapOf("status" to "success", "stage" to "play_consumed",
+            "pay_method" to "google_play", "price_source" to "google_play", "af_price" to 2.99,
+            "af_revenue" to 2.99, "af_currency" to "USD"), "user",
+            "play:order:purchase_success")
+        sinks.forEach { sink ->
+            assertTrue(sink.eventLatch.await(2, TimeUnit.SECONDS))
+            assertEquals(listOf("initiate_pay", "purchase_success"), sink.names)
+            assertTrue("af_revenue" !in sink.parameters[0])
+            assertEquals(2.99, sink.parameters[1]["af_revenue"])
+            assertEquals("USD", sink.parameters[1]["af_currency"])
+        }
+    }
     @Test
     fun `backend sink returns without waiting for network`() {
         val sink = BackendHttpAnalyticsSink(

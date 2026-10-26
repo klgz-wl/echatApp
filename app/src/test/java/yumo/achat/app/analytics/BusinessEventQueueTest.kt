@@ -9,9 +9,35 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class BusinessEventQueueTest {
+    @Test fun `historical purchase success key survives restart and prevents another income event`() = runBlocking {
+        val store = MemoryDedupeStore()
+        val values = mapOf<String, Any>("status" to "success", "stage" to "fulfilled", "pay_method" to "channel",
+            "price_source" to "catalog_quote", "af_price" to 2.99, "af_currency" to "USD", "af_revenue" to 2.99)
+        val first = BusinessEventQueue(8, dedupeStore = store)
+        first.track("purchase_success", values, "user", "payment:order:fulfilled:purchase_success")
+        first.confirm(withTimeout(1_000) { first.events.first() }, accepted = true)
+        val restarted = BusinessEventQueue(8, dedupeStore = store)
+        restarted.track("purchase_success", values, "user", "payment:order:fulfilled:purchase_success")
+        restarted.track("purchase_success", values, "other", "payment:order:fulfilled:purchase_success")
+        val event = withTimeout(1_000) { restarted.events.first() }
+        assertEquals("other", event.userId)
+    }
+    @Test fun `revenue is stripped from every other business event after enqueue merge`() = runBlocking {
+        val queue = BusinessEventQueue(capacity = 8)
+        queue.track("initiate_pay", mapOf("af_revenue" to 7.0))
+        queue.track("page_view", mapOf("af_revenue" to 7.0))
+        queue.track("purchase_success", mapOf("status" to "success", "stage" to "play_consumed",
+            "pay_method" to "google_play", "price_source" to "google_play", "af_price" to 7.0,
+            "af_currency" to "EUR", "af_revenue" to 7.0))
+        val events = withTimeout(1_000) { queue.events.take(3).toList() }
+        assertFalse(events[0].parameters.containsKey("af_revenue"))
+        assertFalse(events[1].parameters.containsKey("af_revenue"))
+        assertEquals(7.0, events[2].parameters["af_revenue"])
+    }
     @Test
     fun `once key survives queue recreation and remains user scoped`() = runBlocking {
         val store = MemoryDedupeStore()

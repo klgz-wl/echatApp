@@ -3,6 +3,7 @@ package yumo.achat.app.analytics
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import yumo.achat.core.analytics.EventTracker
+import yumo.achat.core.analytics.businessRevenueParameters
 import java.util.UUID
 import java.security.MessageDigest
 
@@ -46,7 +47,7 @@ internal class BusinessEventQueue(
         val sent = channel.trySend(
             BusinessEvent(
                 name = name,
-                parameters = parameters.toMap() + mapOf(
+                parameters = businessRevenueParameters(name, parameters) + mapOf(
                     "event_id" to UUID.randomUUID().toString(),
                     "event_time" to eventTime,
                     "session_id" to sessionId,

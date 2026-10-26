@@ -40,9 +40,9 @@ class FirebaseAnalyticsSinkTest {
             "failed_reason" to "none",
         )
 
-        sink.event("pay_result", parameters)
+        sink.event("purchase_success", parameters)
 
-        assertEquals("f_pay_result", client.eventName)
+        assertEquals("f_purchase_success", client.eventName)
         assertEquals(25, client.parameters.size)
         for (key in listOf("user_id", "af_order_id", "package_id", "af_content_id", "af_price", "af_currency",
             "af_revenue", "entry_source", "trigger", "self_user_id", "af_success", "failed_reason")) {

@@ -104,9 +104,9 @@ flowchart TD
 | `analyticsParameters(values: Map<String, Any>): Map<String, Any>` | 键匹配 `[a-zA-Z][a-zA-Z0-9_]{0,39}`；布尔转1L/0L、整数转Long、浮点转有限Double、字符串截100字符；只保留前25个合法标量 |
 | `paymentPriceProperties(price: Double?, currency: String?, source: String): Map<String, Any>` | 合法非负价格→af_price/price_source；三字母币种→af_currency |
 | `paymentProperties(status: String, method: String, flow: String, source: String, productId: String, orderId: String? = null, stage: String, reason: String? = null, amount: Double? = null, currency: String? = null): Map<String, Any>` | 构造状态、渠道、流程、来源、package_id、af_order_id、阶段/原因及价格字段 |
-| `EventTracker.paymentResult(values: Map<String, Any>, userId: String, onceKey: String? = null): Unit` | 分别发 pay_result 与 payment_custom；去重键加 :result/:custom，仅符合条件的 payment_custom 添加 af_revenue |
+| `EventTracker.purchaseSuccess(values: Map<String, Any>, userId: String, onceKey: String? = null): Unit` | 单条 purchase_success；沿用原成功去重键，合法订单金额才加 af_revenue |
 
-收入条件：status=success、pay_method=google_play、price_source=google_play、有限非负 af_price、有效 af_currency。当前价格来源是 Play ProductDetails 的微单位价；普通 pay_result、兼容 purchase_client 系列不带收入；SERVICE 第三方只持有 catalog_quote，不推算收入；恢复历史购买缺价格也不补造收入。`af_success` 字符串 false 不代表业务必定失败，应同时读取 status 的 cancelled/pending/unknown/closed 等分类。支付状态/真实钱包确认不因埋点改变。
+收入只属于 purchase_success：Play consume 成功使用购买时保存的微单位金额和原币种；第三方 paid＋fulfilled 使用订单保存的美元 quotePrice，保留 catalog_quote 来源。金额有限非负，已知零金额有效，未知或非美元报价不补收入。公共业务分发出口合并参数后移除其他事件的 af_revenue；支付状态和钱包确认不因埋点改变。
 
 BackendAnalyticsSink 不持久化、不在应用层重试；队列满丢弃新事件，单次失败不终止消费者，不承诺必达。底层公共 HTTP 客户端行为不能等同“请求严格仅发送一次”。参数标准化只检查格式/标量，**不会按语义自动删除凭据或 URL**，业务调用方必须遵守参数白名单。AnalyticsPlatform.eventName 直接拼接前缀，没有识别/去除已有前缀的逻辑，因此调用方必须传无前缀名。
 
@@ -735,9 +735,9 @@ bool 不是“支付成功/失败”。首次匹配 LEGACY 通知且仍为同一
 
 ### 10.9 支付业务埋点的现有边界
 
-CoinPurchaseController、BillingRepository、PaymentEngine、PurchaseRouter、PaymentEventQueue已注入EventTracker；旧CoinPurchaseTelemetry模型/events出口已移除。点击发起、实际SDK/收银台启动、结果分别报告click_pay/initiate_pay/pay_result及payment_custom。业务商品ID(package_id)、Play SKU(af_content_id)、业务订单(af_order_id)分别记录。
+CoinPurchaseController、BillingRepository、PaymentEngine、PurchaseRouter、PaymentEventQueue已注入EventTracker；旧CoinPurchaseTelemetry模型/events出口已移除。点击和实际 SDK/收银台启动保留原漏斗事件；真实成功仅报告 purchase_success。业务商品ID(package_id)、Play SKU(af_content_id)、业务订单(af_order_id)分别记录。
 
-Play消费完成的事件阶段为play_consumed，恢复也使用同订单onceKey，未知金额不报收入；并不改变真实钱包到账确认。PaymentRecord新增quotePrice/quoteCurrency，SERVICE第三方成功只有报价时仍不报af_revenue。取消、pending、未知结果独立分类，保留兼容purchase_client系列但不重复收入。PaymentEventQueue仍保存支付协议事件，同时把对应业务事件发统一Tracker，不能删除其持久队列后假设四端业务队列能提供同等交付。
+Play consume 完成的事件阶段为 play_consumed，恢复使用同订单成功 onceKey 和原金额币种；历史缺少金额时省略收入。PaymentRecord 保存第三方美元报价快照，SERVICE 仅 paid＋fulfilled 后在 purchase_success 记收入，保留 price_source=catalog_quote。旧结果及 purchase_client 兼容业务事件停止发送。PaymentEventQueue仍保存支付协议事件，同时把对应业务事件发统一Tracker，不能删除其持久队列后假设四端业务队列能提供同等交付。
 
 ### 10.10 region：启动前置准入（独立功能包）
 
