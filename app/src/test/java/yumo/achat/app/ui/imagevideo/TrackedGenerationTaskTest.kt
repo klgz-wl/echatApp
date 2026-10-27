@@ -9,7 +9,7 @@ import yumo.achat.core.backend.VisualResource
 
 class TrackedGenerationTaskTest {
     @Test
-    fun `home shows latest generating and completed task badges`() {
+    fun `home badges only show active generation and unviewed completion`() {
         val base = TrackedGenerationTask(
             taskId = "task-base",
             title = "Template",
@@ -31,6 +31,32 @@ class TrackedGenerationTaskTest {
             homeTaskStatusBadges(tasks),
         )
         assertEquals(emptyList<HomeTaskStatusBadge>(), homeTaskStatusBadges(listOf(tasks.first())))
+        assertEquals(
+            emptyList<HomeTaskStatusBadge>(),
+            homeTaskStatusBadges(
+                listOf(tasks[2].copy(viewed = true)),
+            ),
+        )
+    }
+
+    @Test
+    fun `opening a successful result marks only that task viewed`() {
+        val completed = TrackedGenerationTask(
+            taskId = "completed",
+            title = "Completed",
+            modality = "video",
+            status = "succeeded",
+            resultUrl = "https://example.test/result.mp4",
+            mimeType = "video/mp4",
+            errorMessage = null,
+        )
+        val other = completed.copy(taskId = "other")
+
+        val viewed = markTrackedGenerationTaskViewed(listOf(completed, other), completed.taskId)
+
+        assertTrue(viewed.first().viewed)
+        assertFalse(viewed.last().viewed)
+        assertEquals(listOf(HomeTaskStatusBadge.Completed), homeTaskStatusBadges(viewed))
     }
 
     @Test
@@ -143,6 +169,24 @@ class TrackedGenerationTaskTest {
     }
 
     @Test
+    fun `polling update cannot reset a viewed result`() {
+        val viewed = TrackedGenerationTask(
+            taskId = "task-1",
+            title = "Template",
+            modality = "image",
+            status = "succeeded",
+            resultUrl = "https://example.test/result.webp",
+            mimeType = "image/webp",
+            errorMessage = null,
+            viewed = true,
+        )
+
+        val updated = upsertTrackedGenerationTask(listOf(viewed), viewed.copy(viewed = false))
+
+        assertTrue(updated.single().viewed)
+    }
+
+    @Test
     fun `server history merge preserves response order and keeps live task first`() {
         val liveTask = TrackedGenerationTask(
             taskId = "task-live",
@@ -188,6 +232,35 @@ class TrackedGenerationTaskTest {
 
         assertEquals(listOf(processingVideo), restored)
         assertFalse(restored.single().isFinished)
+    }
+
+    @Test
+    fun `tracked task snapshots preserve viewed result state`() {
+        val viewed = TrackedGenerationTask(
+            taskId = "task-viewed",
+            title = "Viewed",
+            modality = "image",
+            status = "succeeded",
+            resultUrl = "https://example.test/result.webp",
+            mimeType = "image/webp",
+            errorMessage = null,
+            viewed = true,
+        )
+
+        val restored = decodeTrackedGenerationTasks(encodeTrackedGenerationTasks(listOf(viewed)))
+
+        assertTrue(restored.single().viewed)
+        assertEquals(emptyList<HomeTaskStatusBadge>(), homeTaskStatusBadges(restored))
+    }
+
+    @Test
+    fun `legacy successful snapshots migrate as already viewed`() {
+        val restored = decodeTrackedGenerationTasks(
+            """[{"task_id":"legacy","title":"Old result","modality":"image","status":"succeeded","result_url":"https://example.test/old.webp","mime_type":"image/webp"}]""",
+        )
+
+        assertTrue(restored.single().viewed)
+        assertEquals(emptyList<HomeTaskStatusBadge>(), homeTaskStatusBadges(restored))
     }
 
     @Test

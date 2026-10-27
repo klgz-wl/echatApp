@@ -24,6 +24,7 @@ internal data class TrackedGenerationTask(
     val quality: String = "",
     val diamondCost: Int = 0,
     val source: String = "",
+    val viewed: Boolean = false,
 ) {
     val isFinished: Boolean
         get() = isVisualGenerationFinished(status)
@@ -42,7 +43,7 @@ internal enum class HomeTaskStatusBadge {
 
 internal fun homeTaskStatusBadges(tasks: List<TrackedGenerationTask>): List<HomeTaskStatusBadge> = buildList {
     if (tasks.any { !it.isFinished }) add(HomeTaskStatusBadge.Generating)
-    if (tasks.any { it.status == "succeeded" }) add(HomeTaskStatusBadge.Completed)
+    if (tasks.any { it.status == "succeeded" && !it.viewed }) add(HomeTaskStatusBadge.Completed)
 }
 
 internal fun VisualGenerationTask.toTrackedGenerationTask(
@@ -65,6 +66,7 @@ internal fun VisualGenerationTask.toTrackedGenerationTask(
         quality = quality,
         diamondCost = diamondCost,
         source = previous?.source.orEmpty(),
+        viewed = previous?.viewed == true,
     )
 
 internal fun VisualResource.toTrackedGenerationTask(defaultTitle: String): TrackedGenerationTask =
@@ -85,7 +87,19 @@ internal fun upsertTrackedGenerationTask(
 ): List<TrackedGenerationTask> {
     val existing = tasks.firstOrNull { it.taskId == updatedTask.taskId }
     if (existing?.isFinished == true && !updatedTask.isFinished) return tasks
-    return listOf(updatedTask) + tasks.filterNot { it.taskId == updatedTask.taskId }
+    val merged = if (existing?.viewed == true && !updatedTask.viewed) {
+        updatedTask.copy(viewed = true)
+    } else {
+        updatedTask
+    }
+    return listOf(merged) + tasks.filterNot { it.taskId == updatedTask.taskId }
+}
+
+internal fun markTrackedGenerationTaskViewed(
+    tasks: List<TrackedGenerationTask>,
+    taskId: String,
+): List<TrackedGenerationTask> = tasks.map { task ->
+    if (task.taskId == taskId && task.canOpenResult && !task.viewed) task.copy(viewed = true) else task
 }
 
 internal fun mergeTrackedGenerationTasks(
@@ -115,7 +129,8 @@ internal fun encodeTrackedGenerationTasks(tasks: List<TrackedGenerationTask>): S
                 .put("category_id", task.categoryId)
                 .put("quality", task.quality)
                 .put("diamond_cost", task.diamondCost)
-                .put("source", task.source),
+                .put("source", task.source)
+                .put("viewed", task.viewed),
         )
     }
     return array.toString()
@@ -146,6 +161,11 @@ internal fun decodeTrackedGenerationTasks(value: String?): List<TrackedGeneratio
                         quality = item.optString("quality"),
                         diamondCost = item.optInt("diamond_cost", 0),
                         source = item.optString("source"),
+                        viewed = if (item.has("viewed")) {
+                            item.optBoolean("viewed", false)
+                        } else {
+                            item.optString("status") == "succeeded"
+                        },
                     ),
                 )
             }

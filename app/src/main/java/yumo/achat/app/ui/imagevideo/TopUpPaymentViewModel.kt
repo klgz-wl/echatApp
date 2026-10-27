@@ -43,6 +43,14 @@ internal sealed interface TopUpCheckoutState {
     data object TimedOut : TopUpCheckoutState
 }
 
+internal fun fulfilledBillingPurchaseEpoch(
+    payment: PaymentViewState,
+    purchase: CoinPurchaseState,
+): String? = payment.epoch?.takeIf { epoch ->
+    payment.record?.stage == PaymentStage.SUCCESS &&
+        purchase.epoch == epoch && purchase.status == CoinPurchaseStatus.PENDING
+}
+
 @HiltViewModel
 internal class TopUpPaymentViewModel @Inject constructor(
     private val payments: PaymentCoordinator,
@@ -125,6 +133,10 @@ internal class CoreTopUpPaymentController(
         scope.launch {
             payments.state.collect { next ->
                 coreState = next
+                fulfilledBillingPurchaseEpoch(next, purchaseState)?.let { epoch ->
+                    purchases.backendFulfilled(epoch)
+                    purchaseState = purchases.state.value
+                }
                 productSelectionLocked = corePaymentPresentation(next).locksProductSelection ||
                     blocksNewCoinPurchase(purchaseState.status)
                 next.record?.productId?.let { selectedProductId = it }
@@ -145,9 +157,13 @@ internal class CoreTopUpPaymentController(
         scope.launch {
             purchases.state.collect { next ->
                 purchaseState = next
+                fulfilledBillingPurchaseEpoch(coreState, next)?.let { epoch ->
+                    purchases.backendFulfilled(epoch)
+                    purchaseState = purchases.state.value
+                }
                 productSelectionLocked = corePaymentPresentation(coreState).locksProductSelection ||
-                    blocksNewCoinPurchase(next.status)
-                checkoutState = coreState.toTopUpCheckoutState(next)
+                    blocksNewCoinPurchase(purchaseState.status)
+                checkoutState = coreState.toTopUpCheckoutState(purchaseState)
             }
         }
     }

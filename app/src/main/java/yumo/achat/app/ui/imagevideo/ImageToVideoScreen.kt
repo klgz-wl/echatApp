@@ -976,6 +976,12 @@ private fun ImageToVideoHomeScreen(
         }
     }
 
+    fun openGenerationResult(task: TrackedGenerationTask) {
+        sessionTasks = markTrackedGenerationTaskViewed(sessionTasks, task.taskId)
+        serverHistoryTasks = markTrackedGenerationTaskViewed(serverHistoryTasks, task.taskId)
+        selectedResultTask = task.copy(viewed = true)
+    }
+
     LaunchedEffect(profileEditingController.completionSerial) {
         if (profileEditingController.completionSerial == 0) return@LaunchedEffect
         val operation = profileEditingController.completedOperation ?: return@LaunchedEffect
@@ -1568,7 +1574,7 @@ private fun ImageToVideoHomeScreen(
                         isLoading = isLoadingTaskHistory,
                         errorMessage = taskHistoryError,
                         onBack = { destination = ImageToVideoDestination.Templates },
-                        onOpenTask = { selectedResultTask = it },
+                        onOpenTask = ::openGenerationResult,
                         onRefresh = { refreshMyTasks(pollUnfinishedTasks = true) },
                         hasMore = taskHistoryHasMore,
                         paginationLoading = taskHistoryPaginationLoading,
