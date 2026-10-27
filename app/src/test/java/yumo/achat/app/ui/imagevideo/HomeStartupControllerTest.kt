@@ -1,6 +1,8 @@
 package yumo.achat.app.ui.imagevideo
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import java.io.IOException
 import javax.net.ssl.SSLException
 import org.junit.Assert.assertEquals
@@ -8,6 +10,70 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class HomeStartupControllerTest {
+    @Test fun `completed attribution bypasses every splash and home attribution hook`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            attributionCompleted = { true },
+            awaitPreAuth = { calls += "pre" },
+            awaitPostAuth = { calls += "post" },
+            awaitHomeWindow = { calls += "home-window" },
+            awaitHomeDataGate = { calls += "home-gate" },
+            networkTimeoutMillis = 1_000,
+        )
+
+        val startup = controller.startup(
+            authenticate = { calls += "auth"; "session" },
+            profile = { calls += "profile"; "profile" },
+        )
+        val home = controller.loadHome { calls += "home"; "loaded" }
+        val page = controller.loadTemplates { calls += "page"; "page-loaded" }
+
+        assertEquals("session" to "profile", startup)
+        assertEquals("loaded", home)
+        assertEquals("page-loaded", page)
+        assertEquals(listOf("auth", "profile", "home", "page"), calls)
+    }
+
+    @Test fun `identity change after authentication re-enables post auth attribution`() = runBlocking {
+        var completed = true
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            attributionCompleted = { completed },
+            awaitPreAuth = { calls += "pre" },
+            awaitPostAuth = { calls += "post" },
+            awaitHomeWindow = {},
+            awaitHomeDataGate = {},
+            networkTimeoutMillis = 1_000,
+        )
+
+        controller.startup(
+            authenticate = { calls += "auth"; completed = false; "new-session" },
+            profile = { calls += "profile"; "profile" },
+        )
+
+        assertEquals(listOf("auth", "post", "profile"), calls)
+    }
+
+    @Test fun `completed attribution stays bypassed across concurrent startup and page entry`() = runBlocking {
+        var attributionCalls = 0
+        val controller = HomeStartupController(
+            attributionCompleted = { true },
+            awaitPreAuth = { attributionCalls++ },
+            awaitPostAuth = { attributionCalls++ },
+            awaitHomeWindow = { attributionCalls++ },
+            awaitHomeDataGate = { attributionCalls++ },
+            networkTimeoutMillis = 1_000,
+        )
+
+        listOf(
+            async { controller.startup(authenticate = { "session-1" }, profile = { "profile-1" }) },
+            async { controller.startup(authenticate = { "session-2" }, profile = { "profile-2" }) },
+            async { controller.loadHome { "home" } },
+            async { controller.loadTemplates { "page" } },
+        ).awaitAll()
+
+        assertEquals(0, attributionCalls)
+    }
     @Test fun `splash waits before auth and after auth before first profile`() = runBlocking {
         val calls = mutableListOf<String>()
         val controller = HomeStartupController(

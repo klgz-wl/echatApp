@@ -34,6 +34,8 @@ internal class LedgerAttributionReportDispatcher(
     private val startupNanos: Long,
     private val retryDelay: suspend () -> Unit,
     private val report: suspend (AuthSession, StoredAttributionResult, AttributionReportMetadata) -> Unit,
+    private val completionScope: (AuthSession) -> AttributionCompletionScope,
+    private val onCompletionPersisted: suspend (StoredAttributionCompletion, StoredAttributionResult) -> Unit = { _, _ -> },
     private val nowNanos: () -> Long = System::nanoTime,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
@@ -85,6 +87,8 @@ internal class LedgerAttributionReportDispatcher(
         runCatching { store.snapshot().results.any { it.source == source && it.data == data } }.getOrDefault(false)
     fun hasSucceededMedia(userId: String): Boolean =
         runCatching { store.snapshot().hasSucceededMedia(userId) }.getOrDefault(false)
+    fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion? =
+        runCatching { store.completion(scope) }.getOrNull()
     fun storageFailed(): Boolean = STORAGE_FAILURE_KEY in exhausted.value
 
     private fun kick() {
@@ -144,7 +148,13 @@ internal class LedgerAttributionReportDispatcher(
             }
             val successNanos = nowNanos()
             try {
-                store.markSucceeded(pending.reportId, nowMillis())
+                val scope = completionScope(active)
+                store.markReportSucceeded(pending.reportId, nowMillis(), scope)
+                store.completion(scope)?.let { completion ->
+                    if (completion.reportId == pending.reportId) {
+                        onCompletionPersisted(completion, result)
+                    }
+                }
             } catch (_: Exception) {
                 synchronized(stateLock) { deferredReports += pending.reportId }
                 mutableExhausted.value = mutableExhausted.value + pending.reportId

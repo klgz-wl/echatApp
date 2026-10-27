@@ -69,6 +69,7 @@ class AttributionReportDispatcherTest {
             startupNanos = 10,
             retryDelay = {},
             report = { _, _, value -> metadata += value },
+            completionScope = ::completionScope,
             nowNanos = { 1_000_010 },
             newId = { "stable-id" },
         )
@@ -110,11 +111,44 @@ class AttributionReportDispatcherTest {
             override fun snapshot(): AttributionLedger = error("corrupt")
             override fun record(source: AttributionResultSource, data: JsonObject, startupId: String, id: () -> String) = error("corrupt")
             override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger = error("corrupt")
-            override fun markSucceeded(reportId: String, atMillis: Long) = error("corrupt")
+            override fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope) = error("corrupt")
+            override fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion? = error("corrupt")
         }
         val dispatcher = dispatcher(failing, attempts = 1) { _, _, _ -> }
         dispatcher.updateSession(session("user"))
         assertEquals(true, dispatcher.storageFailed())
+    }
+
+    @Test fun `remote media success is not completed when final persistence fails`() = runBlocking {
+        val delegate = MemoryLedgerStore()
+        val failing = object : AttributionLedgerStore by delegate {
+            override fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope) {
+                error("disk full")
+            }
+        }
+        var completionCallbacks = 0
+        val dispatcher = LedgerAttributionReportDispatcher(
+            attempts = 1,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            store = failing,
+            startupId = "startup",
+            startupNanos = 0,
+            retryDelay = {},
+            report = { _, _, _ -> Unit },
+            completionScope = ::completionScope,
+            onCompletionPersisted = { _, _ -> completionCallbacks++ },
+            newId = { "stable" },
+        )
+        dispatcher.updateResult(
+            AttributionResultSource.APPSFLYER_SDK,
+            buildJsonObject { put("af_status", "Non-organic") },
+        )
+        dispatcher.updateSession(session("user"))
+        yield()
+
+        assertEquals(0, completionCallbacks)
+        assertEquals(null, dispatcher.receipts.value)
+        assertEquals(false, delegate.snapshot().reports.single().succeeded)
     }
 
     private fun dispatcher(
@@ -130,6 +164,7 @@ class AttributionReportDispatcherTest {
         startupNanos = 0,
         retryDelay = {},
         report = report,
+        completionScope = ::completionScope,
         newId = newId,
     )
 
@@ -144,9 +179,11 @@ class AttributionReportDispatcherTest {
         ): StoredAttributionResult = ledger.record(source, data, startupId, id).also { ledger = it.ledger }.result
         override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger =
             ledger.ensureReports(userId, reportId).also { ledger = it }
-        override fun markSucceeded(reportId: String, atMillis: Long) {
-            ledger = ledger.markSucceeded(reportId, atMillis)
+        override fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope) {
+            ledger = ledger.markReportSucceeded(reportId, atMillis, scope)
         }
+        override fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion? =
+            ledger.completionFor(scope)
     }
 
     private fun session(userId: String) = AuthSession(
@@ -156,5 +193,12 @@ class AttributionReportDispatcherTest {
         sessionId = "session",
         isAnonymous = true,
         epoch = "epoch-one",
+    )
+
+    private fun completionScope(session: AuthSession) = AttributionCompletionScope(
+        userId = session.userId,
+        installDeviceId = "install",
+        packageName = "yumo.achat.app",
+        environment = "dev",
     )
 }

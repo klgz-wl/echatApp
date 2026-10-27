@@ -50,4 +50,8 @@ internal class AppsFlyerConversionState {
             mutable.value = ConversionResult.Success(result.data, result.source)
         }
     }
+
+    fun clearRestoredSnapshot() {
+        mutable.value = ConversionResult.Pending
+    }
 }

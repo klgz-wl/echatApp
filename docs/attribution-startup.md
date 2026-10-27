@@ -18,11 +18,17 @@ prod Debug 与 Release 均启用 Splash 地区检查，受限名单固定为 `CN
 
 同一来源与完整 JSON 重复时复用结果；不同来源独立保存。每个 userId + resultId 的 `report_id` 在重试、令牌刷新和重启后保持不变。只有 HTTP 与业务 `code == 0` 且成功状态再次落盘，才算补报成功。请求新增：`report_id`、`startup_elapsed_ms`、`attribution_result_index`、`attribution_stage`、`attribution_result_source`、`is_install_referrer_supplement`、`is_gcd_http_result`。
 
+最终完成状态只接受现有媒体标准：当前结果必须是有效 `Non-organic`，独立补报已获得服务端明确业务成功，并在一次同步账本提交中同时保存报告成功和完成记录。完成记录包含稳定 userId、本地安装 UUID、包名、flavor、resultId、reportId、来源和完成时间；不设置有效期。Organic、SDK 初始化、普通回调、请求发出、超时、取消、失败或落盘失败均不标记完成。历史账本中符合相同条件的成功媒体报告会迁移为同范围完成记录。
+
 ## Splash 与首页
 
 Splash 保留认证前最多 3 秒、认证后最多 8 秒窗口。媒体结果立即完成；Organic 在前置 GCD/Referrer 链结束后可提前完成。没有有效结果时按阶段超时放行，不能推造自然归因。
 
 首页基础页面先显示 loading，首帧后触发一次 home verification。若存在有效结果，首页数据等待当前稳定用户的最终结果真实补报成功，并共享成功后剩余 1000ms；跨进程已成功媒体记录不恢复旧单调时间，也不重新等待。补报耗尽显示可重试错误，待报记录继续保留。
+
+后续进程会在创建归因协调器、reporter 或调用任何 Splash/Home 归因钩子前读取完成记录。身份范围完全匹配时，认证前/后等待、GCD、Referrer、补报重试、首页门禁和成功后延迟全部旁路；离线也不会因归因阻塞页面。AppsFlyer 仍可为普通业务统计初始化，但恢复期间的 conversion/deep-link 回调不再进入归因账本或产生归因回调事件。新登录账号或安装 UUID、包名、flavor 不匹配时，恢复原有未完成归因流程。
+
+完成态的匿名登录仍保留后端要求的非空 `attribution` 对象，但使用无 AF UID、渠道和原始数据的空归因形状，不重复携带历史安装结果。历史成功报告先作为已持久化事实直接旁路，显式完成记录在 IO 线程补写，避免升级后的首次启动因同步磁盘迁移阻塞；旧账号迟到成功只更新旧账号账本，不改变新账号的进程完成状态。
 
 ## 事件与验收
 

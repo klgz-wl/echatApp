@@ -27,11 +27,45 @@ internal data class StoredAttributionReport(
 )
 
 @Serializable
+internal data class AttributionCompletionScope(
+    val userId: String,
+    val installDeviceId: String,
+    val packageName: String,
+    val environment: String,
+) {
+    init {
+        require(userId.isNotBlank())
+        require(installDeviceId.isNotBlank())
+        require(packageName.isNotBlank())
+        require(environment.isNotBlank())
+    }
+}
+
+@Serializable
+internal data class StoredAttributionCompletion(
+    val userId: String,
+    val installDeviceId: String,
+    val packageName: String,
+    val environment: String,
+    val resultId: String,
+    val reportId: String,
+    val source: AttributionResultSource,
+    val completedAtMillis: Long,
+) {
+    fun matches(scope: AttributionCompletionScope): Boolean =
+        userId == scope.userId &&
+            installDeviceId == scope.installDeviceId &&
+            packageName == scope.packageName &&
+            environment == scope.environment
+}
+
+@Serializable
 internal data class AttributionLedger(
     val latestResultId: String? = null,
     val nextResultIndex: Long = 1,
     val results: List<StoredAttributionResult> = emptyList(),
     val reports: List<StoredAttributionReport> = emptyList(),
+    val completions: List<StoredAttributionCompletion> = emptyList(),
 ) {
     data class RecordResult(val ledger: AttributionLedger, val result: StoredAttributionResult, val created: Boolean)
 
@@ -73,6 +107,72 @@ internal data class AttributionLedger(
         },
     )
 
+    fun markReportSucceeded(
+        reportId: String,
+        atMillis: Long,
+        scope: AttributionCompletionScope,
+    ): AttributionLedger {
+        val report = reports.firstOrNull { it.reportId == reportId } ?: return this
+        val result = result(report.resultId) ?: return this
+        val succeeded = markSucceeded(reportId, atMillis)
+        if (report.userId != scope.userId || !result.data.isMediaAttribution()) return succeeded
+        val completed = StoredAttributionCompletion(
+                userId = scope.userId,
+                installDeviceId = scope.installDeviceId,
+                packageName = scope.packageName,
+                environment = scope.environment,
+                resultId = result.id,
+                reportId = report.reportId,
+                source = result.source,
+                completedAtMillis = atMillis,
+            )
+        return succeeded.copy(
+            completions = succeeded.completions.filterNot { value ->
+                value.userId == scope.userId &&
+                    value.installDeviceId == scope.installDeviceId &&
+                    value.packageName == scope.packageName &&
+                    value.environment == scope.environment
+            } + completed,
+        )
+    }
+
+    fun completionFor(scope: AttributionCompletionScope): StoredAttributionCompletion? = completions.firstOrNull { value ->
+        value.matches(scope) &&
+            result(value.resultId)?.let { result ->
+                result.source == value.source && result.data.isMediaAttribution()
+            } == true &&
+            reports.any { report ->
+                report.reportId == value.reportId && report.resultId == value.resultId &&
+                    report.userId == value.userId && report.succeeded
+            }
+    }
+
+    fun migrateCompletion(scope: AttributionCompletionScope): AttributionLedger {
+        if (completionFor(scope) != null) return this
+        val historical = historicalCompletionFor(scope) ?: return this
+        return copy(completions = completions + historical)
+    }
+
+    fun historicalCompletionFor(scope: AttributionCompletionScope): StoredAttributionCompletion? {
+        val candidate = reports.asSequence()
+            .filter { it.userId == scope.userId && it.succeeded }
+            .mapNotNull { report -> result(report.resultId)?.let { result -> report to result } }
+            .filter { (_, result) -> result.data.isMediaAttribution() }
+            .maxByOrNull { (_, result) -> result.index }
+            ?: return null
+        val (report, result) = candidate
+        return StoredAttributionCompletion(
+            userId = scope.userId,
+            installDeviceId = scope.installDeviceId,
+            packageName = scope.packageName,
+            environment = scope.environment,
+            resultId = result.id,
+            reportId = report.reportId,
+            source = result.source,
+            completedAtMillis = report.succeededAtMillis ?: 0L,
+        )
+    }
+
     fun currentResult(): StoredAttributionResult? =
         results.firstOrNull { it.id == latestResultId } ?: results.maxByOrNull { it.index }
 
@@ -102,7 +202,8 @@ internal interface AttributionLedgerStore {
     fun snapshot(): AttributionLedger
     fun record(source: AttributionResultSource, data: JsonObject, startupId: String, id: () -> String): StoredAttributionResult
     fun ensureReports(userId: String, reportId: () -> String): AttributionLedger
-    fun markSucceeded(reportId: String, atMillis: Long)
+    fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope)
+    fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion?
 }
 
 internal class SharedPreferencesAttributionLedgerStore(
@@ -136,9 +237,20 @@ internal class SharedPreferencesAttributionLedgerStore(
         ledger
     }
 
-    override fun markSucceeded(reportId: String, atMillis: Long) = synchronized(lock) {
+    override fun markReportSucceeded(
+        reportId: String,
+        atMillis: Long,
+        scope: AttributionCompletionScope,
+    ) = synchronized(lock) {
         checkHealthy()
-        persist(ledger.markSucceeded(reportId, atMillis))
+        persist(ledger.markReportSucceeded(reportId, atMillis, scope))
+    }
+
+    override fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion? = synchronized(lock) {
+        checkHealthy()
+        val migrated = ledger.migrateCompletion(scope)
+        if (migrated != ledger) persist(migrated)
+        ledger.completionFor(scope)
     }
 
     private fun persist(updated: AttributionLedger) {

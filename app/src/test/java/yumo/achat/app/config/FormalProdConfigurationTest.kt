@@ -65,21 +65,22 @@ class FormalProdConfigurationTest {
 
         assertEquals(
             2,
-            Regex("CORE_BASE_URL\\\" to \\\"https://release\\.appjoly\\.com/api/v1/")
+            Regex("CORE_BASE_URL\\\" to \\\"https://release\\.zorv\\.date/api/v1/")
                 .findAll(gradle).count(),
         )
-        assert(gradle.contains("\"ACHAT_API_BASE_URL\" to \"https://release.appjoly.com\""))
+        assert(gradle.contains("\"ACHAT_API_BASE_URL\" to \"https://release.zorv.date\""))
         assertEquals(
             2,
-            Regex("PAYMENT_BASE_URL\\\" to \\\"https://release\\.appjoly\\.com/payment-api/v1/")
+            Regex("PAYMENT_BASE_URL\\\" to \\\"https://release\\.zorv\\.date/payment-api/v1/")
                 .findAll(gradle).count(),
         )
         assertEquals(
             2,
-            Regex("CORE_STREAM_URL\\\" to \\\"wss://release\\.appjoly\\.com")
+            Regex("CORE_STREAM_URL\\\" to \\\"wss://release\\.zorv\\.date")
                 .findAll(gradle).count(),
         )
-        assert(gradle.contains("\"ACHAT_WS_URL\" to \"wss://release.appjoly.com/connection/websocket\""))
+        assert(gradle.contains("\"ACHAT_WS_URL\" to \"wss://release.zorv.date/connection/websocket\""))
+        assertFalse(gradle.contains("release.appjoly.com"))
         assert(Regex("CORE_CDN_URL\\\" to \\\"https://cdn\\.zorv\\.date").findAll(gradle).count() >= 2)
         assertFalse(gradle.contains("\"CORE_BASE_URL\" to \"https://cdn.zorv.date/api/v1/\""))
         assertFalse(gradle.contains("\"CORE_STREAM_URL\" to \"wss://cdn.zorv.date\""))

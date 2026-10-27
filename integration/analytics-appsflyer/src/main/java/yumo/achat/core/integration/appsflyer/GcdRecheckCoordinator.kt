@@ -67,6 +67,16 @@ internal class GcdRecheckCoordinator<H : Any>(
         inFlight?.cancel()
     }
 
+    fun resetForNewIdentity() {
+        inFlight?.cancel()
+        inFlight = null
+        organicSeen = false
+        mediaKnown = false
+        preAttempted = false
+        homeAttempted = false
+        mutablePreHomeComplete.value = false
+    }
+
     private fun startPreHomeIfReady() {
         if (!organicSeen || preAttempted || mediaKnown || inFlight != null) return
         if (!requestAllowed()) return

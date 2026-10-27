@@ -531,6 +531,7 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
             awaitHomeWindow = { attributionRuntime?.awaitHomeWindow() },
             awaitHomeDataGate = { attributionRuntime?.awaitHomeDataGate() },
             networkTimeoutMillis = BuildConfig.STARTUP_TIMEOUT_MS.toLong(),
+            attributionCompleted = { attributionRuntime?.isAttributionComplete() == true },
         )
     }
     var startup by remember { mutableStateOf<Pair<AuthSession, UserProfile>?>(null) }

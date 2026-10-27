@@ -2,14 +2,34 @@ package yumo.achat.app.attribution
 
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import yumo.achat.core.attribution.AttributionResultSource
+import yumo.achat.core.config.ClientIdentity
 
 class AttributionLedgerTest {
+    private val scope = AttributionCompletionScope(
+        userId = "user-1",
+        installDeviceId = "install-1",
+        packageName = "yumo.achat.app",
+        environment = "dev",
+    )
+
+    @Test fun `ledger has a generated serializer for durable storage`() {
+        val data = buildJsonObject { put("af_status", "Organic") }
+        val ledger = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, data, "startup", id = { "result" }).ledger
+
+        val encoded = Json.encodeToString(ledger)
+
+        assertEquals(ledger, Json.decodeFromString<AttributionLedger>(encoded))
+    }
+
     @Test fun `non empty corrupt ledger is not treated as a fresh install`() {
         assertThrows(Exception::class.java) { AttributionLedger.decode("{broken") }
     }
@@ -53,5 +73,107 @@ class AttributionLedgerTest {
 
         assertTrue(recorded.hasSucceededMedia("user-1"))
         assertFalse(recorded.hasSucceededMedia("user-2"))
+    }
+
+    @Test fun `media report success atomically creates a scoped final completion`() {
+        val media = buildJsonObject { put("af_status", "Non-organic"); put("af_uid", "af-1") }
+        val prepared = AttributionLedger.empty()
+            .record(AttributionResultSource.GCD_HTTP, media, "startup", id = { "result-1" }).ledger
+            .ensureReports(scope.userId, reportId = { "report-1" })
+
+        val completed = prepared.markReportSucceeded("report-1", 1234, scope)
+
+        assertTrue(completed.reports.single().succeeded)
+        assertEquals("result-1", completed.completionFor(scope)?.resultId)
+        assertEquals("report-1", completed.completionFor(scope)?.reportId)
+        assertEquals(AttributionResultSource.GCD_HTTP, completed.completionFor(scope)?.source)
+    }
+
+    @Test fun `organic remote success does not complete attribution`() {
+        val organic = buildJsonObject { put("af_status", "Organic") }
+        val completed = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, organic, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report" })
+            .markReportSucceeded("report", 1, scope)
+
+        assertEquals(null, completed.completionFor(scope))
+        assertTrue(completed.reports.single().succeeded)
+    }
+
+    @Test fun `completion cannot cross user install package or environment`() {
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val completed = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, media, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report" })
+            .markReportSucceeded("report", 1, scope)
+
+        assertEquals(null, completed.completionFor(scope.copy(userId = "user-2")))
+        assertEquals(null, completed.completionFor(scope.copy(installDeviceId = "install-2")))
+        assertEquals(null, completed.completionFor(scope.copy(packageName = "com.zorv.app")))
+        assertEquals(null, completed.completionFor(scope.copy(environment = "prod")))
+    }
+
+    @Test fun `historical succeeded media report migrates to explicit completion`() {
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val legacy = AttributionLedger.empty()
+            .record(AttributionResultSource.GCD_HTTP, media, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report" })
+            .markSucceeded("report", 99)
+
+        val migrated = legacy.migrateCompletion(scope)
+
+        assertEquals("report", migrated.completionFor(scope)?.reportId)
+        assertEquals(99L, migrated.completionFor(scope)?.completedAtMillis)
+    }
+
+    @Test fun `multiple stable users retain independent completion records`() {
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val userTwo = scope.copy(userId = "user-2")
+        val result = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, media, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report-1" })
+            .ensureReports(userTwo.userId, reportId = { "report-2" })
+            .markReportSucceeded("report-1", 1, scope)
+            .markReportSucceeded("report-2", 2, userTwo)
+
+        assertEquals("report-1", result.completionFor(scope)?.reportId)
+        assertEquals("report-2", result.completionFor(userTwo)?.reportId)
+    }
+
+    @Test fun `late completion for old account does not match the active account scope`() {
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val completed = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, media, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report" })
+            .markReportSucceeded("report", 1, scope)
+            .completionFor(scope)!!
+
+        assertTrue(completed.matches(scope))
+        assertFalse(completed.matches(scope.copy(userId = "new-user")))
+    }
+
+    @Test fun `late old user success cannot activate a different current user`() {
+        val media = buildJsonObject { put("af_status", "Non-organic") }
+        val ledger = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, media, "startup", id = { "result" }).ledger
+            .ensureReports(scope.userId, reportId = { "report" })
+            .markReportSucceeded("report", 1, scope)
+        val completion = ledger.completionFor(scope)
+        val result = ledger.result("result")!!
+
+        assertTrue(shouldActivateCompletion(scope.userId, completion, result))
+        assertFalse(shouldActivateCompletion("new-user", completion, result))
+    }
+
+    @Test fun `completed login uses required empty attribution shape`() {
+        val value = completedLoginAttribution(
+            ClientIdentity("yumo.achat.app", "1.0", 30),
+            installDeviceId = "install",
+        )
+
+        assertEquals("install", value.deviceId)
+        assertEquals("", value.afUid)
+        assertEquals(null, value.network)
+        assertTrue(value.extraData.isEmpty())
     }
 }

@@ -17,6 +17,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+internal fun appsFlyerCollectionAllowed(enabled: Boolean, canCollect: Boolean): Boolean =
+    enabled && canCollect
+
 @Singleton
 class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val context: Context,
     private val config: AppsFlyerConfig) : AnalyticsSink, AttributionIdProvider, ConversionSource {
@@ -73,7 +76,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     override fun retryAttribution() { requestStart(retry = true) }
     private fun requestStart(retry: Boolean) {
         scope.launch {
-            if (!config.enabled || !config.canCollect()) {
+            if (!appsFlyerCollectionAllowed(config.enabled, config.canCollect())) {
                 updateStartStatus(AttributionStartStage.DISABLED)
                 conversionState.sdkFailure()
                 return@launch
@@ -127,6 +130,10 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                         }
                         override fun onConversionDataFail(message: String?) {
                             val callbackAttempt = foregroundStart.latestAttempt
+                            if (acquisitionSuppressed) {
+                                scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
+                                return
+                            }
                             callbackEvents.publish(callbackSequencer.failure(callbackAttempt))
                             scope.launch {
                                 conversionState.sdkFailure()
@@ -138,6 +145,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
                             diagnostic("AppsFlyer/Attribution", "SDK 归因回调失败，HTTP=${status ?: "unknown"}")
                         }
                         override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
+                            if (acquisitionSuppressed) return
                             val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
                             if (snapshot.isMediaAttribution()) sdkMediaObserved = true
                             if (snapshot.hasValidAttribution()) scope.launch {
@@ -213,6 +221,16 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             restored?.let(conversionState::restoreSnapshot)
             foregroundStart.dropPendingRetry()
             gcd.sdkMedia()
+        }
+    }
+    override suspend fun resumeAttributionAcquisition() {
+        withContext(Dispatchers.Main.immediate) {
+            if (!acquisitionSuppressed) return@withContext
+            acquisitionSuppressed = false
+            sdkMediaObserved = false
+            conversionState.clearRestoredSnapshot()
+            gcd.resetForNewIdentity()
+            requestStart(retry = true)
         }
     }
     override fun identify(userId: String?) {

@@ -69,6 +69,7 @@ interface ConversionSource {
     suspend fun awaitPreHomeConfirmation(): Boolean = false
     val preHomeConfirmation: StateFlow<Boolean>? get() = null
     suspend fun stopAttributionAcquisition(restored: AttributionResult? = null) = Unit
+    suspend fun resumeAttributionAcquisition() = Unit
     fun attributionUid(): String
     fun advertisingId(): String?
 }

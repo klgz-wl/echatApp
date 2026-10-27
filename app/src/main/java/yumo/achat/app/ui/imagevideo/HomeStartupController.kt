@@ -11,11 +11,12 @@ internal class HomeStartupController(
     private val awaitHomeWindow: suspend () -> Unit,
     private val awaitHomeDataGate: suspend () -> Unit,
     private val networkTimeoutMillis: Long,
+    private val attributionCompleted: () -> Boolean = { false },
 ) {
     suspend fun <S, P> startup(authenticate: suspend () -> S, profile: suspend () -> P): Pair<S, P> {
-        awaitPreAuth()
+        if (!attributionCompleted()) awaitPreAuth()
         val session = withTimeout(networkTimeoutMillis) { retryNetworkRequest(authenticate, retryDelayMillis = 250) }
-        awaitPostAuth()
+        if (!attributionCompleted()) awaitPostAuth()
         val loadedProfile = withTimeout(networkTimeoutMillis) { retryNetworkRequest(profile, retryDelayMillis = 1_250) }
         return session to loadedProfile
     }
@@ -32,14 +33,18 @@ internal class HomeStartupController(
     }
 
     suspend fun <T> loadHome(load: suspend () -> T): T {
-        awaitHomeWindow()
-        awaitHomeDataGate()
+        if (!attributionCompleted()) {
+            awaitHomeWindow()
+            awaitHomeDataGate()
+        }
         return load()
     }
 
     suspend fun <T> loadTemplates(load: suspend () -> T): T {
-        awaitHomeWindow()
-        awaitHomeDataGate()
+        if (!attributionCompleted()) {
+            awaitHomeWindow()
+            awaitHomeDataGate()
+        }
         return load()
     }
 }
