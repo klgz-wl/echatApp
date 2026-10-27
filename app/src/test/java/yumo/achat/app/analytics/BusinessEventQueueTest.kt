@@ -13,6 +13,93 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class BusinessEventQueueTest {
+    @Test fun `suppressed success uses durable write rather than asynchronous ordinary write`() = runBlocking {
+        val durable = java.util.concurrent.CountDownLatch(1)
+        val store = object : EventDedupeStore {
+            var persisted = emptyList<String>()
+            override fun read(): List<String> = persisted
+            override fun write(values: List<String>) = Unit // 模拟 apply 尚未落盘。
+            override fun writeDurably(values: List<String>): Boolean {
+                persisted = values
+                durable.countDown()
+                return true
+            }
+        }
+        BusinessEventQueue(8, dedupeStore = store).suppress("user", "play:old:purchase_success")
+        org.junit.Assert.assertTrue(durable.await(1, java.util.concurrent.TimeUnit.SECONDS))
+        val restarted = BusinessEventQueue(8, dedupeStore = store)
+        restarted.track("purchase_success", userId = "user", onceKey = "play:old:purchase_success")
+        restarted.track("purchase_success", userId = "other", onceKey = "play:old:purchase_success")
+        assertEquals("other", withTimeout(1_000) { restarted.events.first() }.userId)
+    }
+
+    @Test fun `suppressed success retries durable failure without affecting caller`() {
+        var attempts = 0
+        val durable = java.util.concurrent.CountDownLatch(1)
+        val store = object : EventDedupeStore {
+            override fun read(): List<String> = emptyList()
+            override fun write(values: List<String>) = Unit
+            override fun writeDurably(values: List<String>): Boolean {
+                attempts++
+                if (attempts >= 2) durable.countDown()
+                return attempts >= 2
+            }
+        }
+        BusinessEventQueue(8, dedupeStore = store).suppress("user", "payment:order:fulfilled:purchase_success")
+        org.junit.Assert.assertTrue(durable.await(1, java.util.concurrent.TimeUnit.SECONDS))
+        assertEquals(2, attempts)
+    }
+
+    @Test fun `ordinary accepted key cannot be overwritten by older suppressed commit`() = runBlocking {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val ordinaryWritten = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val store = object : EventDedupeStore {
+            @Volatile var persisted = emptyList<String>()
+            override fun read(): List<String> = persisted
+            override fun write(values: List<String>) {
+                persisted = values
+                if (values.size >= 2) ordinaryWritten.countDown()
+            }
+            override fun writeDurably(values: List<String>): Boolean {
+                entered.countDown()
+                release.await(2, java.util.concurrent.TimeUnit.SECONDS)
+                persisted = values
+                return true
+            }
+        }
+        val queue = BusinessEventQueue(8, dedupeStore = store)
+        val suppressed = Thread { queue.suppress("user", "play:old:purchase_success") }
+        try {
+            suppressed.start()
+            org.junit.Assert.assertTrue(entered.await(1, java.util.concurrent.TimeUnit.SECONDS))
+            queue.track("purchase_success", userId = "user", onceKey = "play:new:purchase_success")
+            val pending = withTimeout(1_000) { queue.events.first() }
+            val confirmed = Thread { queue.confirm(pending, accepted = true) }
+            confirmed.start()
+            ordinaryWritten.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            release.countDown()
+            suppressed.join(2_000)
+            confirmed.join(2_000)
+            val restarted = BusinessEventQueue(8, dedupeStore = store)
+            restarted.track("purchase_success", userId = "user", onceKey = "play:old:purchase_success")
+            restarted.track("purchase_success", userId = "user", onceKey = "play:new:purchase_success")
+            restarted.track("purchase_success", userId = "other", onceKey = "play:fresh:purchase_success")
+            assertEquals("other", withTimeout(1_000) { restarted.events.first() }.userId)
+        } finally { release.countDown(); suppressed.join(2_000) }
+    }
+    @Test fun `suppressed success persists original account order key even if earlier delivery fails`() = runBlocking {
+        val store = MemoryDedupeStore()
+        val first = BusinessEventQueue(8, dedupeStore = store)
+        first.track("purchase_success", userId = "user", onceKey = "play:order:purchase_success")
+        val pending = withTimeout(1_000) { first.events.first() }
+        first.suppress("user", "play:order:purchase_success")
+        first.confirm(pending, accepted = false)
+        val restarted = BusinessEventQueue(8, dedupeStore = store)
+        restarted.track("purchase_success", userId = "user", onceKey = "play:order:purchase_success")
+        restarted.track("purchase_success", userId = "other", onceKey = "play:order:purchase_success")
+        assertEquals("other", withTimeout(1_000) { restarted.events.first() }.userId)
+    }
     @Test fun `historical purchase success key survives restart and prevents another income event`() = runBlocking {
         val store = MemoryDedupeStore()
         val values = mapOf<String, Any>("status" to "success", "stage" to "fulfilled", "pay_method" to "channel",

@@ -25,6 +25,32 @@ import kotlinx.serialization.json.put
 import retrofit2.Response
 
 class AppAnalyticsHubTest {
+    @Test fun `purchase gate suppresses all sinks and reopening only reports new orders`() {
+        val enabled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val store = RecordingDedupeStore()
+        val sinks = List(4) { CountingSink(expectedEvents = 2) }
+        val hub = AppAnalyticsHub(BusinessEventQueue(8, dedupeStore = store), sinks,
+            purchaseSuccessEnabled = enabled::get)
+        val values = mapOf<String, Any>("status" to "success", "stage" to "fulfilled", "pay_method" to "channel",
+            "price_source" to "catalog_quote", "af_price" to 2.99, "af_currency" to "USD", "af_revenue" to 2.99)
+        hub.track("purchase_success", values, "user", "payment:old:fulfilled:purchase_success")
+        assertEquals(1, store.read().size)
+        hub.track("initiate_pay", mapOf("stage" to "checkout_open"), "user")
+        enabled.set(true)
+        hub.track("purchase_success", values, "user", "payment:old:fulfilled:purchase_success")
+        hub.track("purchase_success", values, "user", "payment:new:fulfilled:purchase_success")
+        sinks.forEach { sink ->
+            assertTrue(sink.eventLatch.await(2, TimeUnit.SECONDS))
+            assertEquals(listOf("initiate_pay", "purchase_success"), sink.names)
+            assertEquals(2.99, sink.parameters.last()["af_revenue"])
+        }
+        val restarted = BusinessEventQueue(8, dedupeStore = store)
+        restarted.track("purchase_success", values, "user", "payment:old:fulfilled:purchase_success")
+        restarted.track("purchase_success", values, "other", "payment:old:fulfilled:purchase_success")
+        assertEquals("other", kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withTimeout(1_000) { restarted.events.first().userId }
+        })
+    }
     @Test fun `GAID lookup failure still sends original backend event`() {
         val captured = java.util.concurrent.atomic.AtomicReference<ReportEventRequest>()
         val sent = CountDownLatch(1)
@@ -76,6 +102,7 @@ class AppAnalyticsHubTest {
     @Test fun `four enabled sinks receive one purchase and merged parameters cannot leak revenue elsewhere`() {
         val sinks = List(4) { CountingSink(expectedEvents = 2) }
         val hub = AppAnalyticsHub(BusinessEventQueue(8), sinks,
+            purchaseSuccessEnabled = { true },
             commonParameters = { mapOf("af_revenue" to 99.0, "platform" to "android") })
         hub.track("initiate_pay", mapOf("af_revenue" to 8.0), "user")
         hub.track("purchase_success", mapOf("status" to "success", "stage" to "play_consumed",

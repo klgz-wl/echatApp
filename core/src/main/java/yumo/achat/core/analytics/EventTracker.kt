@@ -1,5 +1,8 @@
 package yumo.achat.core.analytics
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /** 业务层只提交事件，不依赖 SDK；未知值省略，不传凭据、媒体地址或服务端错误原文。 */
 interface EventTracker {
     fun track(name: String, parameters: Map<String, Any> = emptyMap(), userId: String? = null,
@@ -82,4 +85,16 @@ fun EventTracker.purchaseSuccess(values: Map<String, Any>, userId: String, onceK
         }
     }
     track("purchase_success", purchaseValues, userId, onceKey)
+}
+
+/** Fulfillment has already succeeded here. Finish its dedupe write on IO even if the caller is cancelled. */
+suspend fun EventTracker.purchaseSuccessOnIo(values: Map<String, Any>, userId: String, onceKey: String? = null) {
+    try {
+        withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
+            try { purchaseSuccess(values, userId, onceKey) }
+            catch (_: Exception) { /* Analytics must not change the fulfilled payment result. */ }
+        }
+    } catch (_: kotlinx.coroutines.CancellationException) {
+        // The caller may be cancelled while returning from IO. Fulfillment and dedupe are complete.
+    }
 }

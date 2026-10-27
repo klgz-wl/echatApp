@@ -77,6 +77,8 @@ flowchart TD
 
 唯一自定义公共方法：`AccountRules.accepts(account: String, password: String): Boolean`，判断 trim 后的账号长度和未经 trim 的密码长度是否落在配置区间。其余配置仅通过构造器和属性提供值，没有 setter 或业务操作。
 
+运行中的 AppConfig 使用 `AchatBackendClient.clientConfigs` 请求 `GET /api/v1/client/configs`，`package_name` 取当前 flavor 应用 ID、`platform=android`，`keys` 为已有客户端键与 `client.appsflyer.purchase.report` 去重后的英文逗号列表；Base URL 已含 `/api/v1/` 时不重复拼接。请求直接使用当前客户端及公共身份头，可选读取已经保存的 Token，不等待登录。`ClientConfigs` 仅在 HTTP 成功、业务 `code=0`、`data.package_name/platform/config_keys/configs` 有效时接受，`configs` 中仅 JSON 布尔值算有效。`PurchaseReportConfigManager` 从 MainActivity Splash 入口并行恢复本地布尔缓存和拉取网络配置，默认 false；最新成功响应优先于迟到的旧缓存，缺失键删除持久旧值，网络/业务失败不清缓存。后续前台请求可更新开关；`AppAnalyticsHub` 在统一业务事件入口决定 `purchase_success` 是否发四端，关闭期间在不可取消的 IO 区段同步持久提交原成功键，普通接受键与被抑制键共用串行写入顺序，不在支付主线程执行磁盘 commit；成功后的取消或统计异常不改履约结果。
+
 ## 3. analytics / attribution：业务埋点、归因与 SDK 适配
 
 ### 3.1 统计契约、参数与自有接口

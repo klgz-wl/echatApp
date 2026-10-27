@@ -7,7 +7,7 @@ import yumo.achat.core.analytics.RecordingTracker
 import org.junit.Test
 
 class PendingPurchaseRegistryTest {
-    @Test fun `recovered purchase uses original Play amount and currency with original success identity`() {
+    @Test fun `recovered purchase uses original Play amount and currency with original success identity`() = kotlinx.coroutines.runBlocking {
         val saved = PendingPurchaseRecord("sku", "order", BillingProductType.IN_APP, "token",
             ownerUserId = "user", businessOrderId = "order", priceAmountMicros = 2990000,
             priceCurrencyCode = "EUR")

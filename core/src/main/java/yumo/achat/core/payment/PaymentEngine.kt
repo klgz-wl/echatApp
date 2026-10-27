@@ -263,7 +263,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (next.stage == PaymentStage.SUCCESS) {
             save(next, session, false, publish)
             event(next, if (closing) "paid_on_close" else "paid_while_open")
-            tracker.purchaseSuccess(paymentValues(next, "success", "fulfilled"), next.userId,
+            tracker.purchaseSuccessOnIo(paymentValues(next, "success", "fulfilled"), next.userId,
                 next.orderId?.let { "payment:$it:fulfilled:purchase_success" })
             return next
         }

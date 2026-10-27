@@ -120,7 +120,7 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                 when (result) {
                     is ConsumablePurchaseResult.Success -> {
                         if (!config.backendOwnedFulfillment) {
-                            tracker.purchaseSuccess(paymentValues("success", "play_consumed"), session.userId,
+                            tracker.purchaseSuccessOnIo(paymentValues("success", "play_consumed"), session.userId,
                                 reportedOrder?.let { "play:$it:purchase_success" })
                         }
                     }
@@ -133,7 +133,9 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                     catch (_: Exception) { /* 当前余额保留服务器最后一次结果，前台或手动刷新继续更新。 */ }
                 }
             } catch (cancelled: CancellationException) {
-                mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.PENDING, revision = revision)
+                if (mutable.value.epoch == session.epoch && mutable.value.status != CoinPurchaseStatus.COMPLETED) {
+                    mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.PENDING, revision = revision)
+                }
                 throw cancelled
             }
             catch (_: Exception) { mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.FAILED, revision = revision) }

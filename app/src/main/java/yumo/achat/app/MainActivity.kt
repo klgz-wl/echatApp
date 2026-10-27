@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.app.analytics.AnalyticsConsent
+import yumo.achat.app.config.AppConfigRuntime
 import yumo.achat.app.ui.imagevideo.ImageToVideoScreen
 import yumo.achat.app.ui.theme.AchatTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +41,7 @@ import yumo.achat.core.payment.PurchaseRouter
 import yumo.achat.core.auth.SessionCoordinator
 import yumo.achat.core.wallet.RechargeNotifications
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -77,6 +79,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch(Dispatchers.IO) { AppConfigRuntime.get(applicationContext).start() }
         if (shouldEnableSecureWindow(BuildConfig.ENABLE_SECURE_WINDOW, BuildConfig.DEBUG)) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
@@ -118,6 +121,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (businessStarted) lifecycleScope.launch(Dispatchers.IO) { AppConfigRuntime.get(applicationContext).refresh() }
         if (businessStarted && regionAllowed && AnalyticsConsent.granted(this)) {
             AchatAttributionRuntime.get(this).onActivityResumed(this)
             attributionStarted = true

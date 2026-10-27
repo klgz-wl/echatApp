@@ -21,9 +21,26 @@ class AchatBackendHttpException(
 class AchatBackendClient(
     configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
 ) : AchatAuthApi {
-    private val baseUrl: String = configuration.apiBaseUrl
+    private val baseUrl: String = configuration.apiBaseUrl.trimEnd('/').removeSuffix("/api/v1")
     private val packageName: String = configuration.packageName
     private val clientVersion: String = configuration.clientVersion
+
+    fun clientConfigs(keys: Collection<String>, token: String? = null, deviceId: String? = null): ClientConfigs {
+        val requestedKeys = ClientConfigKeys.merged(keys)
+        val query = "package_name=${encodeQuery(packageName)}&platform=android&keys=${encodeQuery(requestedKeys.joinToString(","))}"
+        val headers = buildMap {
+            put("X-Package-Name", packageName)
+            put("X-Platform", "android")
+            put("X-App-Platform", "android")
+            put("X-App-Version", clientVersion)
+            put("X-Version", clientVersion)
+            deviceId?.takeIf(String::isNotBlank)?.let { put("X-Device-ID", it) }
+            token?.takeIf(String::isNotBlank)?.let { put("Authorization", "Bearer $it") }
+        }
+        return parseClientConfigs(request("/api/v1/client/configs?$query", "GET", headers = headers), packageName, "android")
+    }
+
+    private fun encodeQuery(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     fun anonymousLogin(
         deviceId: String,

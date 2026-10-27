@@ -10,6 +10,7 @@ import java.security.MessageDigest
 internal interface EventDedupeStore {
     fun read(): List<String>
     fun write(values: List<String>)
+    fun writeDurably(values: List<String>): Boolean { write(values); return true }
 }
 
 private class MemoryEventDedupeStore : EventDedupeStore {
@@ -35,6 +36,7 @@ internal class BusinessEventQueue(
     val events = channel.receiveAsFlow()
     private val onceKeys = LinkedHashSet(dedupeStore.read().takeLast(dedupeLimit))
     private val inFlightKeys = mutableSetOf<String>()
+    private val persistenceLock = Any()
     @Volatile var mode: String = "unknown"
     @Volatile var sessionId: String = UUID.randomUUID().toString()
 
@@ -61,11 +63,26 @@ internal class BusinessEventQueue(
         if (sent && dedupeKey != null) inFlightKeys += dedupeKey
     }
 
-    @Synchronized
+    /** A disabled purchase is still terminal for this account and order. */
+    fun suppress(userId: String?, onceKey: String?) {
+        try {
+            val key = onceKey?.let { onceKey(userId, it) } ?: return
+            synchronized(persistenceLock) {
+                val snapshot = synchronized(this) { addOnceKey(key); onceKeys.toList() }
+                persist(snapshot)
+            }
+        } catch (_: Exception) { /* 统计存储不能改变支付结果。 */ }
+    }
+
     fun confirm(event: BusinessEvent, accepted: Boolean) {
         val key = event.dedupeKey ?: return
-        inFlightKeys -= key
-        if (accepted) rememberOnceKey(key)
+        synchronized(persistenceLock) {
+            val snapshot = synchronized(this) {
+                inFlightKeys -= key
+                if (accepted && addOnceKey(key)) onceKeys.toList() else null
+            }
+            if (snapshot != null) persist(snapshot)
+        }
     }
 
     private fun onceKey(userId: String?, onceKey: String): String =
@@ -73,8 +90,12 @@ internal class BusinessEventQueue(
             .digest("${userId.orEmpty()}:$onceKey".toByteArray())
             .joinToString("") { "%02x".format(it) }
 
-    private fun rememberOnceKey(key: String) {
-        if (!onceKeys.add(key)) return
+    private fun persist(snapshot: List<String>) {
+        repeat(3) { if (runCatching { dedupeStore.writeDurably(snapshot) }.getOrDefault(false)) return }
+    }
+
+    private fun addOnceKey(key: String): Boolean {
+        if (!onceKeys.add(key)) return false
         if (onceKeys.size > dedupeLimit) {
             val iterator = onceKeys.iterator()
             if (iterator.hasNext()) {
@@ -82,6 +103,6 @@ internal class BusinessEventQueue(
                 iterator.remove()
             }
         }
-        dedupeStore.write(onceKeys.toList())
+        return true
     }
 }

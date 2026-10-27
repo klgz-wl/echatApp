@@ -78,8 +78,8 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
     }
 }
 
-internal fun EventTracker.reportRecoveredPurchase(tracked: PendingPurchaseRecord, owner: String, orderId: String) {
-    purchaseSuccess(paymentProperties("success", "google_play", "restored", "restored", tracked.productId,
+internal suspend fun EventTracker.reportRecoveredPurchase(tracked: PendingPurchaseRecord, owner: String, orderId: String) {
+    purchaseSuccessOnIo(paymentProperties("success", "google_play", "restored", "restored", tracked.productId,
         orderId, "play_consumed", amount = tracked.priceAmountMicros?.takeIf { it >= 0 }?.toDouble()?.div(1_000_000),
         currency = tracked.priceCurrencyCode) + mapOf("af_content_id" to tracked.productId),
         owner, "play:$orderId:purchase_success")

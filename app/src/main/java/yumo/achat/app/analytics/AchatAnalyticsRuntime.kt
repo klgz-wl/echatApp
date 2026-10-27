@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.ui.imagevideo.achatBackendConfiguration
+import yumo.achat.app.config.AppConfigRuntime
 import yumo.achat.core.analytics.AnalyticsPolicy
 import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.analytics.EventApi
@@ -128,6 +129,8 @@ internal object AchatAnalyticsRuntime {
                     override fun write(values: List<String>) {
                         eventPreferences.edit().putString("dedupe", values.joinToString("\n")).apply()
                     }
+                    override fun writeDurably(values: List<String>): Boolean = eventPreferences.edit()
+                        .putString("dedupe", values.joinToString("\n")).commit()
                 },
             ),
             sinks = sinks,
@@ -143,6 +146,7 @@ internal object AchatAnalyticsRuntime {
             campaignAttributionSink = firebaseCampaignSink,
             thinkingDataAttributionSink = thinkingDataAttributionSink,
             backendAttributionSink = backendAttributionSink,
+            purchaseSuccessEnabled = AppConfigRuntime.get(context)::enabled,
         )
         val preferences = eventPreferences
         hub.foregroundAnalytics = ForegroundAnalytics(
@@ -173,6 +177,7 @@ internal class AppAnalyticsHub(
     private val campaignAttributionSink: FirebaseAnalyticsSink? = null,
     private val thinkingDataAttributionSink: ThinkingDataAnalytics? = null,
     private val backendAttributionSink: BackendHttpAnalyticsSink? = null,
+    private val purchaseSuccessEnabled: () -> Boolean = { false },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : EventTracker {
     internal lateinit var foregroundAnalytics: ForegroundAnalytics
@@ -285,8 +290,13 @@ internal class AppAnalyticsHub(
     }
 
     override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
+        val frozenUser = userId ?: activeUserId
+        if (name == "purchase_success" && !runCatching(purchaseSuccessEnabled).getOrDefault(false)) {
+            queue.suppress(frozenUser, onceKey)
+            return
+        }
         initialize()
-        queue.track(name, parameters, userId ?: activeUserId, onceKey)
+        queue.track(name, parameters, frozenUser, onceKey)
     }
 }
 

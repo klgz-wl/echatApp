@@ -2,8 +2,71 @@ package yumo.achat.core.analytics
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 
 class EventTrackerTest {
+    @Test fun `success tracking still records dedupe when caller is already cancelled`() = kotlinx.coroutines.runBlocking {
+        val tracked = java.util.concurrent.atomic.AtomicInteger()
+        val returned = java.util.concurrent.atomic.AtomicBoolean(false)
+        val tracker = object : EventTracker {
+            override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
+                tracked.incrementAndGet()
+            }
+        }
+        val reporting = launch(kotlinx.coroutines.Dispatchers.Default) {
+            kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]!!.cancel()
+            tracker.purchaseSuccessOnIo(mapOf("status" to "success"), "user", "order")
+            returned.set(true)
+        }
+        reporting.join()
+        assertEquals(1, tracked.get())
+        assertTrue(returned.get())
+    }
+    @Test fun `success tracking completes after caller cancellation and isolates analytics failure`() = kotlinx.coroutines.runBlocking {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val returned = java.util.concurrent.atomic.AtomicBoolean(false)
+        val tracker = object : EventTracker {
+            override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
+                entered.countDown()
+                release.await(2, java.util.concurrent.TimeUnit.SECONDS)
+                throw IllegalStateException("analytics unavailable")
+            }
+        }
+        val reporting = launch(kotlinx.coroutines.Dispatchers.Default) {
+            tracker.purchaseSuccessOnIo(mapOf("status" to "success"), "user", "order")
+            returned.set(true)
+        }
+        try {
+            assertTrue(entered.await(1, java.util.concurrent.TimeUnit.SECONDS))
+            reporting.cancel()
+        } finally { release.countDown() }
+        reporting.join()
+        assertTrue("analytics must not interrupt an already fulfilled purchase", returned.get())
+    }
+    @Test fun `purchase success IO dispatch leaves caller thread free during durable storage`() = kotlinx.coroutines.runBlocking {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val tracker = object : EventTracker {
+            override fun track(name: String, parameters: Map<String, Any>, userId: String?, onceKey: String?) {
+                entered.countDown()
+                release.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
+        val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        try {
+            val reporting = launch(dispatcher) {
+                tracker.purchaseSuccessOnIo(mapOf("status" to "success"), "user", "order")
+            }
+            assertTrue(entered.await(1, java.util.concurrent.TimeUnit.SECONDS))
+            val ran = kotlinx.coroutines.CompletableDeferred<Unit>()
+            launch(dispatcher) { ran.complete(Unit) }
+            kotlinx.coroutines.withTimeout(1_000) { ran.await() }
+            release.countDown()
+            reporting.join()
+        } finally { release.countDown(); dispatcher.close() }
+    }
     @Test fun `四端成功事件使用统一业务前缀`() {
         assertEquals(listOf("f_purchase_success", "a_purchase_success", "s_purchase_success", "z_purchase_success"),
             AnalyticsPlatform.entries.map { it.eventName("purchase_success") })
