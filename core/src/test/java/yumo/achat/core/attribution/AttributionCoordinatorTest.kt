@@ -9,6 +9,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AttributionCoordinatorTest {
+    @Test fun `login reads fresh GAID independently of cached SDK identifier`() = runBlocking {
+        val source = Source().apply { gaid = "stale-sdk-value" }
+        var reads = 0
+        val provider = AdvertisingIdProvider {
+            reads++
+            if (reads == 1) "12345678-1234-4234-8234-123456789abc" else null
+        }
+        val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1", 30),
+            AttributionConfiguration(20, 1, 1), provider)
+        val first = repo.forLogin()
+        val second = repo.forLogin()
+        assertEquals("12345678-1234-4234-8234-123456789abc", first.gaid)
+        assertEquals(first.gaid, first.deviceId)
+        assertNull(second.gaid)
+        assertEquals("test-device", second.deviceId)
+        assertEquals(2, reads)
+    }
+    @Test fun `GAID lookup error does not block attribution login`() = runBlocking {
+        val repo = AttributionCoordinator(Source(), Storage(), MemoryStorage(), ClientIdentity("test.package", "1", 30),
+            AttributionConfiguration(20, 1, 1), AdvertisingIdProvider { error("play services unavailable") })
+        val login = repo.forLogin()
+        assertNull(login.gaid)
+        assertEquals("test-device", login.deviceId)
+    }
     @Test fun `Organic without auxiliary capability waits stage but stops SDK retry`() = runBlocking {
         val source = Source()
         val repo = AttributionCoordinator(source, Storage(), MemoryStorage(), ClientIdentity("test.package", "1.0", 30),
@@ -167,10 +191,12 @@ class AttributionCoordinatorTest {
             put("af_uid", "af-uid")
             put("af_channel", "paid-social")
         }
-        val payload = deviceAttributionReport(raw, ClientIdentity("test.package", "2.0", 30), "device", "user")
+        val payload = deviceAttributionReport(raw, ClientIdentity("test.package", "2.0", 30), "device", "user",
+            gaid = "12345678-1234-4234-8234-123456789abc")
         assertEquals(JsonPrimitive("AppsFlyer"), payload["attribution_source"])
         assertEquals(JsonPrimitive("android"), payload["platform"])
         assertEquals(JsonPrimitive("device"), payload["device_id"])
+        assertEquals(JsonPrimitive("12345678-1234-4234-8234-123456789abc"), payload["gaid"])
         assertEquals(JsonPrimitive("user"), payload["user_id"])
         assertEquals(JsonPrimitive("af-uid"), payload["af_uid"])
         assertEquals(JsonPrimitive("paid-social"), payload["channel"])

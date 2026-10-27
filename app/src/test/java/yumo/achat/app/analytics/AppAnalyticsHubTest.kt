@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.analytics.EventApi
@@ -24,6 +25,54 @@ import kotlinx.serialization.json.put
 import retrofit2.Response
 
 class AppAnalyticsHubTest {
+    @Test fun `GAID lookup failure still sends original backend event`() {
+        val captured = java.util.concurrent.atomic.AtomicReference<ReportEventRequest>()
+        val sent = CountDownLatch(1)
+        val sink = BackendHttpAnalyticsSink(
+            api = object : EventApi {
+                override suspend fun reportEvent(request: ReportEventRequest): Response<ApiResponse<Unit>> {
+                    captured.set(request); sent.countDown(); return Response.success(ApiResponse(0))
+                }
+            },
+            identity = ClientIdentity("test.package", "1", 30), deviceId = { "device" },
+            advertisingIds = yumo.achat.core.attribution.AdvertisingIdProvider { error("unavailable") },
+        )
+        sink.initialize()
+        sink.identify("original")
+        sink.event("page_view", mapOf("event_time" to 123L))
+        assertTrue(sent.await(2, TimeUnit.SECONDS))
+        assertEquals("original", captured.get().userId)
+        assertEquals(123L, captured.get().eventTime)
+        assertNull(captured.get().gaid)
+    }
+    @Test fun `backend outbox adds GAID asynchronously while keeping original event time and user`() {
+        val captured = java.util.concurrent.atomic.AtomicReference<ReportEventRequest>()
+        val sent = CountDownLatch(1)
+        val store = MemoryBackendRequestStore()
+        val sink = BackendHttpAnalyticsSink(
+            api = object : EventApi {
+                override suspend fun reportEvent(request: ReportEventRequest): Response<ApiResponse<Unit>> {
+                    captured.set(request); sent.countDown()
+                    return Response.success(ApiResponse(0))
+                }
+            },
+            identity = ClientIdentity("test.package", "1", 30),
+            deviceId = { "install-device" },
+            store = store,
+            advertisingIds = yumo.achat.core.attribution.AdvertisingIdProvider { "12345678-1234-4234-8234-123456789abc" },
+        )
+        sink.identify("original-user")
+        sink.event("page_view", mapOf("event_time" to 123L))
+        assertEquals("original-user", store.read().single().userId)
+        assertEquals(123L, store.read().single().eventTime)
+        assertNull(store.read().single().gaid)
+        sink.identify("later-user")
+        sink.initialize()
+        assertTrue(sent.await(2, TimeUnit.SECONDS))
+        assertEquals("original-user", captured.get().userId)
+        assertEquals(123L, captured.get().eventTime)
+        assertEquals("12345678-1234-4234-8234-123456789abc", captured.get().gaid)
+    }
     @Test fun `four enabled sinks receive one purchase and merged parameters cannot leak revenue elsewhere`() {
         val sinks = List(4) { CountingSink(expectedEvents = 2) }
         val hub = AppAnalyticsHub(BusinessEventQueue(8), sinks,

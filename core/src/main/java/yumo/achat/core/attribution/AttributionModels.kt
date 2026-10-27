@@ -21,6 +21,7 @@ data class LoginAttribution(
     @SerialName("app_version") val appVersion: String,
     @SerialName("package_name") val packageName: String,
     @SerialName("extra_data") val extraData: JsonObject,
+    val gaid: String? = null,
 ) { override fun toString() = "LoginAttribution(归因标识已隐藏)" }
 
 @Serializable
@@ -93,6 +94,7 @@ fun attributionPayload(
     deviceId: String,
     afUid: String,
     source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
+    gaid: String? = null,
 ): LoginAttribution {
     fun value(vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
         (data[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
@@ -113,7 +115,7 @@ fun attributionPayload(
         if (metaShaped) value("af_ad", "adgroup", "creative") else value("af_ad", "creative"),
         if (metaShaped) value("af_ad_id", "adgroup_id", "creative_id") else value("af_ad_id", "creative_id"),
         value("af_channel", "channel"), value("country_code", "country"), "android",
-        identity.versionName, identity.packageName, data)
+        identity.versionName, identity.packageName, data, gaid)
 }
 
 /** SDK 回调可以包含布尔、数值和嵌套对象，不全部转成字符串。 */

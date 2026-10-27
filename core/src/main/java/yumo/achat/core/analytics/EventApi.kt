@@ -23,4 +23,5 @@ data class ReportEventRequest(
     @SerialName("app_version") val appVersion: String,
     @SerialName("platform") val platform: String,
     @SerialName("parameters") val parameters: Map<String, String>,
+    val gaid: String? = null,
 )

@@ -22,7 +22,9 @@ class AchatBackendRefreshTest {
             assertEquals("test.package", body.getString("package_name"))
             assertEquals("android", body.getString("platform"))
             assertEquals("2.0.0", body.getString("version"))
+            assertEquals("12345678-1234-4234-8234-123456789abc", body.getString("gaid"))
             val attribution = body.getJSONObject("attribution")
+            assertEquals(body.getString("gaid"), attribution.getString("gaid"))
             assertEquals("appsflyer", attribution.getString("attribution_source"))
             assertEquals("gaid-or-install", attribution.getString("device_id"))
             assertEquals("af-test-id", attribution.getString("af_uid"))
@@ -55,6 +57,7 @@ class AchatBackendRefreshTest {
                     appVersion = "2.0.0",
                     packageName = "test.package",
                     extraData = JsonObject(emptyMap()),
+                    gaid = "12345678-1234-4234-8234-123456789abc",
                 ),
             )
             assertEquals("access", session.token)
@@ -75,6 +78,7 @@ class AchatBackendRefreshTest {
             assertEquals("stable-device", body.getString("device_id"))
             assertEquals("af-report-id", body.getString("af_uid"))
             assertEquals("AppsFlyer", body.getString("attribution_source"))
+            assertEquals("12345678-1234-4234-8234-123456789abc", body.getString("gaid"))
             val response = """{"code":0}""".toByteArray()
             exchange.sendResponseHeaders(200, response.size.toLong())
             exchange.responseBody.use { it.write(response) }
@@ -87,6 +91,7 @@ class AchatBackendRefreshTest {
                     .put("device_id", "stable-device")
                     .put("user_id", "user-1")
                     .put("af_uid", "af-report-id")
+                    .put("gaid", "12345678-1234-4234-8234-123456789abc")
                     .put("attribution_source", "AppsFlyer"),
             )
         } finally {

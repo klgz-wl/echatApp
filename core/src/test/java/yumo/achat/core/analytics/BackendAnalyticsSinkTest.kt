@@ -20,6 +20,28 @@ import java.io.IOException
 class BackendAnalyticsSinkTest {
     private val identity = ClientIdentity("test.vexora", "1.2.3", 10)
 
+    @Test fun `GAID read failure does not drop owned event`() = runBlocking {
+        val received = CompletableDeferred<ReportEventRequest>()
+        val api = object : EventApi {
+            override suspend fun reportEvent(request: ReportEventRequest): Response<ApiResponse<Unit>> {
+                received.complete(request)
+                return Response.success(ApiResponse(0))
+            }
+        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val sink = BackendAnalyticsSink(api, identity, { "device" }, 8, scope,
+                yumo.achat.core.attribution.AdvertisingIdProvider { error("unavailable") })
+            sink.initialize()
+            sink.identify("original-user")
+            sink.event("page_view", mapOf("event_time" to 123L))
+            val request = withTimeout(2_000) { received.await() }
+            assertEquals("original-user", request.userId)
+            assertEquals(123L, request.eventTime)
+            assertNull(request.gaid)
+        } finally { scope.cancel() }
+    }
+
     @Test fun `真实Retrofit代理和序列化遵守参考接口契约`() = runBlocking {
         val received = CompletableDeferred<JsonObject>()
         val client = OkHttpClient.Builder().addInterceptor { chain ->
@@ -42,7 +64,8 @@ class BackendAnalyticsSinkTest {
         }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
-            val sink = BackendAnalyticsSink(api, identity, { "device-test" }, 10, scope)
+            val sink = BackendAnalyticsSink(api, identity, { "device-test" }, 10, scope,
+                advertisingIds = yumo.achat.core.attribution.AdvertisingIdProvider { "12345678-1234-4234-8234-123456789abc" })
             sink.initialize()
             sink.identify("user-original")
             val tracker = RecordingTracker()
@@ -54,7 +77,8 @@ class BackendAnalyticsSinkTest {
             assertTrue(response.isSuccessful)
             assertEquals(0, response.body()!!.code)
             assertNull(response.body()!!.data)
-            assertEquals(setOf("device_id", "event_type", "event_time", "user_id", "package_name", "app_version", "platform", "parameters"), body.keys)
+            assertEquals(setOf("device_id", "event_type", "event_time", "user_id", "package_name", "app_version", "platform", "parameters", "gaid"), body.keys)
+            assertEquals("12345678-1234-4234-8234-123456789abc", body.getValue("gaid").jsonPrimitive.content)
             assertEquals("z_purchase_success", body.getValue("event_type").jsonPrimitive.content)
             assertEquals(1700000000123L, body.getValue("event_time").jsonPrimitive.long)
             assertEquals("device-test", body.getValue("device_id").jsonPrimitive.content)

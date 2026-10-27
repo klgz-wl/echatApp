@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.sync.Mutex
@@ -24,6 +26,7 @@ import org.json.JSONObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.analytics.AnalyticsConsent
+import yumo.achat.app.analytics.AdvertisingIdRuntime
 import yumo.achat.app.ui.imagevideo.achatBackendConfiguration
 import yumo.achat.core.attribution.AttributionConfiguration
 import yumo.achat.core.attribution.AttributionCoordinator
@@ -33,6 +36,8 @@ import yumo.achat.core.attribution.AttributionResult
 import yumo.achat.core.attribution.AttributionResultSource
 import yumo.achat.core.attribution.ConversionResult
 import yumo.achat.core.attribution.LoginAttribution
+import yumo.achat.core.attribution.AdvertisingIdProvider
+import yumo.achat.core.attribution.readOrNull
 import yumo.achat.core.attribution.attributionPayload
 import yumo.achat.core.attribution.deviceAttributionReport
 import yumo.achat.core.analytics.AnalyticsSink
@@ -70,6 +75,17 @@ internal fun completedLoginAttribution(
     installDeviceId: String,
 ): LoginAttribution = attributionPayload(JsonObject(emptyMap()), identity, installDeviceId, "")
 
+internal suspend fun loginAttributionWithGaid(
+    installDeviceId: String,
+    advertisingIds: AdvertisingIdProvider,
+    attribution: suspend () -> LoginAttribution,
+): LoginAttribution = coroutineScope {
+    val currentId = async { advertisingIds.readOrNull() }
+    val existing = attribution()
+    val gaid = currentId.await()
+    existing.copy(deviceId = gaid ?: installDeviceId, gaid = gaid)
+}
+
 internal suspend fun persistCurrentAttributionIfMissing(
     current: ConversionResult,
     hasResult: (AttributionResultSource, JsonObject) -> Boolean,
@@ -92,6 +108,7 @@ internal class AppsFlyerBackendAttribution(
         timeoutSeconds = 15,
     )
     private val storage = AppAttributionStorage(appContext)
+    private val advertisingIds = AdvertisingIdRuntime.get(appContext)
     private val ledgerStore = SharedPreferencesAttributionLedgerStore(
         appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE),
     )
@@ -200,6 +217,7 @@ internal class AppsFlyerBackendAttribution(
                     deviceId = storage.deviceIdBlocking(),
                     userId = session.userId,
                     metadata = metadata,
+                    gaid = advertisingIds.readOrNull(),
                 )
                 client.reportAttribution(JSONObject(payload.toString()))
             },
@@ -353,17 +371,13 @@ internal class AppsFlyerBackendAttribution(
     }
 
     override suspend fun forLogin(installDeviceId: String): LoginAttribution =
-        if (isAttributionComplete()) {
-            completedLoginAttribution(identity, installDeviceId)
-        } else runCatching { ledgerStore.snapshot().currentResult() }.getOrNull()?.let { result ->
-            attributionPayload(
-                result.data,
-                identity,
-                source.advertisingId() ?: installDeviceId,
-                source.attributionUid(),
-                result.source,
-            )
-        } ?: coordinator().forLogin()
+        loginAttributionWithGaid(installDeviceId, advertisingIds) {
+            if (isAttributionComplete()) {
+                completedLoginAttribution(identity, installDeviceId)
+            } else runCatching { ledgerStore.snapshot().currentResult() }.getOrNull()?.let { result ->
+                attributionPayload(result.data, identity, installDeviceId, source.attributionUid(), result.source)
+            } ?: coordinator().forLogin()
+        }
 
     override fun currentId(): String = source.currentId()
 

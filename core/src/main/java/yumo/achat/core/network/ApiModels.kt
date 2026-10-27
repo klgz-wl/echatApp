@@ -25,14 +25,17 @@ sealed class ServiceFailure : Exception() {
 @Serializable
 data class LoginRequest(val username: String, val password: String,
     @SerialName("device_id") val deviceId: String,
-    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution)
+    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution,
+    val gaid: String? = null)
 @Serializable
 data class AnonymousRequest(@SerialName("device_id") val deviceId: String,
-    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution)
+    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution,
+    val gaid: String? = null)
 @Serializable
 data class GoogleRequest(@SerialName("id_token") val idToken: String,
     @SerialName("device_id") val deviceId: String,
-    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution)
+    @SerialName("package_name") val packageName: String, val platform: String, val version: String, val attribution: LoginAttribution,
+    val gaid: String? = null)
 @Serializable
 data class RefreshRequest(@SerialName("refresh_token") val refreshToken: String)
 @Serializable

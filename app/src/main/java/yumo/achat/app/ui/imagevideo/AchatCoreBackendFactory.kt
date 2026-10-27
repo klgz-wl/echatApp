@@ -4,6 +4,7 @@ import android.content.Context
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
+import yumo.achat.app.analytics.AdvertisingIdRuntime
 import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.core.backend.AchatBackendConfiguration
 import yumo.achat.core.backend.AchatRepository
@@ -24,7 +25,7 @@ internal fun createAchatRepository(context: Context): AchatRepository {
         attribution = if (AnalyticsConsent.granted(context) && BuildConfig.ENABLE_APPSFLYER) {
             AchatAttributionRuntime.get(context)
         } else {
-            NoOpBackendAttribution(achatBackendConfiguration())
+            NoOpBackendAttribution(achatBackendConfiguration(), AdvertisingIdRuntime.get(context))
         },
         onLoginResult = { success, reason, userId ->
             if (userId != null) analytics.identify(userId)

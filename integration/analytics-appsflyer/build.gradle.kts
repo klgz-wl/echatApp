@@ -26,7 +26,6 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.appsflyer.sdk)
     implementation(libs.install.referrer)
-    implementation(libs.play.services.ads.identifier)
 }
 
 tasks.register("testReleaseUnitTest") {

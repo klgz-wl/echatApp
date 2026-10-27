@@ -10,7 +10,9 @@ internal fun createHttpLoggingInterceptor(config: CoreRuntimeConfig): HttpLoggin
 
 internal fun createHttpLoggingInterceptor(enabled: Boolean,
     sanitize: (String) -> String = ::sanitizeHttpLogMessage, redact: Boolean = true): HttpLoggingInterceptor =
-    HttpLoggingInterceptor { message -> Timber.tag("OkHttp").d(if (redact) sanitize(message) else message) }.apply {
+    HttpLoggingInterceptor { message -> Timber.tag("OkHttp").d(if (redact) sanitize(message) else sanitizeGaidLogMessage(message)) }.apply {
+        redactHeader("X-GAID")
+        redactHeader("X-Advertising-ID")
         if (redact) SENSITIVE_HTTP_HEADERS.forEach(::redactHeader)
         level = if (enabled) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
     }
@@ -40,6 +42,17 @@ private val SENSITIVE_QUERY_LOG_VALUE = Regex(
     pattern = """(^|[?&])((?:$SENSITIVE_HTTP_LOG_FIELD)=)[^&\s]*""",
     option = RegexOption.IGNORE_CASE,
 )
+
+private val GAID_JSON_LOG_VALUE = Regex(
+    """("(?:gaid|advertising_?id)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|null)""",
+    RegexOption.IGNORE_CASE,
+)
+private val GAID_QUERY_LOG_VALUE = Regex("""(^|[?&])((?:gaid|advertising_?id)=)[^&\s]*""", RegexOption.IGNORE_CASE)
+
+private fun sanitizeGaidLogMessage(message: String): String {
+    val body = GAID_JSON_LOG_VALUE.replace(message) { "${it.groupValues[1]}\"[REDACTED]\"" }
+    return GAID_QUERY_LOG_VALUE.replace(body) { "${it.groupValues[1]}${it.groupValues[2]}[REDACTED]" }
+}
 
 internal fun sanitizeHttpLogMessage(message: String): String {
     val withoutSensitiveJson = SENSITIVE_JSON_LOG_VALUE.replace(message) { match ->

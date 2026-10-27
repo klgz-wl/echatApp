@@ -35,6 +35,7 @@ class AttributionCoordinator @Inject constructor(
     private val sessions: SessionStorage,
     private val identity: ClientIdentity,
     private val config: AttributionConfiguration,
+    private val advertisingIds: AdvertisingIdProvider = AdvertisingIdProvider { null },
 ) : LoginAttributionProvider {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dataLock = Mutex()
@@ -128,7 +129,8 @@ class AttributionCoordinator @Inject constructor(
         withTimeoutOrNull(config.cacheWaitMillis) { cacheLoaded.join() }
         (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data, it.source) }
         val data = dataLock.withLock { latest } ?: JsonObject(emptyMap())
-        return attributionPayload(data, identity, source.advertisingId() ?: sessions.deviceId(), source.attributionUid())
+        val gaid = advertisingIds.readOrNull()
+        return attributionPayload(data, identity, gaid ?: sessions.deviceId(), source.attributionUid(), gaid = gaid)
     }
 }
 

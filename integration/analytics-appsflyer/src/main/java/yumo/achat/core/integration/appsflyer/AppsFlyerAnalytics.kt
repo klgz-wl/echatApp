@@ -5,7 +5,6 @@ import android.content.Context
 import com.appsflyer.attribution.AppsFlyerRequestListener
 import com.appsflyer.AppsFlyerLib
 import com.appsflyer.AppsFlyerConversionListener
-import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -56,8 +55,6 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     private val callbackSequencer = AppsFlyerConversionCallbackSequencer()
     private val callbackEvents = ConversionCallbackEvents<AppsFlyerConversionCallback>()
     val conversionCallbacks = callbackEvents.events
-    private var gaidRequested = false
-    @Volatile private var gaid: String? = null
     init {
         config.restoredAttribution?.let(conversionState::restoreSnapshot)
         if (sdkMediaObserved) gcd.sdkMedia()
@@ -92,14 +89,6 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     }
 
     private fun startWithActivity(activity: Activity, attempt: Long): Boolean {
-        if (!gaidRequested) {
-            gaidRequested = true
-            scope.launch(Dispatchers.IO) {
-                gaid = runCatching { AdvertisingIdClient.getAdvertisingIdInfo(context) }.getOrNull()?.let {
-                    it.id?.takeUnless { id -> it.isLimitAdTrackingEnabled || id.isBlank() || id.all { c -> c == '0' || c == '-' } }
-                }
-            }
-        }
         try {
             synchronized(sdkLock) { AppsFlyerLib.getInstance().apply {
                 if (!ready) {
@@ -206,7 +195,8 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
         if (config.diagnosticLogging) android.util.Log.i(tag, message)
         else Timber.tag(tag).i(message)
     }
-    override fun advertisingId(): String? = gaid
+    // AppsFlyer SDK collects its own Advertising ID. Owned requests use the shared provider.
+    override fun advertisingId(): String? = null
     override fun attributionUid(): String = currentId()
     override suspend fun verifyHomeAttribution() = withContext(Dispatchers.Main.immediate) { gcd.verifyHome() }
     override suspend fun awaitPreHomeConfirmation(): Boolean {

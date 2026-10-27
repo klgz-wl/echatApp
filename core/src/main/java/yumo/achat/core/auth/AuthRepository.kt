@@ -25,16 +25,22 @@ class ApiAuthRepository @Inject constructor(private val api: PublicAuthApi, priv
     private val operation = Mutex()
     override suspend fun login(account: String, password: String) = operation.withLock {
         if (!config.accountRules.accepts(account, password)) throw ServiceFailure.InvalidAccount
-        val response = api.login(LoginRequest(account.trim(), password, storage.deviceId(), identity.packageName, "android", identity.versionName, attribution.forLogin())).requireData()
+        val loginAttribution = attribution.forLogin()
+        val response = api.login(LoginRequest(account.trim(), password, storage.deviceId(), identity.packageName, "android", identity.versionName,
+            loginAttribution, loginAttribution.gaid)).requireData()
         sessions.saveLogin(response)
     }
     override suspend fun anonymous() = operation.withLock {
-        val response = api.anonymous(AnonymousRequest(storage.deviceId(), identity.packageName, "android", identity.versionName, attribution.forLogin())).requireData()
+        val loginAttribution = attribution.forLogin()
+        val response = api.anonymous(AnonymousRequest(storage.deviceId(), identity.packageName, "android", identity.versionName,
+            loginAttribution, loginAttribution.gaid)).requireData()
         sessions.saveLogin(response)
     }
     override suspend fun google(idToken: String) = operation.withLock {
         if (idToken.isBlank()) throw ServiceFailure.InvalidResponse
-        val response = api.google(GoogleRequest(idToken, storage.deviceId(), identity.packageName, "android", identity.versionName, attribution.forLogin())).requireData()
+        val loginAttribution = attribution.forLogin()
+        val response = api.google(GoogleRequest(idToken, storage.deviceId(), identity.packageName, "android", identity.versionName,
+            loginAttribution, loginAttribution.gaid)).requireData()
         sessions.saveLogin(response)
     }
     override suspend fun logout(delete: Boolean) = operation.withLock {

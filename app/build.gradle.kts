@@ -174,6 +174,7 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":integration:analytics-appsflyer"))
+    implementation(libs.play.services.ads.identifier)
     implementation(project(":integration:analytics-thinkingdata"))
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.activity:activity-compose:1.13.0")

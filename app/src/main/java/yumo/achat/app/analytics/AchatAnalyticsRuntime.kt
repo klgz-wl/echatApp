@@ -18,6 +18,8 @@ import yumo.achat.core.analytics.EventTracker
 import yumo.achat.core.analytics.ReportEventRequest
 import yumo.achat.core.analytics.analyticsParameters
 import yumo.achat.core.analytics.businessRevenueParameters
+import yumo.achat.core.attribution.AdvertisingIdProvider
+import yumo.achat.core.attribution.readOrNull
 import yumo.achat.core.backend.AchatSessionStore
 import yumo.achat.core.config.ClientIdentity
 import yumo.achat.core.integration.thinkingdata.ThinkingDataAnalytics
@@ -111,6 +113,7 @@ internal object AchatAnalyticsRuntime {
                     store = SharedPreferencesBackendRequestStore(
                         context.getSharedPreferences("${BuildConfig.ANALYTICS_STORAGE_NAME}_backend", Context.MODE_PRIVATE),
                     ),
+                    advertisingIds = AdvertisingIdRuntime.get(context),
                 ).also { backendAttributionSink = it },
             )
         }
@@ -295,6 +298,7 @@ internal class BackendHttpAnalyticsSink(
     private val store: BackendRequestStore = MemoryBackendRequestStore(),
     private val retryDelay: suspend () -> Unit = { delay(1_000L) },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val advertisingIds: AdvertisingIdProvider = AdvertisingIdProvider { null },
 ) : AnalyticsSink {
     @Volatile private var activeUserId: String? = null
     private val maxPending = capacity
@@ -307,7 +311,9 @@ internal class BackendHttpAnalyticsSink(
         if (!initialized.compareAndSet(false, true)) return
         scope.launch {
             for (ignored in signals) {
-                runCatching { drainPending() }
+                try { drainPending() }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { /* 后续前台信号继续重试持久事件。 */ }
             }
         }
         if (synchronized(pendingLock) { pending.isNotEmpty() }) signals.trySend(Unit)
@@ -341,10 +347,13 @@ internal class BackendHttpAnalyticsSink(
         var remaining = synchronized(pendingLock) { pending.size }
         while (remaining-- > 0) {
             val request = synchronized(pendingLock) { pending.firstOrNull() } ?: return
+            val gaid = advertisingIds.readOrNull()
+            val outbound = request.copy(gaid = gaid)
             var accepted = false
             for (attempt in 0 until 3) {
-                accepted = runCatching { api.reportEvent(request) }.getOrNull()
-                    ?.let { it.isSuccessful && it.body()?.code == 0 } == true
+                accepted = try { api.reportEvent(outbound).let { it.isSuccessful && it.body()?.code == 0 } }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { false }
                 if (accepted) break
                 if (attempt < 2) retryDelay()
             }
@@ -408,6 +417,7 @@ internal class HttpEventApi(
             .put("app_version", request.appVersion)
             .put("platform", request.platform)
             .put("parameters", JSONObject(request.parameters))
+        request.gaid?.let { body.put("gaid", it) }
         request.userId?.let { body.put("user_id", it) }
         val connection = (URL(baseUrl.trimEnd('/') + "/api/v1/events/report").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"

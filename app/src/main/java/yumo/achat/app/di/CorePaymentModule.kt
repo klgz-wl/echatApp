@@ -9,12 +9,14 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
+import yumo.achat.app.analytics.AdvertisingIdRuntime
 import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.ui.imagevideo.corePaymentConfiguration
 import yumo.achat.app.ui.imagevideo.coreRechargeStreamConfiguration
 import yumo.achat.core.analytics.AttributionIdProvider
 import yumo.achat.core.analytics.EventTracker
+import yumo.achat.core.attribution.AdvertisingIdProvider
 import yumo.achat.core.billing.BillingConfiguration
 import yumo.achat.core.config.ClientIdentity
 import yumo.achat.core.config.CoreRuntimeConfig
@@ -80,6 +82,10 @@ object CorePaymentModule {
     @Provides
     @Singleton
     fun eventTracker(@ApplicationContext context: Context): EventTracker = AchatAnalyticsRuntime.get(context)
+
+    @Provides
+    @Singleton
+    fun advertisingIdProvider(@ApplicationContext context: Context): AdvertisingIdProvider = AdvertisingIdRuntime.get(context)
 
     @Provides
     @Singleton

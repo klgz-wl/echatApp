@@ -38,6 +38,7 @@ class AchatBackendClient(
             .put("platform", platform)
             .put("version", version)
             .put("attribution", attribution.toJsonObject())
+        attribution.gaid?.let { body.put("gaid", it) }
 
         return AchatBackendParsers.parseAuthSession(
             request(
@@ -370,6 +371,7 @@ private fun LoginAttribution.toJsonObject(): JSONObject =
         .put("app_version", appVersion)
         .put("package_name", packageName)
         .put("extra_data", JSONObject(extraData.toString()))
+        .putIfNotNull("gaid", gaid)
 
 private fun JSONObject.putIfNotNull(name: String, value: String?): JSONObject =
     if (value == null) this else put(name, value)

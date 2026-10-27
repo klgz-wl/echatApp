@@ -1,6 +1,8 @@
 package yumo.achat.core.analytics
 
 import yumo.achat.core.auth.SessionStorage
+import yumo.achat.core.attribution.AdvertisingIdProvider
+import yumo.achat.core.attribution.readOrNull
 import yumo.achat.core.config.ClientIdentity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -21,9 +23,11 @@ class BackendAnalyticsSink internal constructor(
     private val deviceId: suspend () -> String,
     capacity: Int,
     private val scope: CoroutineScope,
+    private val advertisingIds: AdvertisingIdProvider = AdvertisingIdProvider { null },
 ) : AnalyticsSink {
-    @Inject constructor(api: EventApi, identity: ClientIdentity, storage: SessionStorage, config: AnalyticsConfiguration) :
-        this(api, identity, { storage.deviceId() }, config.queueCapacity, CoroutineScope(SupervisorJob() + Dispatchers.IO))
+    @Inject constructor(api: EventApi, identity: ClientIdentity, storage: SessionStorage, config: AnalyticsConfiguration,
+        advertisingIds: AdvertisingIdProvider) :
+        this(api, identity, { storage.deviceId() }, config.queueCapacity, CoroutineScope(SupervisorJob() + Dispatchers.IO), advertisingIds)
 
     private data class PendingEvent(val name: String, val time: Long, val userId: String?, val parameters: Map<String, String>)
     private val events = Channel<PendingEvent>(capacity)
@@ -39,6 +43,7 @@ class BackendAnalyticsSink internal constructor(
                         deviceId = deviceId(), eventType = AnalyticsPlatform.BACKEND.eventName(event.name), eventTime = event.time, userId = event.userId,
                         packageName = identity.packageName, appVersion = identity.versionName, platform = "android",
                         parameters = event.parameters,
+                        gaid = advertisingIds.readOrNull(),
                     )
                     val response = api.reportEvent(request)
                     if (!response.isSuccessful) {

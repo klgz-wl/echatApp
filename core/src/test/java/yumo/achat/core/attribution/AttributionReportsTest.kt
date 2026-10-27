@@ -47,7 +47,7 @@ class AttributionReportsTest {
                 if (sent.size == 1) throw java.io.IOException()
                 return ApiResponse(0)
             }
-        }, sessions, storage, identity, config, profiles).start()
+        }, sessions, storage, identity, config, profiles, AdvertisingIdProvider { error("unavailable") }).start()
         val raw = buildJsonObject { put("af_status", "Non-organic"); put("is_first_launch", true) }
         source.conversion.value = ConversionResult.Success(raw)
         withTimeout(2000) { while (profiles.state.value?.mode != yumo.achat.core.config.AppMode.B) delay(5) }
@@ -56,6 +56,7 @@ class AttributionReportsTest {
         assertEquals(JsonPrimitive(true), extra["is_first_launch"])
         assertEquals(JsonPrimitive("anonymous"), extra["app_user_id"])
         assertEquals(JsonPrimitive("anonymous"), sent.last()["user_id"])
+        assertFalse(sent.last().containsKey("gaid"))
         assertEquals(sent.first(), sent.last())
         assertEquals(listOf("anonymous", "anonymous"), profileUsers.toList())
         assertEquals(epoch, sessions.current!!.epoch)

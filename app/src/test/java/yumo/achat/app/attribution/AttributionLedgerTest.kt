@@ -10,9 +10,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import yumo.achat.core.attribution.AttributionResultSource
+import yumo.achat.core.attribution.AdvertisingIdProvider
+import kotlinx.coroutines.runBlocking
 import yumo.achat.core.config.ClientIdentity
 
 class AttributionLedgerTest {
+    @Test fun `GAID lookup failure keeps completed login available`() = runBlocking {
+        val result = loginAttributionWithGaid("install", AdvertisingIdProvider { error("unavailable") }) {
+            completedLoginAttribution(ClientIdentity("test.package", "1", 30), "install")
+        }
+        assertEquals("install", result.deviceId)
+        assertEquals(null, result.gaid)
+    }
+    @Test fun `completed login adds one fresh GAID without changing attribution result`() = runBlocking {
+        var reads = 0
+        val base = completedLoginAttribution(ClientIdentity("yumo.achat.app", "1", 30), "install")
+        val result = loginAttributionWithGaid("install", AdvertisingIdProvider {
+            reads++
+            "12345678-1234-4234-8234-123456789abc"
+        }) { base }
+        assertEquals(1, reads)
+        assertEquals("12345678-1234-4234-8234-123456789abc", result.gaid)
+        assertEquals(result.gaid, result.deviceId)
+        assertEquals(base.extraData, result.extraData)
+    }
     private val scope = AttributionCompletionScope(
         userId = "user-1",
         installDeviceId = "install-1",

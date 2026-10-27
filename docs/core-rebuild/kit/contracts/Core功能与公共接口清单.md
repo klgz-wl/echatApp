@@ -94,7 +94,7 @@ flowchart TD
 
 `AnalyticsPolicy(firebase, appsFlyer, thinkingData, backend: Boolean)` 包含四端开关。`AnalyticsConfiguration(storageName: String, backgroundTimeoutMs: Long, queueCapacity: Int, dedupeLimit: Int)` 校验非空/正数；应用注入默认后台会话超时 30000ms、队列容量256、去重上限10000，`ENABLE_BACKEND_ANALYTICS=true`。
 
-`ReportEventRequest` 字段：deviceId/eventType/eventTime/userId?/packageName/appVersion/platform/parameters，JSON 映射为 device_id/event_type/event_time/user_id/package_name/app_version/platform/parameters，parameters 类型为 `Map<String, String>`。eventTime 是毫秒；platform=android，eventType 如 z_app_launch。接口成功要求 HTTP 成功且响应 code=0，不要求 Unit data 非空。publicClient 仍带通用客户端身份头，但不带受保护客户端的 Bearer；事件正文 userId 在入队时冻结，不能声称整个请求的所有头也都冻结。
+`ReportEventRequest` 字段：deviceId/eventType/eventTime/userId?/packageName/appVersion/platform/parameters/gaid?，JSON 映射为 device_id/event_type/event_time/user_id/package_name/app_version/platform/parameters/gaid；gaid 是顶层字段，缺失时省略，不加入 parameters。parameters 类型为 `Map<String, String>`。eventTime 是毫秒；platform=android，eventType 如 z_app_launch。接口成功要求 HTTP 成功且响应 code=0，不要求 Unit data 非空。publicClient 仍带通用客户端身份头，但不带受保护客户端的 Bearer；事件正文 userId、时间在入队时冻结，异步查询 GAID 不改写它们。
 
 顶层公共函数/扩展：
 
@@ -121,7 +121,8 @@ BackendAnalyticsSink 不持久化、不在应用层重试；队列满丢弃新�
 | AttributionCoordinator / LoginAttributionProvider | `suspend forLogin(): LoginAttribution` | 等初始结果，限时等缓存读取，再以最新有效回调/缓存/空对象构造登录归因 |
 | ConversionSource | `conversion: StateFlow<ConversionResult>` | Pending/Success(data: JsonObject)/Failed |
 | ConversionSource | `startAttribution(): Unit`、`retryAttribution(): Unit` | 启动/重试扩展点；接口默认retry委托start，AppsFlyer实现区分首次/重试 |
-| ConversionSource | `attributionUid(): String`、`advertisingId(): String?` | UID/可用广告ID |
+| ConversionSource | `attributionUid(): String`、`advertisingId(): String?` | AF UID；广告 ID 同步方法仅保留旧接口兼容，现行 AppsFlyer 实现返回 null，不作为自有请求的 GAID 来源 |
+| AdvertisingIdProvider | `suspend current(): String?` | 应用单例共享进行中查询；从 Google Play services 读取、限时等待、完成后不缓存 |
 | AttributionStorage | `suspend readAttribution(): JsonObject?`、`suspend writeAttribution(data: JsonObject): Unit` | 安装级持久缓存 |
 | AttributionReportApi | `suspend report(payload: JsonObject): ApiResponse<Unit>` | 公共 POST attribution/report，不刷新/重建登录会话 |
 | AttributionReports | `start(): Unit` | 幂等启动 snapshots 与会话 epoch 的联合订阅；异步补报后刷新同epoch profile |
@@ -131,11 +132,11 @@ BackendAnalyticsSink 不持久化、不在应用层重试；队列满丢弃新�
 | 顶层公共函数 | 功能 |
 | --- | --- |
 | `JsonObject.hasValidAttribution(): Boolean` | af_status 为 organic/non-organic（忽略大小写）才有效 |
-| `attributionPayload(data: JsonObject, identity: ClientIdentity, deviceId: String, afUid: String): LoginAttribution` | 组装登录 attribution，来源字符串为 appsflyer |
+| `attributionPayload(data: JsonObject, identity: ClientIdentity, deviceId: String, afUid: String, source: AttributionResultSource = ..., gaid: String? = null): LoginAttribution` | 组装登录 attribution，来源字符串按真实来源映射；gaid 由统一 Provider 提供 |
 | `conversionJson(value: Any?): JsonElement` | 保留嵌套、布尔、数字、数组、null |
-| `deviceAttributionReport(data: JsonObject, identity: ClientIdentity, deviceId: String, userId: String?): JsonObject` | 独立补报：顶层设备/构建/可选用户身份、归因维度、click_time/install_time 和 extra_data，来源字符串为 AppsFlyer |
+| `deviceAttributionReport(data: JsonObject, identity: ClientIdentity, deviceId: String, userId: String?, metadata: AttributionReportMetadata? = null, gaid: String? = null): JsonObject` | 独立补报：顶层设备/构建/可选用户身份与 GAID、归因维度、click_time/install_time 和 extra_data |
 
-`LoginAttribution` 字段为 attributionSource/deviceId/afUid/network/campaign/campaignId/adgroup/adgroupId/creative/creativeId/channel/country/platform/appVersion/packageName/extraData。登录归因 deviceId 优先可用广告ID，否则安装ID；独立补报固定用 SessionStorage.deviceId 安装ID。二者不是可互换请求体，不能改掉来源大小写或在后者凭空添加登录全部字段。
+`LoginAttribution` 字段为 attributionSource/deviceId/afUid/network/campaign/campaignId/adgroup/adgroupId/creative/creativeId/channel/country/platform/appVersion/packageName/extraData/gaid?。登录归因 deviceId 沿用可用广告 ID 优先、否则安装 ID 的口径；顶层登录 gaid 与 attribution.gaid 来自同一次当前系统查询。独立补报的 device_id 固定用 SessionStorage.deviceId 安装 ID，顶层 gaid 单独读取。GAID 不来自 AppsFlyer 回调或旧进程缓存。二者不是可互换请求体，不能改掉来源大小写或在后者凭空添加登录全部字段。
 
 AttributionReports 对每组“有效快照＋epoch”有限重试；补报成功后即使 profile 失败，当前组后续只重试 profile。新快照或epoch会取消旧组并重新处理，可在无会话时补报；不是持久补报队列或服务端严格幂等机制。首次 profile 失败由 Splash 重试；迟到刷新失败保留最后真实模式。旧 resolveMode/attributionMode 已移除。
 
@@ -163,7 +164,7 @@ AttributionReports 对每组“有效快照＋epoch”有限重试；补报成�
 | AppsFlyerAnalytics | `onActivityResumed(activity: Activity): Unit`、`onActivityPaused(activity: Activity): Unit` | 准入后绑定/解绑前台宿主 |
 | 同上 | `initialize()`、`startAttribution()`、`retryAttribution()`：Unit | 请求启动，后台等待有效Activity；不是立刻取得归因 |
 | 同上 | `identify(userId: String?): Unit`、`event(name: String, parameters: Map<String, Any>): Unit` | 设置SDK用户、发送带a_前缀手动事件 |
-| 同上 | `currentId(): String`、`attributionUid(): String`、`advertisingId(): String?` | ready前UID为空；广告ID受限/全零/无效返回null |
+| 同上 | `currentId(): String`、`attributionUid(): String`、`advertisingId(): String?` | ready 前 UID 为空；advertisingId 兼容方法返回 null，SDK 自身自动采集，业务 GAID 由独立 Provider 提供 |
 | 同上 | `conversion: StateFlow<ConversionResult>`、`startStatus: StateFlow<AttributionStartStatus>` | 安装归因结果与请求阶段分别观察 |
 | AttributionStartStatus / AttributionStartStage | stage/errorCode；NOT_REQUESTED、WAITING_FOR_ACTIVITY、START_CALLED、REQUEST_ACCEPTED、REQUEST_FAILED、INITIALIZATION_FAILED、DISABLED | 请求被接受不代表取得有效安装归因 |
 
@@ -257,7 +258,7 @@ StartupOfflineException、StartupUnavailableException 无业务方法；超时�
 | AccountApi | `suspend logout(session: Session): ApiResponse<Unit>` | POST auth/logout，Session 为 Tag |
 | AccountApi | `suspend deleteAccount(session: Session): ApiResponse<Unit>` | POST auth/delete-account，Session 为 Tag |
 
-DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousRequest 含通用身份字段；GoogleRequest 额外含 idToken。通用字段为 deviceId/packageName/platform/version/attribution。RefreshRequest 含 refreshToken；AuthResponse 含 token、可空 refreshToken/userId。这里是传输模型，认证字段完整性由 SessionCoordinator 再校验。
+DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousRequest 含通用身份字段；GoogleRequest 额外含 idToken。通用字段为 deviceId/packageName/platform/version/attribution/gaid?；顶层 gaid 与 attribution.gaid 复用一次查询，缺失时均省略。当前没有注册接口，RefreshRequest 仍仅含 refreshToken；AuthResponse 含 token、可空 refreshToken/userId。运行中的手写匿名登录也遵守同一 GAID 字段契约，不能只修改这些 Core DTO。这里是传输模型，认证字段完整性由 SessionCoordinator 再校验。
 
 ### 5.2 SessionInterceptor
 

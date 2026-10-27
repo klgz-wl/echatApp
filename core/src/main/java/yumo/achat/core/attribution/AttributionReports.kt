@@ -25,12 +25,14 @@ fun deviceAttributionReport(
     deviceId: String,
     userId: String?,
     metadata: AttributionReportMetadata? = null,
+    gaid: String? = null,
 ): JsonObject {
     val source = metadata?.source ?: AttributionResultSource.APPSFLYER_SDK
     val attribution = attributionPayload(data, identity, deviceId, "", source)
     val extraData = data.withAppUserId(userId)
     return buildJsonObject {
         put("device_id", deviceId); put("package_name", identity.packageName)
+        gaid?.let { put("gaid", it) }
         put("platform", "android"); put("app_version", identity.versionName)
         put("attribution_source", if (source == AttributionResultSource.GOOGLE_INSTALL_REFERRER) "GooglePlayInstallReferrer" else "AppsFlyer")
         metadata?.let {
@@ -68,7 +70,8 @@ private fun JsonObject.withAppUserId(userId: String?): JsonObject =
 @Singleton
 class AttributionReports @Inject constructor(private val coordinator: AttributionCoordinator, private val api: AttributionReportApi,
     private val sessions: SessionCoordinator, private val storage: SessionStorage, private val identity: ClientIdentity,
-    private val config: AttributionConfiguration, private val profiles: yumo.achat.core.auth.UserProfileRepository) {
+    private val config: AttributionConfiguration, private val profiles: yumo.achat.core.auth.UserProfileRepository,
+    private val advertisingIds: AdvertisingIdProvider = AdvertisingIdProvider { null }) {
     private val started = AtomicBoolean(false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     fun start() {
@@ -84,7 +87,8 @@ class AttributionReports @Inject constructor(private val coordinator: Attributio
                             val session = sessions.current
                             if (session?.epoch != epoch) return@collectLatest
                             if (!reported) {
-                                api.report(deviceAttributionReport(data, identity, deviceId, session?.userId)).checkSuccess()
+                                api.report(deviceAttributionReport(data, identity, deviceId, session?.userId,
+                                    gaid = advertisingIds.readOrNull())).checkSuccess()
                                 reported = true
                             }
                             // 补报完成后重新读服务端标记，避免归因到达时抢先读取旧值。

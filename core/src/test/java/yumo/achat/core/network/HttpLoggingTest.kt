@@ -12,6 +12,20 @@ import timber.log.Timber
 import java.io.IOException
 
 class HttpLoggingTest {
+    @Test fun `GAID is redacted even when general debug redaction is disabled`() = capture { messages ->
+        val gaid = "12345678-1234-4234-8234-123456789abc"
+        val client = OkHttpClient.Builder().addInterceptor(createHttpLoggingInterceptor(true, redact = false))
+            .addInterceptor { chain -> Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(200).message("OK").body("{}".toResponseBody()).build() }.build()
+        val body = """{"gaid":"$gaid","label":"visible"}"""
+        client.newCall(Request.Builder().url("https://example.test/events?gaid=$gaid")
+            .header("X-GAID", gaid)
+            .post(body.toRequestBody("application/json".toMediaType())).build()).execute().close()
+        val output = messages.joinToString("\n")
+        assertFalse(output.contains(gaid))
+        assertTrue(output.contains("[REDACTED]"))
+        assertTrue(output.contains("visible"))
+    }
     private fun config(enabled: Boolean) = CoreRuntimeConfig(
         NetworkConfig("https://example.test/", "wss://example.test/", "https://example.test/"),
         StorageConfig("database", "preferences"), DiagnosticsConfig(enabled),

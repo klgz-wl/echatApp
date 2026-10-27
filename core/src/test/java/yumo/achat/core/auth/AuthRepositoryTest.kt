@@ -13,7 +13,7 @@ class AuthRepositoryTest {
     private val config = AppConfiguration(AccountRules(3, 50, 6, 32), "", "", "", "")
     private val attribution = LoginAttributionProvider {
         attributionPayload(Json.parseToJsonElement("""{"af_status":"Non-organic","campaign":"test-campaign","is_first_launch":true}""").jsonObject,
-            ClientIdentity("test.package", "1", 30), "gaid-test", "af-test")
+            ClientIdentity("test.package", "1", 30), "gaid-test", "af-test").copy(gaid = "12345678-1234-4234-8234-123456789abc")
     }
     private class Api : PublicAuthApi, AccountApi {
         var loginRequest: LoginRequest? = null
@@ -37,10 +37,16 @@ class AuthRepositoryTest {
         assertEquals(expected, api.anonymousRequest!!.attribution)
         assertEquals(expected, api.googleRequest!!.attribution)
         assertEquals("test-device", api.anonymousRequest!!.deviceId)
+        assertEquals(expected.gaid, api.loginRequest!!.gaid)
+        assertEquals(expected.gaid, api.anonymousRequest!!.gaid)
+        assertEquals(expected.gaid, api.googleRequest!!.gaid)
         val requests = listOf(Json.encodeToString(LoginRequest.serializer(), api.loginRequest!!),
             Json.encodeToString(AnonymousRequest.serializer(), api.anonymousRequest!!), Json.encodeToString(GoogleRequest.serializer(), api.googleRequest!!))
         requests.forEach {
-            val data = Json.parseToJsonElement(it).jsonObject["attribution"]!!.jsonObject
+            val body = Json.parseToJsonElement(it).jsonObject
+            val data = body["attribution"]!!.jsonObject
+            assertEquals(body["gaid"], data["gaid"])
+            assertEquals(JsonPrimitive(expected.gaid), body["gaid"])
             assertEquals("appsflyer", data["attribution_source"]!!.jsonPrimitive.content)
             assertEquals("android", data["platform"]!!.jsonPrimitive.content)
             assertEquals("test.package", data["package_name"]!!.jsonPrimitive.content)
