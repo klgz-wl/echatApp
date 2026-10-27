@@ -17,7 +17,6 @@ import yumo.achat.core.billing.BillingRepository
 import yumo.achat.core.billing.CoinPurchaseController
 import yumo.achat.core.billing.CoinPurchaseState
 import yumo.achat.core.billing.CoinPurchaseStatus
-import yumo.achat.core.billing.blocksNewCoinPurchase
 import yumo.achat.core.backend.AuthSession
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreUserInfo
@@ -28,6 +27,7 @@ import yumo.achat.core.payment.PaymentRecord
 import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 import yumo.achat.core.payment.PurchaseRouter
+import yumo.achat.core.payment.blocksTopUpPurchase
 import yumo.achat.core.payment.RechargeNotificationRoute
 import yumo.achat.core.wallet.CoinProduct
 import yumo.achat.core.wallet.RechargeNotifications
@@ -138,7 +138,7 @@ internal class CoreTopUpPaymentController(
                     purchaseState = purchases.state.value
                 }
                 productSelectionLocked = corePaymentPresentation(next).locksProductSelection ||
-                    blocksNewCoinPurchase(purchaseState.status)
+                    blocksTopUpPurchase(purchaseState, next, sessions.current?.userId)
                 next.record?.productId?.let { selectedProductId = it }
                 state = next.toTopUpPurchaseState()
                 checkoutState = next.toTopUpCheckoutState(purchaseState)
@@ -162,7 +162,7 @@ internal class CoreTopUpPaymentController(
                     purchaseState = purchases.state.value
                 }
                 productSelectionLocked = corePaymentPresentation(coreState).locksProductSelection ||
-                    blocksNewCoinPurchase(purchaseState.status)
+                    blocksTopUpPurchase(purchaseState, coreState, sessions.current?.userId)
                 checkoutState = coreState.toTopUpCheckoutState(purchaseState)
             }
         }
@@ -194,7 +194,7 @@ internal class CoreTopUpPaymentController(
     fun prepare(activity: Activity, entrySource: String = "main") {
         scope.launch {
             sessions.synchronize()
-            if (blocksNewCoinPurchase(purchaseState.status)) return@launch
+            if (blocksTopUpPurchase(purchaseState, coreState, sessions.current?.userId)) return@launch
             val record = coreState.record
             if (record != null && corePaymentPresentation(coreState).canRetry) {
                 payments.retry(record.key)

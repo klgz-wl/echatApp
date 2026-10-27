@@ -4,7 +4,8 @@ import android.app.Activity
 import yumo.achat.core.analytics.*
 import yumo.achat.core.auth.SessionCoordinator
 import yumo.achat.core.billing.CoinPurchaseController
-import yumo.achat.core.billing.blocksNewCoinPurchase
+import yumo.achat.core.billing.CoinPurchaseState
+import yumo.achat.core.billing.CoinPurchaseStatus
 import yumo.achat.core.wallet.CoinProduct
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.merge
@@ -12,6 +13,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class RechargeNotificationRoute { LegacyFirst, Handled, Unknown }
+
+/** A visible error on the current official order releases a stale Play pending UI lock. */
+fun blocksTopUpPurchase(purchase: CoinPurchaseState, payment: PaymentViewState, userId: String?): Boolean {
+    if (purchase.status == CoinPurchaseStatus.BUSY) return true
+    if (purchase.status != CoinPurchaseStatus.PENDING) return false
+    val record = payment.record
+    return purchase.epoch == null || purchase.epoch != payment.epoch || record?.userId != userId ||
+        record?.initialized?.channelType != "official" || record?.error.isNullOrBlank()
+}
 
 /** 页面统一入口；配置只影响新购买，恢复与到账按持久化订单归属分派。 */
 @Singleton
@@ -26,7 +36,7 @@ class PurchaseRouter @Inject constructor(private val dispatcher: PurchaseFlowDis
         val session = sessions.current ?: return
         if (payments.state.value.busy || payments.state.value.checkoutVisible ||
             payments.state.value.record?.stage == PaymentStage.OFFICIAL_READY ||
-            blocksNewCoinPurchase(purchases.state.value.status)
+            blocksTopUpPurchase(purchases.state.value, payments.state.value, session.userId)
         ) return
         val values = buildMap {
             put("package_id", product.id); put("entry_source", source)

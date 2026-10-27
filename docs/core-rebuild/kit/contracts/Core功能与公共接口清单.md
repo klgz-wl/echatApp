@@ -500,7 +500,7 @@ CoinProduct 的自定义公共计算属性：
 | `suspend buy(activity: Activity, orderId: String, sku: String, expectedEpoch: String, source: String = config.defaultTrigger, packageId: String = sku): Unit` | 用已有业务单执行 Play 查询/购买/消费 |
 | `suspend buyLegacy(activity: Activity, product: CoinProduct, expectedEpoch: String, source: String = config.defaultTrigger, createOrder: suspend (Session) -> String): Unit` | 查询 Play 成功后调用建单回调，再购买/消费 |
 
-控制器获取进程级购买准入，检查 epoch 和 Activity 状态；取消、PENDING、失败与消费完成分别更新状态。`CoinPurchaseStatus.COMPLETED` 仅表示消费链路完成，后续读取真实钱包，不在本地加币。应用页面实际统一经 PurchaseRouter 进入，不应并行绕过路由调用两条入口。
+控制器获取进程级购买准入，检查 epoch 和 Activity 状态；取消、PENDING、失败与消费完成分别更新状态。`CoinPurchaseStatus.COMPLETED` 仅表示消费链路完成，后续读取真实钱包，不在本地加币。Top Up 页面和 PurchaseRouter 共用购买准入规则：同账号会话的官方支付订单已显示错误时，旧 Play `PENDING` 不再锁住商品选择或静默拦截下一次购买；无错误的待处理订单及 `BUSY` 仍阻止重复发起，旧订单保留供查单及恢复。应用页面实际统一经 PurchaseRouter 进入，不应并行绕过路由调用两条入口。
 
 ### 9.2 BillingRepository：SDK 门面与恢复
 

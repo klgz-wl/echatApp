@@ -3,8 +3,24 @@ package yumo.achat.core.payment
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
+import yumo.achat.core.billing.CoinPurchaseState
+import yumo.achat.core.billing.CoinPurchaseStatus
 
 class PurchaseFlowTest {
+    @Test fun `visible official error unlocks amount selection and a new attempt while active Play remains locked`() {
+        val record = PaymentRecord("key", "user", "pack", "main", orderId = "old-order",
+            initialized = InitializedPayment("old-order", "official", "google_play", "sdk", PaymentSdkParams("sku")),
+            stage = PaymentStage.UNCERTAIN, error = "verification_failed")
+        val payment = PaymentViewState(epoch = "epoch", record = record)
+        val pending = CoinPurchaseState(epoch = "epoch", status = CoinPurchaseStatus.PENDING)
+        assertFalse(blocksTopUpPurchase(pending, payment, "user"))
+        assertTrue(blocksTopUpPurchase(pending, payment.copy(record = record.copy(error = null)), "user"))
+        assertTrue(blocksTopUpPurchase(CoinPurchaseState("epoch", CoinPurchaseStatus.BUSY), payment, "user"))
+        assertTrue(blocksTopUpPurchase(pending, payment.copy(epoch = "another-epoch"), "user"))
+        assertTrue(blocksTopUpPurchase(pending, payment, "another-user"))
+        assertTrue(blocksTopUpPurchase(pending, payment.copy(record = record.copy(
+            initialized = record.initialized!!.copy(channelType = "third_party", channelCode = "other"))), "user"))
+    }
     @Test fun `切换配置只运行选定策略且服务失败不回退旧支付`() = runBlocking {
         for (flow in PurchaseFlow.entries) {
             val dispatcher = PurchaseFlowDispatcher(PurchaseFlowConfiguration(flow))
