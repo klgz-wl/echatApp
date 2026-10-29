@@ -14,6 +14,7 @@ import retrofit2.Response
 class PaymentRepositoryTest {
     private class Api : PaymentServiceApi {
         val urls = mutableListOf<String>(); var owner: Session? = null; var failure: Int? = null
+        var officialEventBody: OfficialPaymentEvent? = null
         override suspend fun initialize(url: String, body: InitializePaymentRequest, session: Session): Response<PaymentEnvelope<InitializedPayment>> {
             urls += url; owner = session
             failure?.let { return Response.error(it, """{"error":"PAYMENT_INITIALIZATION_IN_PROGRESS"}""".toResponseBody("application/json".toMediaType())) }
@@ -25,6 +26,21 @@ class PaymentRepositoryTest {
         override suspend fun event(url: String, body: PaymentClientEvent, session: Session): Response<PaymentEnvelope<PaymentEventReceipt>> {
             urls += url; return Response.success(PaymentEnvelope(PaymentEventReceipt(false)))
         }
+        override suspend fun officialEvent(url: String, body: OfficialPaymentEvent, session: Session): Response<PaymentEnvelope<PaymentEventReceipt>> {
+            urls += url; officialEventBody = body; owner = session
+            return Response.success(PaymentEnvelope(PaymentEventReceipt(true)))
+        }
+    }
+    @Test fun `官方SDK事件使用订单路径且只发送诊断字段`() = runBlocking {
+        val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
+        val api = Api(); val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)
+        val repo = ApiPaymentRepository(api, config, sessions, Json)
+        val owner = sessions.current!!
+        val event = OfficialPaymentEvent("official_sdk_failed", "5", "event-1")
+        repo.officialEvent("order/with space", event, owner)
+        assertEquals("https://test.example/payment-api/v1/client/payments/order%2Fwith%20space/official-events", api.urls.single())
+        assertEquals(event, api.officialEventBody)
+        assertEquals(owner, api.owner)
     }
     @Test fun `支付路径独立且401之外的错误不会重试建单`() = runBlocking {
         val sessions=SessionCoordinator(MemoryStorage());sessions.saveLogin(AuthResponse("token","refresh","user"))

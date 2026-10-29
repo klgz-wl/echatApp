@@ -14,6 +14,7 @@ interface PaymentServiceApi {
     @POST suspend fun initialize(@Url url: String, @Body body: InitializePaymentRequest, @Tag session: Session): Response<PaymentEnvelope<InitializedPayment>>
     @GET suspend fun status(@Url url: String, @Tag session: Session): Response<PaymentEnvelope<PaymentOrderStatus>>
     @POST suspend fun event(@Url url: String, @Body body: PaymentClientEvent, @Tag session: Session): Response<PaymentEnvelope<PaymentEventReceipt>>
+    @POST suspend fun officialEvent(@Url url: String, @Body body: OfficialPaymentEvent, @Tag session: Session): Response<PaymentEnvelope<PaymentEventReceipt>>
 }
 interface PaymentRepository {
     suspend fun initialize(orderId: String, session: Session): InitializedPayment
@@ -58,5 +59,9 @@ class ApiPaymentRepository @Inject constructor(private val api: PaymentServiceAp
     override suspend fun event(orderId: String, event: PaymentClientEvent, session: Session) {
         owner(session)
         if (!read(api.event(url("${id(orderId)}/client-events"), event, session), session).recorded) throw PaymentFailure.InvalidResponse
+    }
+    suspend fun officialEvent(orderId: String, event: OfficialPaymentEvent, session: Session) {
+        owner(session)
+        if (!read(api.officialEvent(url("${id(orderId)}/official-events"), event, session), session).recorded) throw PaymentFailure.InvalidResponse
     }
 }

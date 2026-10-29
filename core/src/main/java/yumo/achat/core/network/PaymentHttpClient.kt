@@ -31,7 +31,7 @@ internal fun paymentDiagnostics(enabled: Boolean, json: Json) = Interceptor { ch
             response.peekBody(4096).use { paymentErrorReason(it.string(), json) }
         }.getOrNull()
         val operation = request.url.pathSegments.lastOrNull()
-            ?.takeIf { it in setOf("initialize", "status", "client-events") } ?: "unknown"
+            ?.takeIf { it in setOf("initialize", "status", "client-events", "official-events") } ?: "unknown"
         Timber.tag("OkHttp").d("Payment %s %s -> %d auth_present=%s error=%s", request.method,
             operation, response.code, !request.header("Authorization").isNullOrBlank(), reason ?: if (response.isSuccessful) "none" else "unrecognized")
     }
@@ -42,7 +42,7 @@ private val PAYMENT_SECRET_VALUE = Regex(
     """("(?:payment_?url|checkout_?url|redirect_?url|return_?url|client_?secret|signature|purchase_?token)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|null)""",
     RegexOption.IGNORE_CASE,
 )
-private val PAYMENT_ORDER_PATH = Regex("""(/client/payments/)[^/?\s]+(/(?:status|client-events))""")
+private val PAYMENT_ORDER_PATH = Regex("""(/client/payments/)[^/?\s]+(/(?:status|client-events|official-events))""")
 private val PAYMENT_LOG_URL = Regex("""https?:(?://|\\/\\/)[^\s"<>]+""", RegexOption.IGNORE_CASE)
 
 /** 保留支付 API 地址、状态、错误正文和 trace 头；支付链接及凭据仅在日志副本脱敏。 */

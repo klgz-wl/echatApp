@@ -63,6 +63,13 @@ import java.util.TimeZone
     val metadata: JsonObject? = null,
 )
 @Serializable data class PaymentEventReceipt(val recorded: Boolean)
+@Serializable data class OfficialPaymentEvent(
+    @SerialName("event_type") val eventType: String,
+    @SerialName("error_code") val errorCode: String? = null,
+    @SerialName("event_id") val eventId: String,
+) {
+    init { require(eventType in setOf("official_sdk_started", "official_sdk_failed", "official_sdk_cancelled")) }
+}
 
 sealed class PaymentFailure : Exception() {
     data object Unavailable : PaymentFailure()

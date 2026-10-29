@@ -6,6 +6,8 @@ import yumo.achat.core.auth.Session
 import yumo.achat.core.auth.SessionCoordinator
 import yumo.achat.core.wallet.CoinProduct
 import yumo.achat.core.wallet.WalletRepository
+import yumo.achat.core.payment.OfficialPaymentEventReporter
+import yumo.achat.core.payment.officialSdkResultEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
@@ -24,7 +26,8 @@ data class CoinPurchaseState(val epoch: String? = null, val status: CoinPurchase
 class CoinPurchaseController @Inject constructor(private val billing: BillingRepository,
     private val wallet: WalletRepository, private val sessions: SessionCoordinator,
     private val admission: BillingPurchaseAdmission, private val orchestrator: ConsumablePurchaseOrchestrator,
-    private val config: BillingConfiguration, private val tracker: EventTracker = NoOpEventTracker) {
+    private val config: BillingConfiguration, private val tracker: EventTracker = NoOpEventTracker,
+    private val officialEvents: OfficialPaymentEventReporter) {
     private val mutable = MutableStateFlow(CoinPurchaseState())
     val state = mutable.asStateFlow()
     suspend fun buy(activity: Activity, orderId: String, sku: String, expectedEpoch: String,
@@ -94,6 +97,7 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                             val values = paymentProperties("initiated", "google_play", flow, source, packageId,
                                 orderId, "sdk_launch", amount = price, currency = currency) + mapOf("af_content_id" to sku)
                             tracker.track("initiate_pay", values + paymentRechargeProperties(values, session.userId), session.userId)
+                            if (flow == "SERVICE") officialEvents.report(orderId, "official_sdk_started", session)
                             val result = billing.purchase(
                                 activity,
                                 sku,
@@ -104,6 +108,9 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                                 priceAmountMicros,
                                 currency,
                             )
+                            if (flow == "SERVICE") officialSdkResultEvent(result.responseCode)?.let { eventType ->
+                                officialEvents.report(orderId, eventType, session, result.responseCode.toString())
+                            }
                             when (result.data?.purchaseState) {
                                 PurchaseState.PURCHASED -> PurchaseStepResult.Success(result.data.purchaseToken)
                                 PurchaseState.PENDING -> PurchaseStepResult.Pending(result.data.purchaseToken)

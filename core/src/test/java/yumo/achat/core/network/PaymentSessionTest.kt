@@ -140,6 +140,12 @@ class PaymentSessionTest {
         }
     }
 
+    @Test fun `官方SDK事件日志隐藏订单ID`() {
+        val sanitized = sanitizePaymentHttpLogMessage("--> POST https://payment.example/payment-api/v1/client/payments/private-order/official-events")
+        assertTrue(sanitized.contains("/client/payments/[REDACTED]/official-events"))
+        assertFalse(sanitized.contains("private-order"))
+    }
+
     @Test fun `支付401每次实际尝试均打印且关闭配置后静默`() = runBlocking {
         for (enabled in listOf(true, false)) captureLogs { logs ->
             val f = Fixture(); f.login()
