@@ -22,6 +22,7 @@ internal data class StoredAttributionReport(
     val reportId: String,
     val resultId: String,
     val userId: String,
+    val deviceId: String = "",
     val succeeded: Boolean = false,
     val succeededAtMillis: Long? = null,
 )
@@ -92,13 +93,21 @@ internal data class AttributionLedger(
         )
     }
 
-    fun ensureReports(userId: String, reportId: () -> String): AttributionLedger {
+    fun ensureReports(userId: String, reportId: () -> String, deviceId: String = ""): AttributionLedger {
         if (userId.isBlank()) return this
         val existing = reports.map { it.userId to it.resultId }.toSet()
         val additions = results.filter { userId to it.id !in existing }.map {
-            StoredAttributionReport(reportId(), it.id, userId)
+            StoredAttributionReport(reportId(), it.id, userId, deviceId)
         }
-        return if (additions.isEmpty()) this else copy(reports = reports + additions)
+        // Pre-snapshot reports came from the UUID install identity. Once the device has switched
+        // to Android ID, their original device cannot be recovered from the old ledger schema.
+        val existingWithDevice = reports.map { report ->
+            if (report.userId == userId && report.deviceId.isBlank() && isLegacyUuid(deviceId)) {
+                report.copy(deviceId = deviceId)
+            } else report
+        }
+        return if (additions.isEmpty() && existingWithDevice == reports) this
+        else copy(reports = existingWithDevice + additions)
     }
 
     fun markSucceeded(reportId: String, atMillis: Long): AttributionLedger = copy(
@@ -190,6 +199,10 @@ internal data class AttributionLedger(
         reports.firstOrNull { it.userId == userId && it.resultId == resultId }
 
     companion object {
+        private fun isLegacyUuid(value: String): Boolean = runCatching {
+            java.util.UUID.fromString(value).toString().equals(value, ignoreCase = true)
+        }.getOrDefault(false)
+
         fun empty() = AttributionLedger()
         fun decode(raw: String?): AttributionLedger {
             if (raw.isNullOrBlank()) return empty()
@@ -201,7 +214,7 @@ internal data class AttributionLedger(
 internal interface AttributionLedgerStore {
     fun snapshot(): AttributionLedger
     fun record(source: AttributionResultSource, data: JsonObject, startupId: String, id: () -> String): StoredAttributionResult
-    fun ensureReports(userId: String, reportId: () -> String): AttributionLedger
+    fun ensureReports(userId: String, reportId: () -> String, deviceId: String = ""): AttributionLedger
     fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope)
     fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion?
 }
@@ -230,9 +243,9 @@ internal class SharedPreferencesAttributionLedgerStore(
         recorded.result
     }
 
-    override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger = synchronized(lock) {
+    override fun ensureReports(userId: String, reportId: () -> String, deviceId: String): AttributionLedger = synchronized(lock) {
         checkHealthy()
-        val updated = ledger.ensureReports(userId, reportId)
+        val updated = ledger.ensureReports(userId, reportId, deviceId)
         if (updated != ledger) persist(updated)
         ledger
     }

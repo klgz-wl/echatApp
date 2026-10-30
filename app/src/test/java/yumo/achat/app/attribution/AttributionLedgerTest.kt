@@ -85,6 +85,37 @@ class AttributionLedgerTest {
         assertEquals("report-2", succeeded.ensureReports("user-1", reportId = { "new" }).reports.single().reportId)
     }
 
+    @Test fun `pending report persists a device identity alongside its user and report id`() {
+        val data = buildJsonObject { put("af_status", "Organic") }
+        val ledger = AttributionLedger.empty()
+            .record(AttributionResultSource.APPSFLYER_SDK, data, "startup", id = { "result" }).ledger
+            .ensureReports("user-1", reportId = { "report-1" }, deviceId = "old-device")
+
+        val encoded = Json.encodeToString(ledger)
+
+        assertTrue(encoded.contains("\"deviceId\""))
+        assertEquals("old-device", AttributionLedger.decode(encoded).reports.single().deviceId)
+        assertEquals("report-1", AttributionLedger.decode(encoded).reports.single().reportId)
+    }
+
+    @Test fun `legacy pending report acquires device while preserving its report id`() {
+        val raw = """{"latestResultId":"result","results":[{"id":"result","source":"APPSFLYER_SDK","data":{"af_status":"Organic"},"index":1,"startupId":"old"}],"reports":[{"reportId":"stable-report","resultId":"result","userId":"old-user"}]}"""
+        val recovered = AttributionLedger.decode(raw)
+            .ensureReports("old-user", reportId = { "new-report" }, deviceId = "12345678-1234-4234-8234-123456789abc")
+
+        assertEquals("stable-report", recovered.reports.single().reportId)
+        assertEquals("12345678-1234-4234-8234-123456789abc", recovered.reports.single().deviceId)
+    }
+
+    @Test fun `legacy report with unknown original device is not rewritten after Android ID migration`() {
+        val raw = """{"latestResultId":"result","results":[{"id":"result","source":"APPSFLYER_SDK","data":{"af_status":"Organic"},"index":1,"startupId":"old"}],"reports":[{"reportId":"stable-report","resultId":"result","userId":"old-user"}]}"""
+        val recovered = AttributionLedger.decode(raw)
+            .ensureReports("old-user", reportId = { "new-report" }, deviceId = "androidid12345678")
+
+        assertEquals("", recovered.reports.single().deviceId)
+        assertEquals("stable-report", recovered.reports.single().reportId)
+    }
+
     @Test fun `media success is scoped to stable user`() {
         val data = buildJsonObject { put("af_status", "Non-organic") }
         val recorded = AttributionLedger.empty()

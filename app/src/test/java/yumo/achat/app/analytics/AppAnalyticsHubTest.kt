@@ -17,6 +17,8 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
@@ -288,6 +290,49 @@ class AppAnalyticsHubTest {
         snapshots.value = buildJsonObject { put("af_status", "Organic") }
 
         assertTrue(event.await(1, TimeUnit.SECONDS))
+    }
+
+    @Test fun `ordinary analytics initialization defers login attribution source`() {
+        val attribution = CountingSink()
+        val backend = CountingSink()
+        val hub = AppAnalyticsHub(
+            queue = BusinessEventQueue(8),
+            sinks = listOf(attribution, backend),
+            deferInitializationFor = { it === attribution },
+        )
+
+        hub.initialize()
+
+        assertEquals(0, attribution.initializeCount.get())
+        assertEquals(1, backend.initializeCount.get())
+    }
+
+    @Test fun `queued event retains device identity from creation time`() {
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val dispatcher = executor.asCoroutineDispatcher()
+        val release = CountDownLatch(1)
+        var deviceId = "old-device"
+        val sink = CountingSink(expectedEvents = 1)
+        try {
+            val scope = CoroutineScope(SupervisorJob() + dispatcher)
+            scope.launch { release.await() }
+            val hub = AppAnalyticsHub(
+                queue = BusinessEventQueue(8),
+                sinks = listOf(sink),
+                commonParameters = { mapOf("device_id" to deviceId) },
+                scope = scope,
+            )
+
+            hub.track("page_view", emptyMap(), "old-user")
+            deviceId = "new-device"
+            release.countDown()
+
+            assertTrue(sink.eventLatch.await(2, TimeUnit.SECONDS))
+            assertEquals("old-device", sink.parameters.single()["device_id"])
+        } finally {
+            release.countDown()
+            dispatcher.close()
+        }
     }
 
     private class CountingSink(expectedEvents: Int = 0) : AnalyticsSink {

@@ -42,7 +42,7 @@ data class RefreshRequest(@SerialName("refresh_token") val refreshToken: String)
 data class AuthResponse(val token: String, @SerialName("refresh_token") val refreshToken: String? = null,
     @SerialName("user_id") val userId: String? = null)
 interface PublicAuthApi {
-    @POST("auth/login") suspend fun login(@Body request: LoginRequest): ApiResponse<AuthResponse>
+    @POST("auth/register") suspend fun login(@Body request: LoginRequest): ApiResponse<AuthResponse>
     @POST("auth/anonymous") suspend fun anonymous(@Body request: AnonymousRequest): ApiResponse<AuthResponse>
     @POST("auth/google") suspend fun google(@Body request: GoogleRequest): ApiResponse<AuthResponse>
     @POST("auth/refresh") fun refresh(@Body request: RefreshRequest): Call<ApiResponse<AuthResponse>>

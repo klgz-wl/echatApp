@@ -11,6 +11,53 @@ import yumo.achat.core.attribution.LoginAttribution
 
 class AchatBackendRefreshTest {
     @Test
+    fun `register posts account device and one GAID to both locations`() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/api/v1/auth/register") { exchange ->
+            assertEquals("POST", exchange.requestMethod)
+            val body = JSONObject(exchange.requestBody.bufferedReader().use { it.readText() })
+            assertEquals("user+1", body.getString("username"))
+            assertEquals("secret12", body.getString("password"))
+            assertEquals("android-device", body.getString("device_id"))
+            assertEquals("12345678-1234-4234-8234-123456789abc", body.getString("gaid"))
+            assertEquals(body.getString("gaid"), body.getJSONObject("attribution").getString("gaid"))
+            val response = """{"code":0,"data":{"user_id":"user","token":"access","refresh_token":"refresh","is_anonymous":false}}""".toByteArray()
+            exchange.sendResponseHeaders(200, response.size.toLong())
+            exchange.responseBody.use { it.write(response) }
+        }
+        server.start()
+        try {
+            val attribution = LoginAttribution(
+                attributionSource = "appsflyer", deviceId = "android-device", afUid = "af-id", network = null,
+                campaign = null, campaignId = null, adgroup = null, adgroupId = null, creative = null,
+                creativeId = null, channel = null, country = null, platform = "android", appVersion = "1",
+                packageName = "package", extraData = JsonObject(emptyMap()), gaid = "12345678-1234-4234-8234-123456789abc",
+            )
+            val result = AchatBackendClient("http://127.0.0.1:${server.address.port}")
+                .register("user+1", "secret12", "android-device", attribution)
+            assertEquals(false, result.isAnonymous)
+        } finally { server.stop(0) }
+    }
+
+    @Test
+    fun `logout requires Bearer and business code zero`() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/api/v1/auth/logout") { exchange ->
+            assertEquals("POST", exchange.requestMethod)
+            assertEquals("Bearer access", exchange.requestHeaders.getFirst("Authorization"))
+            assertEquals("", exchange.requestBody.bufferedReader().use { it.readText() })
+            val response = """{"code":4001,"message":"rejected"}""".toByteArray()
+            exchange.sendResponseHeaders(200, response.size.toLong())
+            exchange.responseBody.use { it.write(response) }
+        }
+        server.start()
+        try {
+            assertThrows(IllegalStateException::class.java) {
+                AchatBackendClient("http://127.0.0.1:${server.address.port}").logout("access")
+            }
+        } finally { server.stop(0) }
+    }
+    @Test
     fun `anonymous login posts attribution body and AF uid header`() {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/api/v1/auth/anonymous") { exchange ->

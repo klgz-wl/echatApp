@@ -60,10 +60,6 @@ class MainActivity : ComponentActivity() {
         if (AnalyticsConsent.granted(this) && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             AchatAnalyticsRuntime.get(this).foreground(true)
         }
-        if (AnalyticsConsent.granted(this) && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            AchatAttributionRuntime.get(this).onActivityResumed(this)
-            attributionStarted = true
-        }
         lifecycleScope.launch {
             billingProvider.get().recovered.collect { orderId ->
                 purchaseRouterProvider.get().recoveredPurchase(orderId)
@@ -95,13 +91,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(state.allowed) {
                     regionAllowed = state.allowed
                     if (state.allowed) {
-                        val wasStarted = businessStarted
                         beginBusinessStartup()
-                        if (wasStarted && AnalyticsConsent.granted(this@MainActivity) &&
-                            lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                            AchatAttributionRuntime.get(this@MainActivity).onActivityResumed(this@MainActivity)
-                            attributionStarted = true
-                        }
                     } else if (attributionStarted) {
                         AchatAttributionRuntime.get(this@MainActivity).onAccessRevoked()
                     }
@@ -113,7 +103,22 @@ class MainActivity : ComponentActivity() {
                         onRetry = gate::check,
                         onExit = ::finishAndRemoveTask,
                     )
-                    else -> ImageToVideoScreen()
+                    else -> ImageToVideoScreen(
+                        onAuthFlowStart = {
+                            if (!attributionStarted && AnalyticsConsent.granted(this@MainActivity) &&
+                                lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                AchatAttributionRuntime.get(this@MainActivity).onActivityResumed(this@MainActivity)
+                                attributionStarted = true
+                            }
+                        },
+                        onSignedOut = {
+                            if (attributionStarted) {
+                                AchatAttributionRuntime.get(this@MainActivity).onActivityPaused(this@MainActivity)
+                                attributionStarted = false
+                            }
+                            lifecycleScope.launch { sessionCoordinatorProvider.get().synchronize() }
+                        },
+                    )
                 }
             }
         }
@@ -122,9 +127,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (businessStarted) lifecycleScope.launch(Dispatchers.IO) { AppConfigRuntime.get(applicationContext).refresh() }
-        if (businessStarted && regionAllowed && AnalyticsConsent.granted(this)) {
+        if (businessStarted && regionAllowed && attributionStarted && AnalyticsConsent.granted(this)) {
             AchatAttributionRuntime.get(this).onActivityResumed(this)
-            attributionStarted = true
         }
     }
 

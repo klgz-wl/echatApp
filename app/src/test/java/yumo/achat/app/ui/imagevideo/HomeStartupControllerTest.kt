@@ -10,6 +10,23 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class HomeStartupControllerTest {
+    @Test fun `retry after successful authentication resumes at post auth without signing in again`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            awaitPreAuth = { calls += "pre" },
+            awaitPostAuth = { calls += "post" },
+            awaitHomeWindow = {}, awaitHomeDataGate = {}, networkTimeoutMillis = 1_000,
+        )
+
+        val result = controller.resumeAfterAuthentication("saved-session") {
+            calls += "profile"
+            "loaded-profile"
+        }
+
+        assertEquals("saved-session" to "loaded-profile", result)
+        assertEquals(listOf("post", "profile"), calls)
+    }
+
     @Test fun `completed attribution bypasses every splash and home attribution hook`() = runBlocking {
         val calls = mutableListOf<String>()
         val controller = HomeStartupController(

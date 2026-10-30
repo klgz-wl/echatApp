@@ -1,6 +1,7 @@
 package yumo.achat.core.backend
 
 import android.content.Context
+import android.provider.Settings
 import org.json.JSONObject
 import java.util.UUID
 
@@ -8,17 +9,31 @@ internal interface AuthSessionStore {
     fun deviceId(): String
     fun readSession(): AuthSession?
     fun saveSession(session: AuthSession)
+    fun clearSession()
+    fun prepareAnonymousDeviceId(): String = deviceId()
 }
 
 class AchatSessionStore(context: Context) : AuthSessionStore {
     private val preferences = context.getSharedPreferences("achat_backend_session", Context.MODE_PRIVATE)
+    private val resolver = context.contentResolver
+
+    private fun androidId(): String = Settings.Secure.getString(resolver, Settings.Secure.ANDROID_ID)
+        ?.takeIf(String::isNotBlank) ?: error("Android ID unavailable")
 
     override fun deviceId(): String {
         return StableInstallId.resolve(
             read = { preferences.getString(KEY_DEVICE_ID, null) },
             persist = { preferences.edit().putString(KEY_DEVICE_ID, it).commit() },
-            generate = { UUID.randomUUID().toString() },
+            generate = ::androidId,
         )
+    }
+
+    override fun prepareAnonymousDeviceId(): String = synchronized(SESSION_LOCK) {
+        val current = deviceId()
+        if (readSession() != null || runCatching { UUID.fromString(current) }.isFailure) return@synchronized current
+        val replacement = androidId()
+        check(preferences.edit().putString(KEY_DEVICE_ID, replacement).commit()) { "Unable to persist Android ID" }
+        replacement
     }
 
     override fun readSession(): AuthSession? = synchronized(SESSION_LOCK) {
@@ -58,8 +73,14 @@ class AchatSessionStore(context: Context) : AuthSessionStore {
         preferences.edit().putString(KEY_AUTH_SESSION, json.toString()).apply()
     }
 
-    fun clearSession() = synchronized(SESSION_LOCK) {
-        preferences.edit().remove(KEY_AUTH_SESSION).commit()
+    override fun clearSession() = synchronized(SESSION_LOCK) {
+        check(preferences.edit()
+            .remove(KEY_AUTH_SESSION)
+            .remove("core_payment_epoch")
+            .remove("core_payment_revision")
+            .remove("core_payment_user")
+            .commit()) { "Unable to clear session" }
+        Unit
     }
 
     private companion object {

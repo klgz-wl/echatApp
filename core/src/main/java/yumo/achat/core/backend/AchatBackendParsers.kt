@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 object AchatBackendParsers {
     fun parseRefreshedAccessToken(json: String): String {
-        val data = dataObject(json)
+        val data = authDataObject(json)
         return data.optNullableString("token") ?: error("Missing refreshed access token")
     }
 
@@ -137,11 +137,11 @@ object AchatBackendParsers {
     }
 
     fun parseAuthSession(json: String): AuthSession {
-        val data = dataObject(json)
+        val data = authDataObject(json)
         return AuthSession(
-            userId = data.getString("user_id"),
-            token = data.getString("token"),
-            refreshToken = data.getString("refresh_token"),
+            userId = data.getString("user_id").takeIf(String::isNotBlank) ?: error("Missing user id"),
+            token = data.getString("token").takeIf(String::isNotBlank) ?: error("Missing access token"),
+            refreshToken = data.getString("refresh_token").takeIf(String::isNotBlank) ?: error("Missing refresh token"),
             sessionId = data.optNullableString("session_id") ?: "",
             isAnonymous = data.optBoolean("is_anonymous", true),
         )
@@ -326,6 +326,14 @@ object AchatBackendParsers {
             height = data.optInt("height", 0),
             durationSeconds = data.optDouble("duration", 0.0).toInt(),
         )
+
+    private fun authDataObject(json: String): JSONObject {
+        val root = JSONObject(json)
+        check(root.optInt("code", -1) == 0) {
+            root.optString("message").takeIf(String::isNotBlank) ?: "Authentication rejected"
+        }
+        return root.optJSONObject("data") ?: error("Missing authentication response data")
+    }
 
     private fun dataObject(json: String): JSONObject {
         val root = JSONObject(json)

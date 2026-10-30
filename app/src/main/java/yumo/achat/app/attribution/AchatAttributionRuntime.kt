@@ -112,9 +112,9 @@ internal class AppsFlyerBackendAttribution(
     private val ledgerStore = SharedPreferencesAttributionLedgerStore(
         appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE),
     )
-    private fun completionScope(userId: String) = AttributionCompletionScope(
+    private fun completionScope(userId: String, deviceId: String = storage.deviceIdBlocking()) = AttributionCompletionScope(
         userId = userId,
-        installDeviceId = storage.deviceIdBlocking(),
+        installDeviceId = deviceId,
         packageName = identity.packageName,
         environment = BuildConfig.FLAVOR,
     )
@@ -157,6 +157,7 @@ internal class AppsFlyerBackendAttribution(
     private val client = AchatBackendClient(backendConfiguration)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutableSession = MutableStateFlow<AuthSession?>(null)
+    @Volatile private var resumeAttributionForNextSession = false
     private val identityMutex = Mutex()
     private val mutableHomeGateRevision = MutableStateFlow(0L)
     val homeGateRevision = mutableHomeGateRevision.asStateFlow()
@@ -210,18 +211,19 @@ internal class AppsFlyerBackendAttribution(
             startupId = startupId,
             startupNanos = startupNanos,
             retryDelay = { delay(BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong()) },
-            report = { session, result, metadata ->
+            report = { _, pending, result, metadata ->
                 val payload = deviceAttributionReport(
                     data = result.data,
                     identity = identity,
-                    deviceId = storage.deviceIdBlocking(),
-                    userId = session.userId,
+                    deviceId = pending.deviceId,
+                    userId = pending.userId,
                     metadata = metadata,
                     gaid = advertisingIds.readOrNull(),
                 )
                 client.reportAttribution(JSONObject(payload.toString()))
             },
-            completionScope = { session -> completionScope(session.userId) },
+            completionScope = { _, pending -> completionScope(pending.userId, pending.deviceId) },
+            deviceId = storage::deviceIdBlocking,
             onCompletionPersisted = { completion, result ->
                 identityMutex.withLock {
                     val activeCompletion = mutableSession.value?.let { active ->
@@ -239,7 +241,9 @@ internal class AppsFlyerBackendAttribution(
         ).also { created ->
             reporterInstance = created
             scope.launch {
-                created.receipts.collect { mutableReportReceipts.value = it }
+                created.receipts.collect { receipt ->
+                    mutableReportReceipts.value = receipt?.takeIf { it.epoch == mutableSession.value?.epoch }
+                }
             }
         }
     }
@@ -323,8 +327,10 @@ internal class AppsFlyerBackendAttribution(
 
     suspend fun awaitHomeDataGate() {
         if (isAttributionComplete()) return
+        val expectedEpoch = mutableSession.value?.epoch ?: throw CancellationException("Signed out")
         val activeReporter = reporter()
         while (true) {
+            if (mutableSession.value?.epoch != expectedEpoch) throw CancellationException("Session changed")
             if (activeReporter.storageFailed()) throw AttributionStorageException()
             val target = activeReporter.currentResult() ?: return
             val session = mutableSession.value
@@ -362,12 +368,36 @@ internal class AppsFlyerBackendAttribution(
         if (!isAttributionComplete()) reporter().retryPending()
     }
 
+    fun resumeRestoredSessionAttribution() {
+        if (isAttributionComplete()) return
+        scope.launch {
+            try {
+                coordinator().awaitInitial()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // The home attribution gate retains its existing retry and release policy.
+            }
+        }
+    }
+
     fun onActivityPaused(activity: Activity) {
         source.onActivityPaused(activity)
     }
 
     fun onAccessRevoked() {
         source.onAccessRevoked()
+    }
+
+    suspend fun onSignedOut() {
+        identityMutex.withLock {
+            resumeAttributionForNextSession = resumeAttributionForNextSession || mutableAttributionCompleted.value
+            mutableSession.value = null
+            reporterInstance?.clearSession()
+            mutableReportReceipts.value = null
+            mutableAttributionCompleted.value = false
+            mutableHomeGateRevision.value += 1L
+        }
     }
 
     override suspend fun forLogin(installDeviceId: String): LoginAttribution =
@@ -398,9 +428,10 @@ internal class AppsFlyerBackendAttribution(
             } else {
                 val wasCompleted = mutableAttributionCompleted.value
                 mutableAttributionCompleted.value = false
-                if (wasCompleted || restoredCompletion != null) source.resumeAttributionAcquisition()
+                if (wasCompleted || restoredCompletion != null || resumeAttributionForNextSession) source.resumeAttributionAcquisition()
                 reporter().updateSession(session)
             }
+            resumeAttributionForNextSession = false
             if (epochChanged) mutableHomeGateRevision.value += 1L
         }
     }

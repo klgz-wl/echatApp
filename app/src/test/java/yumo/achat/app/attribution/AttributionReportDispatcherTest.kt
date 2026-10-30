@@ -17,13 +17,64 @@ import yumo.achat.core.attribution.AttributionStage
 import yumo.achat.core.backend.AuthSession
 
 class AttributionReportDispatcherTest {
+    @Test fun `legacy pending report without known device is withheld after migration`() = runBlocking {
+        val raw = """{"latestResultId":"result","results":[{"id":"result","source":"APPSFLYER_SDK","data":{"af_status":"Organic"},"index":1,"startupId":"old"}],"reports":[{"reportId":"stable-report","resultId":"result","userId":"old-user"}]}"""
+        val store = MemoryLedgerStore(AttributionLedger.decode(raw))
+        var sends = 0
+        val dispatcher = dispatcher(store, attempts = 1, deviceId = { "androidid12345678" }) { _, _, _, _ -> sends++ }
+        dispatcher.updateSession(session("old-user"))
+        yield()
+
+        assertEquals(0, sends)
+        assertEquals(true, dispatcher.isExhausted("old-user", "result"))
+        assertEquals("stable-report", store.snapshot().reports.single().reportId)
+    }
+
+    @Test fun `deferred report keeps original device after provider changes`() = runBlocking {
+        val store = MemoryLedgerStore()
+        var currentDevice = "old-uuid"
+        var online = false
+        val sent = mutableListOf<Pair<String, String>>()
+        val dispatcher = dispatcher(store, attempts = 1, deviceId = { currentDevice }) { _, pending, _, metadata ->
+            sent += pending.deviceId to metadata.reportId
+            if (!online) error("offline")
+        }
+        dispatcher.updateResult(AttributionResultSource.APPSFLYER_SDK, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("old-user"))
+        yield()
+        currentDevice = "new-android-id"
+        online = true
+        dispatcher.retryPending()
+        yield()
+
+        assertEquals(listOf("old-uuid" to "id", "old-uuid" to "id"), sent)
+        assertEquals("old-uuid", store.snapshot().reports.single().deviceId)
+    }
+
+    @Test fun `sign out suppresses receipt from in flight old report`() = runBlocking {
+        val store = MemoryLedgerStore()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val dispatcher = dispatcher(store, attempts = 1) { _, _, _, _ ->
+            entered.complete(Unit)
+            release.await()
+        }
+        dispatcher.updateResult(AttributionResultSource.GCD_HTTP, buildJsonObject { put("af_status", "Non-organic") })
+        dispatcher.updateSession(session("old-user"))
+        entered.await()
+        dispatcher.clearSession()
+        release.complete(Unit)
+        yield()
+
+        assertEquals(null, dispatcher.receipts.value)
+    }
     @Test fun `failed old result is deferred while newer result is delivered`() = runBlocking {
         val store = MemoryLedgerStore()
         val organic = buildJsonObject { put("af_status", "Organic") }
         val media = buildJsonObject { put("af_status", "Non-organic") }
         val sent = mutableListOf<String>()
         var ids = 0
-        val dispatcher = dispatcher(store, attempts = 1, newId = { "id-${++ids}" }) { _, result, _ ->
+        val dispatcher = dispatcher(store, attempts = 1, newId = { "id-${++ids}" }) { _, _, result, _ ->
             sent += result.data["af_status"].toString()
             if (result.data == organic) error("offline")
         }
@@ -42,7 +93,7 @@ class AttributionReportDispatcherTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         var attempts = 0
-        val dispatcher = dispatcher(store, attempts = 2) { _, _, _ ->
+        val dispatcher = dispatcher(store, attempts = 2) { _, _, _, _ ->
             attempts++
             entered.complete(Unit)
             release.await()
@@ -68,8 +119,9 @@ class AttributionReportDispatcherTest {
             startupId = "current-startup",
             startupNanos = 10,
             retryDelay = {},
-            report = { _, _, value -> metadata += value },
-            completionScope = ::completionScope,
+            report = { _, _, _, value -> metadata += value },
+            completionScope = { session, pending -> completionScope(session, pending.deviceId) },
+            deviceId = { "install" },
             nowNanos = { 1_000_010 },
             newId = { "stable-id" },
         )
@@ -91,7 +143,7 @@ class AttributionReportDispatcherTest {
         val store = MemoryLedgerStore()
         var online = false
         val reportIds = mutableListOf<String>()
-        val dispatcher = dispatcher(store, attempts = 1, newId = { "stable" }) { _, _, metadata ->
+        val dispatcher = dispatcher(store, attempts = 1, newId = { "stable" }) { _, _, _, metadata ->
             reportIds += metadata.reportId
             if (!online) error("offline")
         }
@@ -110,11 +162,11 @@ class AttributionReportDispatcherTest {
         val failing = object : AttributionLedgerStore {
             override fun snapshot(): AttributionLedger = error("corrupt")
             override fun record(source: AttributionResultSource, data: JsonObject, startupId: String, id: () -> String) = error("corrupt")
-            override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger = error("corrupt")
+            override fun ensureReports(userId: String, reportId: () -> String, deviceId: String): AttributionLedger = error("corrupt")
             override fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope) = error("corrupt")
             override fun completion(scope: AttributionCompletionScope): StoredAttributionCompletion? = error("corrupt")
         }
-        val dispatcher = dispatcher(failing, attempts = 1) { _, _, _ -> }
+        val dispatcher = dispatcher(failing, attempts = 1) { _, _, _, _ -> }
         dispatcher.updateSession(session("user"))
         assertEquals(true, dispatcher.storageFailed())
     }
@@ -134,8 +186,9 @@ class AttributionReportDispatcherTest {
             startupId = "startup",
             startupNanos = 0,
             retryDelay = {},
-            report = { _, _, _ -> Unit },
-            completionScope = ::completionScope,
+            report = { _, _, _, _ -> Unit },
+            completionScope = { session, pending -> completionScope(session, pending.deviceId) },
+            deviceId = { "install" },
             onCompletionPersisted = { _, _ -> completionCallbacks++ },
             newId = { "stable" },
         )
@@ -155,7 +208,8 @@ class AttributionReportDispatcherTest {
         store: AttributionLedgerStore,
         attempts: Int,
         newId: () -> String = { "id" },
-        report: suspend (AuthSession, StoredAttributionResult, yumo.achat.core.attribution.AttributionReportMetadata) -> Unit,
+        deviceId: () -> String = { "install" },
+        report: suspend (AuthSession, StoredAttributionReport, StoredAttributionResult, yumo.achat.core.attribution.AttributionReportMetadata) -> Unit,
     ) = LedgerAttributionReportDispatcher(
         attempts = attempts,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
@@ -164,12 +218,13 @@ class AttributionReportDispatcherTest {
         startupNanos = 0,
         retryDelay = {},
         report = report,
-        completionScope = ::completionScope,
+        completionScope = { session, pending -> completionScope(session, pending.deviceId) },
+        deviceId = deviceId,
         newId = newId,
     )
 
-    private class MemoryLedgerStore : AttributionLedgerStore {
-        private var ledger = AttributionLedger.empty()
+    private class MemoryLedgerStore(initial: AttributionLedger = AttributionLedger.empty()) : AttributionLedgerStore {
+        private var ledger = initial
         override fun snapshot() = ledger
         override fun record(
             source: AttributionResultSource,
@@ -177,8 +232,8 @@ class AttributionReportDispatcherTest {
             startupId: String,
             id: () -> String,
         ): StoredAttributionResult = ledger.record(source, data, startupId, id).also { ledger = it.ledger }.result
-        override fun ensureReports(userId: String, reportId: () -> String): AttributionLedger =
-            ledger.ensureReports(userId, reportId).also { ledger = it }
+        override fun ensureReports(userId: String, reportId: () -> String, deviceId: String): AttributionLedger =
+            ledger.ensureReports(userId, reportId, deviceId).also { ledger = it }
         override fun markReportSucceeded(reportId: String, atMillis: Long, scope: AttributionCompletionScope) {
             ledger = ledger.markReportSucceeded(reportId, atMillis, scope)
         }
@@ -195,9 +250,9 @@ class AttributionReportDispatcherTest {
         epoch = "epoch-one",
     )
 
-    private fun completionScope(session: AuthSession) = AttributionCompletionScope(
+    private fun completionScope(session: AuthSession, deviceId: String) = AttributionCompletionScope(
         userId = session.userId,
-        installDeviceId = "install",
+        installDeviceId = deviceId,
         packageName = "yumo.achat.app",
         environment = "dev",
     )

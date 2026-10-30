@@ -2,6 +2,9 @@ package yumo.achat.core.backend
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -22,29 +25,59 @@ internal class AchatSessionManager(
 ) {
     private val sessionMutex = Mutex()
     private val attributionReportGuard = Any()
-    private var loginFailure: TimedAuthFailure? = null
     private var recoveryFailure: TimedAuthFailure? = null
     private var lastAttributionReportEpoch: String? = null
+    private val mutableSessionInvalidated = MutableStateFlow(false)
+    val sessionInvalidated: StateFlow<Boolean> = mutableSessionInvalidated.asStateFlow()
 
-    suspend fun session(): AuthSession = ensureSession()
+    suspend fun session(): AuthSession? = store.readSession()
 
-    suspend fun startupSession(): AuthSession = sessionMutex.withLock {
+    suspend fun startupSession(): AuthSession? = store.readSession()?.also { reportAttribution(it) }
+
+    suspend fun loginAnonymouslyExplicit(): AuthSession = sessionMutex.withLock {
+        check(store.readSession() == null) { "Already signed in" }
+        val deviceId = store.prepareAnonymousDeviceId()
+        establishSession { authApi.loginAnonymously(deviceId, attribution.forLogin(deviceId)) }
+    }
+
+    suspend fun register(username: String, password: String): AuthSession = sessionMutex.withLock {
+        check(store.readSession() == null) { "Already signed in" }
+        require(username.length in 3..50 && username.none(Char::isWhitespace)) { "Invalid account" }
+        require(password.length in 6..18 && password.none(Char::isWhitespace)) { "Invalid password" }
+        val deviceId = store.deviceId()
+        establishSession { authApi.register(username, password, deviceId, attribution.forLogin(deviceId)) }
+    }
+
+    suspend fun logout(deleteAccount: Boolean = false) = sessionMutex.withLock {
+        val active = store.readSession() ?: throw SignedOutException()
+        val action: (String) -> Unit = if (deleteAccount) authApi::deleteAccount else authApi::logout
         try {
-            loginAnonymously().also { session ->
-                store.saveSession(session)
-                reportAttribution(session)
-                loginFailure = null
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Exception) {
-            loginFailure = TimedAuthFailure(store.readSession()?.token, nowMillis(), error)
-            throw error
+            action(active.token)
+        } catch (error: AchatBackendHttpException) {
+            if (error.statusCode != 401) throw error
+            val recovered = recoverAfterUnauthorizedLocked(active)
+            action(recovered.token)
         }
+        store.clearSession()
+        recoveryFailure = null
+    }
+
+    private suspend fun establishSession(login: suspend () -> AuthSession): AuthSession = try {
+        login().also { session ->
+            store.saveSession(session)
+            mutableSessionInvalidated.value = false
+            reportAttribution(session)
+            onLoginResult(true, null, session.userId)
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        onLoginResult(false, if (error is java.io.IOException) "offline" else "authentication_unavailable", null)
+        throw error
     }
 
     suspend fun <T> authenticated(operation: (String) -> T): T {
-        val session = ensureSession()
+        val session = store.readSession() ?: throw SignedOutException()
         try {
             return operation(session.token)
         } catch (error: AchatBackendHttpException) {
@@ -55,80 +88,44 @@ internal class AchatSessionManager(
         return operation(recovered.token)
     }
 
-    private suspend fun ensureSession(): AuthSession {
-        store.readSession()?.let {
-            reportAttribution(it)
-            return it
+    private suspend fun recoverAfterUnauthorized(failedSession: AuthSession): AuthSession =
+        sessionMutex.withLock { recoverAfterUnauthorizedLocked(failedSession) }
+
+    private suspend fun recoverAfterUnauthorizedLocked(failedSession: AuthSession): AuthSession {
+        val latest = store.readSession()
+        if (latest == null) throw SignedOutException()
+        if (latest.token != failedSession.token) {
+            return latest
         }
-        return sessionMutex.withLock {
-            store.readSession()?.let {
-                reportAttribution(it)
-                return@withLock it
+
+        val sessionToRecover = latest
+        recentFailure(recoveryFailure, sessionToRecover.token)?.let { throw it }
+        try {
+            val recovered = try {
+                val newAccessToken = authApi.refreshAccessToken(sessionToRecover.refreshToken)
+                sessionToRecover.copy(token = newAccessToken)
+            } catch (error: AchatBackendHttpException) {
+                if (error.statusCode != 400 && error.statusCode != 401) throw error
+                store.clearSession()
+                mutableSessionInvalidated.value = true
+                throw SignedOutException()
             }
-            recentFailure(loginFailure, token = null)?.let { throw it }
-            try {
-                loginAnonymously().also { session ->
-                    store.saveSession(session)
-                    reportAttribution(session)
-                    loginFailure = null
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                loginFailure = TimedAuthFailure(null, nowMillis(), error)
-                throw error
+            return recovered.also { session ->
+                store.saveSession(session)
+                reportAttribution(session)
+                recoveryFailure = null
             }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            recoveryFailure = TimedAuthFailure(sessionToRecover.token, nowMillis(), error)
+            throw error
         }
     }
-
-    private suspend fun recoverAfterUnauthorized(failedSession: AuthSession): AuthSession =
-        sessionMutex.withLock {
-            val latest = store.readSession()
-            if (latest != null && latest.token != failedSession.token) {
-                return@withLock latest
-            }
-
-            val sessionToRecover = latest ?: failedSession
-            recentFailure(recoveryFailure, sessionToRecover.token)?.let { throw it }
-            try {
-                val recovered = try {
-                    val newAccessToken = authApi.refreshAccessToken(sessionToRecover.refreshToken)
-                    sessionToRecover.copy(token = newAccessToken)
-                } catch (error: AchatBackendHttpException) {
-                    if (error.statusCode != 400 && error.statusCode != 401) throw error
-                    loginAnonymously()
-                }
-                recovered.also { session ->
-                    store.saveSession(session)
-                    reportAttribution(session)
-                    recoveryFailure = null
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                recoveryFailure = TimedAuthFailure(sessionToRecover.token, nowMillis(), error)
-                throw error
-            }
-        }
 
     private fun recentFailure(failure: TimedAuthFailure?, token: String?): Exception? = failure
         ?.takeIf { it.token == token && nowMillis() - it.timestampMillis < AuthFailureCooldownMillis }
         ?.error
-
-    private suspend fun loginAnonymously(): AuthSession {
-        val installDeviceId = store.deviceId()
-        return try {
-            authApi.loginAnonymously(installDeviceId, attribution.forLogin(installDeviceId)).also {
-                onLoginResult(true, null, it.userId)
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Exception) {
-            val reason = if (error is java.io.IOException) "offline" else "authentication_unavailable"
-            onLoginResult(false, reason, null)
-            throw error
-        }
-    }
 
     private suspend fun reportAttribution(session: AuthSession) {
         val shouldReport = synchronized(attributionReportGuard) {
@@ -171,3 +168,5 @@ internal class AchatSessionManager(
             }
     }
 }
+
+class SignedOutException : IllegalStateException("Sign in required")

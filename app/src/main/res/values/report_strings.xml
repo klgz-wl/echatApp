@@ -1,0 +1,8 @@
+<resources>
+    <string name="report_content_description">Report content</string>
+    <string name="report_explanation">Feel free to report this content if you think it’s inappropriate.</string>
+    <string name="report_submit">REPORT</string>
+    <string name="report_submitting">REPORTING…</string>
+    <string name="report_failed">Couldn’t report this content. Please try again.</string>
+    <string name="report_success">Report submitted successfully.</string>
+</resources>

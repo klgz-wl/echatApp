@@ -147,6 +147,7 @@ internal object AchatAnalyticsRuntime {
             thinkingDataAttributionSink = thinkingDataAttributionSink,
             backendAttributionSink = backendAttributionSink,
             purchaseSuccessEnabled = AppConfigRuntime.get(context)::enabled,
+            deferInitializationFor = { it is AppsFlyerAnalytics },
         )
         val preferences = eventPreferences
         hub.foregroundAnalytics = ForegroundAnalytics(
@@ -178,6 +179,7 @@ internal class AppAnalyticsHub(
     private val thinkingDataAttributionSink: ThinkingDataAnalytics? = null,
     private val backendAttributionSink: BackendHttpAnalyticsSink? = null,
     private val purchaseSuccessEnabled: () -> Boolean = { false },
+    private val deferInitializationFor: (AnalyticsSink) -> Boolean = { false },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : EventTracker {
     internal lateinit var foregroundAnalytics: ForegroundAnalytics
@@ -234,12 +236,12 @@ internal class AppAnalyticsHub(
                     }
                 }
             }
-            runCatching { sink.initialize() }
+            if (!deferInitializationFor(sink)) runCatching { sink.initialize() }
         }
         scope.launch {
             queue.events.collect { event ->
                 val values = analyticsParameters(
-                    event.parameters + (commonParameters() - "af_revenue") + mapOf(
+                    event.parameters + mapOf(
                         "event_time" to event.eventTime,
                         "user_id" to event.userId.orEmpty(),
                     ),
@@ -296,7 +298,7 @@ internal class AppAnalyticsHub(
             return
         }
         initialize()
-        queue.track(name, parameters, frozenUser, onceKey)
+        queue.track(name, parameters + (commonParameters() - "af_revenue"), frozenUser, onceKey)
     }
 }
 

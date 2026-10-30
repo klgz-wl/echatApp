@@ -1,0 +1,13 @@
+<resources>
+    <string name="account_delete">Delete Account</string>
+    <string name="account_log_out">LOG OUT</string>
+    <string name="account_logout_busy">Logging out…</string>
+    <string name="account_logout_failed">Could not log out. Please try again.</string>
+    <string name="account_delete_title">Tips</string>
+    <string name="account_delete_message">Are you sure you want to delete your account?\nOnce confirmed, the account cannot be recovered.</string>
+    <string name="account_delete_cancel">Cancel</string>
+    <string name="account_delete_confirm">Delete Account</string>
+    <string name="account_delete_countdown">Delete Account (%1$d)</string>
+    <string name="account_delete_busy">Deleting…</string>
+    <string name="account_delete_failed">Could not delete your account. Please try again.</string>
+</resources>

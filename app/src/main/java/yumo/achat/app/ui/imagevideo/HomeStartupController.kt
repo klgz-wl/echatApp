@@ -16,6 +16,10 @@ internal class HomeStartupController(
     suspend fun <S, P> startup(authenticate: suspend () -> S, profile: suspend () -> P): Pair<S, P> {
         if (!attributionCompleted()) awaitPreAuth()
         val session = withTimeout(networkTimeoutMillis) { retryNetworkRequest(authenticate, retryDelayMillis = 250) }
+        return resumeAfterAuthentication(session, profile)
+    }
+
+    suspend fun <S, P> resumeAfterAuthentication(session: S, profile: suspend () -> P): Pair<S, P> {
         if (!attributionCompleted()) awaitPostAuth()
         val loadedProfile = withTimeout(networkTimeoutMillis) { retryNetworkRequest(profile, retryDelayMillis = 1_250) }
         return session to loadedProfile

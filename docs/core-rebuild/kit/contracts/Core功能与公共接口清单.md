@@ -253,14 +253,14 @@ StartupOfflineException、StartupUnavailableException 无业务方法；超时�
 
 | 类/接口 | 公共方法 | HTTP |
 | --- | --- | --- |
-| PublicAuthApi | `suspend login(request: LoginRequest): ApiResponse<AuthResponse>` | POST auth/login |
+| PublicAuthApi | `suspend login(request: LoginRequest): ApiResponse<AuthResponse>` | POST auth/register |
 | PublicAuthApi | `suspend anonymous(request: AnonymousRequest): ApiResponse<AuthResponse>` | POST auth/anonymous |
 | PublicAuthApi | `suspend google(request: GoogleRequest): ApiResponse<AuthResponse>` | POST auth/google |
 | PublicAuthApi | `refresh(request: RefreshRequest): Call<ApiResponse<AuthResponse>>` | POST auth/refresh；返回可同步 execute 的 Call |
 | AccountApi | `suspend logout(session: Session): ApiResponse<Unit>` | POST auth/logout，Session 为 Tag |
 | AccountApi | `suspend deleteAccount(session: Session): ApiResponse<Unit>` | POST auth/delete-account，Session 为 Tag |
 
-DTO：LoginRequest 含 username/password 与通用身份字段；AnonymousRequest 含通用身份字段；GoogleRequest 额外含 idToken。通用字段为 deviceId/packageName/platform/version/attribution/gaid?；顶层 gaid 与 attribution.gaid 复用一次查询，缺失时均省略。当前没有注册接口，RefreshRequest 仍仅含 refreshToken；AuthResponse 含 token、可空 refreshToken/userId。运行中的手写匿名登录也遵守同一 GAID 字段契约，不能只修改这些 Core DTO。这里是传输模型，认证字段完整性由 SessionCoordinator 再校验。
+DTO：LoginRequest 含 username/password 与通用身份字段，并提交至 auth/register；AnonymousRequest 含通用身份字段；GoogleRequest 额外含 idToken。通用字段为 deviceId/packageName/platform/version/attribution/gaid?；顶层 gaid 与 attribution.gaid 复用一次查询，缺失时均省略。RefreshRequest 仍仅含 refreshToken；AuthResponse 含 token、可空 refreshToken/userId。运行中的手写匿名登录也遵守同一 GAID 字段契约，不能只修改这些 Core DTO。这里是传输模型，认证字段完整性由 SessionCoordinator 再校验。
 
 ### 5.2 SessionInterceptor
 

@@ -38,9 +38,26 @@ class AchatRepository(
     private val appContext = context.applicationContext
     private val client = AchatBackendClient(configuration)
     private val sessionManager = AchatSessionManager.application(context, configuration, attribution, onLoginResult)
+    val sessionInvalidated: kotlinx.coroutines.flow.StateFlow<Boolean> = sessionManager.sessionInvalidated
 
-    suspend fun authenticateStartup(): AuthSession = withContext(Dispatchers.IO) {
+    suspend fun authenticateStartup(): AuthSession? = withContext(Dispatchers.IO) {
         sessionManager.startupSession()
+    }
+
+    suspend fun loginAnonymously(): AuthSession = withContext(Dispatchers.IO) {
+        sessionManager.loginAnonymouslyExplicit()
+    }
+
+    suspend fun register(username: String, password: String): AuthSession = withContext(Dispatchers.IO) {
+        sessionManager.register(username, password)
+    }
+
+    suspend fun logout(): Unit = withContext(Dispatchers.IO) {
+        sessionManager.logout()
+    }
+
+    suspend fun deleteAccount(): Unit = withContext(Dispatchers.IO) {
+        sessionManager.logout(deleteAccount = true)
     }
 
     suspend fun loadStartupProfile(): UserProfile = userProfileSnapshot()

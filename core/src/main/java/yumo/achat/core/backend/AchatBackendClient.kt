@@ -10,7 +10,10 @@ import yumo.achat.core.attribution.LoginAttribution
 
 internal interface AchatAuthApi {
     fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession
+    fun register(username: String, password: String, deviceId: String, attribution: LoginAttribution): AuthSession
     fun refreshAccessToken(refreshToken: String): String
+    fun logout(token: String)
+    fun deleteAccount(token: String)
 }
 
 class AchatBackendHttpException(
@@ -75,6 +78,34 @@ class AchatBackendClient(
 
     override fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession =
         anonymousLogin(deviceId = deviceId, attribution = attribution)
+
+    override fun register(username: String, password: String, deviceId: String, attribution: LoginAttribution): AuthSession {
+        val body = JSONObject()
+            .put("username", username)
+            .put("password", password)
+            .put("device_id", deviceId)
+            .put("package_name", packageName)
+            .put("platform", "android")
+            .put("version", clientVersion)
+            .put("attribution", attribution.toJsonObject())
+        attribution.gaid?.let { body.put("gaid", it) }
+        return AchatBackendParsers.parseAuthSession(request(
+            path = "/api/v1/auth/register", method = "POST", body = body.toString(),
+            headers = mapOf("Content-Type" to "application/json", "X-Device-ID" to deviceId, "X-AF-UID" to attribution.afUid),
+        ))
+    }
+
+    override fun logout(token: String) = postAuthenticatedAuthAction("/api/v1/auth/logout", token)
+
+    override fun deleteAccount(token: String) = postAuthenticatedAuthAction("/api/v1/auth/delete-account", token)
+
+    private fun postAuthenticatedAuthAction(path: String, token: String) {
+        val response = request(path, "POST", headers = mapOf("Authorization" to "Bearer $token"))
+        val envelope = JSONObject(response)
+        check(envelope.optInt("code", -1) == 0) {
+            envelope.optString("message").takeIf(String::isNotBlank) ?: "Authentication action rejected"
+        }
+    }
 
     override fun refreshAccessToken(refreshToken: String): String {
         val body = JSONObject().put("refresh_token", refreshToken)

@@ -11,6 +11,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.view.inputmethod.InputMethodManager
 import android.view.WindowManager
+import android.widget.Toast
 import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -156,6 +157,7 @@ import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.attribution.AppsFlyerBackendAttribution
 import yumo.achat.core.backend.AchatRepository
 import yumo.achat.core.backend.AuthSession
+import yumo.achat.core.backend.SignedOutException
 import yumo.achat.core.backend.UserProfile
 import yumo.achat.core.backend.StoreProduct
 import yumo.achat.core.backend.StoreCatalog
@@ -169,6 +171,10 @@ import yumo.achat.core.backend.hasMore
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
+import yumo.achat.app.ui.login.LoginScreen
+import yumo.achat.app.ui.login.DeleteAccountDialog
+import yumo.achat.app.ui.report.MediaReportIconButton
+import yumo.achat.app.ui.report.MediaReportSheet
 import yumo.achat.app.ui.theme.AchatCyan
 import yumo.achat.app.ui.theme.AchatDeepNavy
 import yumo.achat.app.ui.theme.AchatMuted
@@ -517,7 +523,7 @@ internal fun formatStoreMoney(amount: BigDecimal, currencyCode: String, locale: 
 }
 
 @Composable
-fun ImageToVideoScreen(modifier: Modifier = Modifier) {
+fun ImageToVideoScreen(modifier: Modifier = Modifier, onAuthFlowStart: () -> Unit = {}, onSignedOut: () -> Unit = {}) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
     val repository = remember(context) { createAchatRepository(context) }
@@ -537,18 +543,86 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
     var startup by remember { mutableStateOf<Pair<AuthSession, UserProfile>?>(null) }
     var startupError by remember { mutableStateOf<String?>(null) }
     var startupRetry by remember { mutableIntStateOf(0) }
+    var loginRequired by remember { mutableStateOf(false) }
+    var loginSubmitting by remember { mutableStateOf(false) }
+    var loginError by remember { mutableStateOf<String?>(null) }
+    var pendingAuthenticatedLogin by remember { mutableStateOf(false) }
+    val loginScope = rememberCoroutineScope()
+    val sessionInvalidated by repository.sessionInvalidated.collectAsState()
+    LaunchedEffect(sessionInvalidated) {
+        if (sessionInvalidated) {
+            attributionRuntime?.onSignedOut()
+            startup = null
+            loginRequired = true
+            loginError = null
+            pendingAuthenticatedLogin = false
+            onSignedOut()
+        }
+    }
     var automaticSessionRestarts by remember { mutableIntStateOf(0) }
     LaunchedEffect(repository, startupRetry) {
-        if (startup != null) return@LaunchedEffect
+        if (startup != null || loginRequired) return@LaunchedEffect
         startupError = null
         try {
-            startup = startupController.startup(repository::authenticateStartup, repository::loadStartupProfile)
+            val restored = repository.authenticateStartup()
+            if (restored == null) {
+                loginRequired = true
+            } else {
+                onAuthFlowStart()
+                attributionRuntime?.resumeRestoredSessionAttribution()
+                startup = if (pendingAuthenticatedLogin) {
+                    startupController.resumeAfterAuthentication(restored, repository::loadStartupProfile)
+                } else {
+                    val profile = withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.loadStartupProfile() }
+                    restored to profile
+                }
+                pendingAuthenticatedLogin = false
+            }
+        } catch (_: SignedOutException) {
+            attributionRuntime?.onSignedOut()
+            loginRequired = true
         } catch (_: TimeoutCancellationException) {
             startupError = context.getString(R.string.startup_unavailable)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             startupError = context.getString(R.string.startup_unavailable)
+        }
+    }
+    fun submitLogin(account: String? = null, password: String? = null) {
+        if (loginSubmitting) return
+        loginSubmitting = true
+        loginError = null
+        onAuthFlowStart()
+        loginScope.launch {
+            try {
+                val saved = repository.authenticateStartup()
+                val result = if (saved != null) {
+                    startupController.resumeAfterAuthentication(saved, repository::loadStartupProfile)
+                } else {
+                    startupController.startup(
+                        authenticate = {
+                            if (account == null) repository.loginAnonymously()
+                            else repository.register(account, requireNotNull(password))
+                        },
+                        profile = repository::loadStartupProfile,
+                    )
+                }
+                startup = result
+                loginRequired = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (runCatching { repository.authenticateStartup() }.getOrNull() != null) {
+                    pendingAuthenticatedLogin = true
+                    loginRequired = false
+                    startupError = context.getString(R.string.startup_unavailable)
+                } else {
+                    loginError = context.getString(R.string.login_failed)
+                }
+            } finally {
+                loginSubmitting = false
+            }
         }
     }
     val ready = startup
@@ -567,7 +641,17 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         }
     }
     if (ready == null) {
-        StartupSplash(error = startupError, onRetry = { startupRetry += 1 }, modifier = modifier)
+        if (loginRequired) {
+            LoginScreen(
+                submitting = loginSubmitting,
+                serverError = loginError,
+                onDeviceLogin = { submitLogin() },
+                onAccountLogin = { account, password -> submitLogin(account, password) },
+                onNavigate = { loginError = null },
+            )
+        } else {
+            StartupSplash(error = startupError, onRetry = { startupRetry += 1 }, modifier = modifier)
+        }
         return
     }
     ImageToVideoHomeScreen(
@@ -576,6 +660,12 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier) {
         startupController = startupController,
         startupSession = ready.first,
         startupProfile = ready.second,
+        onSignedOut = {
+            startup = null
+            loginRequired = true
+            loginError = null
+            onSignedOut()
+        },
         modifier = modifier,
     )
 }
@@ -600,6 +690,7 @@ private fun ImageToVideoHomeScreen(
     startupController: HomeStartupController,
     startupSession: AuthSession,
     startupProfile: UserProfile,
+    onSignedOut: () -> Unit,
     modifier: Modifier,
 ) {
     val localContext = LocalContext.current
@@ -609,6 +700,30 @@ private fun ImageToVideoHomeScreen(
     val homeGateRevision by attributionRuntime?.homeGateRevision?.collectAsState()
         ?: remember { mutableStateOf(0L) }
     val screenScope = rememberCoroutineScope()
+    var accountActionBusy by remember { mutableStateOf(false) }
+    var accountActionError by remember { mutableStateOf<String?>(null) }
+    var deleteDialogOpen by remember { mutableStateOf(false) }
+    fun performAccountAction(delete: Boolean) {
+        if (accountActionBusy) return
+        accountActionBusy = true
+        accountActionError = null
+        screenScope.launch {
+            try {
+                if (delete) repository.deleteAccount() else repository.logout()
+                attributionRuntime?.onSignedOut()
+                analytics.identify(null)
+                onSignedOut()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                accountActionError = context.getString(
+                    if (delete) R.string.account_delete_failed else R.string.account_logout_failed,
+                )
+            } finally {
+                accountActionBusy = false
+            }
+        }
+    }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
@@ -1514,6 +1629,10 @@ private fun ImageToVideoHomeScreen(
                     },
                     onConversationLog = ::openMyTasks,
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
+                    onLogout = { performAccountAction(false) },
+                    onDeleteAccount = { deleteDialogOpen = true; accountActionError = null },
+                    accountActionBusy = accountActionBusy,
+                    accountActionError = accountActionError,
                     onEditName = { destination = ImageToVideoDestination.EditName },
                     onEditAvatar = ::openAvatarPicker,
                     isAvatarSaving = profileEditingController.avatarSaving,
@@ -1605,6 +1724,10 @@ private fun ImageToVideoHomeScreen(
                             selectedNavigation = 3,
                             onConversationLog = ::openMyTasks,
                             onFeedback = { destination = ImageToVideoDestination.Feedback },
+                            onLogout = {},
+                            onDeleteAccount = {},
+                            accountActionBusy = true,
+                            accountActionError = null,
                             onEditName = {},
                             onEditAvatar = ::openAvatarPicker,
                             isAvatarSaving = profileEditingController.avatarSaving,
@@ -1669,6 +1792,14 @@ private fun ImageToVideoHomeScreen(
                 onClose = { topUpPaymentController.closeThirdParty(thirdPartyRoute) },
             )
         }
+        if (deleteDialogOpen) {
+            DeleteAccountDialog(
+                busy = accountActionBusy,
+                error = accountActionError,
+                onDismiss = { deleteDialogOpen = false; accountActionError = null },
+                onConfirm = { performAccountAction(true) },
+            )
+        }
     }
 }
 
@@ -1693,6 +1824,10 @@ private fun TemplateBrowserScreen(
     onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
+    accountActionBusy: Boolean,
+    accountActionError: String?,
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     isAvatarSaving: Boolean,
@@ -1734,6 +1869,10 @@ private fun TemplateBrowserScreen(
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
+            onLogout = onLogout,
+            onDeleteAccount = onDeleteAccount,
+            accountActionBusy = accountActionBusy,
+            accountActionError = accountActionError,
             onEditName = onEditName,
             onEditAvatar = onEditAvatar,
             isAvatarSaving = isAvatarSaving,
@@ -2172,6 +2311,10 @@ private fun MeScreen(
     selectedNavigation: Int,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
+    accountActionBusy: Boolean,
+    accountActionError: String?,
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     isAvatarSaving: Boolean,
@@ -2255,6 +2398,33 @@ private fun MeScreen(
             )
         }
         Spacer(Modifier.weight(1f))
+        Text(
+            text = stringResource(R.string.account_delete),
+            color = AchatCyan,
+            textDecoration = TextDecoration.Underline,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+                .clickable(enabled = !accountActionBusy, onClick = onDeleteAccount)
+                .padding(10.dp),
+        )
+        Spacer(Modifier.height(7.dp))
+        Box(
+            Modifier.fillMaxWidth().height(50.dp)
+                .clip(CutCornerShape(topStart = 9.dp, bottomEnd = 9.dp))
+                .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFF5C68EB), AchatPink)))
+                .clickable(enabled = !accountActionBusy, onClick = onLogout),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(if (accountActionBusy) R.string.account_logout_busy else R.string.account_log_out),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        if (accountActionError != null) {
+            Text(accountActionError, color = AchatPink, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+        Spacer(Modifier.height(14.dp))
         BottomNavigation(
             selectedIndex = selectedNavigation,
             onSelect = onNavigationSelect,
@@ -2874,6 +3044,9 @@ internal fun GenerationResultScreen(
     initialVideoPlaybackFailed: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val reportSuccess = stringResource(R.string.report_success)
+    var reportOpen by remember(task.taskId) { mutableStateOf(false) }
     var videoPlaybackFailed by remember(task.taskId, task.resultUrl) {
         mutableStateOf(initialVideoPlaybackFailed)
     }
@@ -2969,8 +3142,24 @@ internal fun GenerationResultScreen(
                         fontSize = 11.sp,
                     )
                 }
+                if (task.canOpenResult) {
+                    MediaReportIconButton(
+                        onClick = { reportOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                    )
+                }
             }
         }
+    }
+    if (reportOpen) {
+        MediaReportSheet(
+            mediaId = task.taskId,
+            onDismiss = { reportOpen = false },
+            onSuccess = {
+                reportOpen = false
+                Toast.makeText(context, reportSuccess, Toast.LENGTH_SHORT).show()
+            },
+        )
     }
 }
 
@@ -4462,6 +4651,8 @@ private fun UploadPhotoScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val reportSuccess = stringResource(R.string.report_success)
+    var reportTarget by remember(selectedTemplate?.templateId) { mutableStateOf<String?>(null) }
     val appContext = context.applicationContext
     val repository = remember(appContext) { createAchatRepository(appContext) }
     val scope = rememberCoroutineScope()
@@ -4596,12 +4787,20 @@ private fun UploadPhotoScreen(
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(7.dp))
-        TemplatePreviewPanel(
-            media = selectedTemplate?.previewMedia ?: TemplatePreviewMedia.LocalPlaceholder,
-            durationSeconds = selectedTemplate?.durationSeconds ?: 5,
-            isPlaying = selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-        )
+        Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+            TemplatePreviewPanel(
+                media = selectedTemplate?.previewMedia ?: TemplatePreviewMedia.LocalPlaceholder,
+                durationSeconds = selectedTemplate?.durationSeconds ?: 5,
+                isPlaying = selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
+                modifier = Modifier.fillMaxSize(),
+            )
+            selectedTemplate?.let { template ->
+                MediaReportIconButton(
+                    onClick = { reportTarget = template.templateId },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.template_upload_heading),
@@ -4696,6 +4895,16 @@ private fun UploadPhotoScreen(
         BottomNavigation(
             selectedIndex = selectedNavigation,
             onSelect = onNavigationSelect,
+        )
+    }
+    reportTarget?.let { mediaId ->
+        MediaReportSheet(
+            mediaId = mediaId,
+            onDismiss = { reportTarget = null },
+            onSuccess = {
+                reportTarget = null
+                Toast.makeText(context, reportSuccess, Toast.LENGTH_SHORT).show()
+            },
         )
     }
 }

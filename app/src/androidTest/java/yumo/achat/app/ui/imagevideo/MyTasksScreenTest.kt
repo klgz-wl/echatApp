@@ -83,7 +83,7 @@ class MyTasksScreenTest {
     }
 
     @Test
-    fun generationResultScreenShowsOpenableVideoPreview() {
+    fun generationResultScreenAllowsReportingVideoResult() {
         val task = TrackedGenerationTask(
             taskId = "task-video-1",
             title = "Video result",
@@ -100,17 +100,15 @@ class MyTasksScreenTest {
                 GenerationResultScreen(
                     task = task,
                     onBack = {},
+                    initialVideoPlaybackFailed = true,
                 )
             }
         }
 
         composeRule.onNodeWithText("Video result").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Video progress").assertIsDisplayed()
-        composeRule.mainClock.autoAdvance = false
-        composeRule.onNodeWithContentDescription("Result video player").performClick()
-        composeRule.onNodeWithContentDescription("Pause result video").assertIsDisplayed().performClick()
-        composeRule.onNodeWithContentDescription("Play result video").assertIsDisplayed()
-        composeRule.mainClock.autoAdvance = true
+        composeRule.onNodeWithText("Result file unavailable, pull to refresh or try later.").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Report content").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Feel free to report this content if you think it’s inappropriate.").assertIsDisplayed()
     }
 
     @Test

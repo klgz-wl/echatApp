@@ -34,7 +34,7 @@ class AuthHttpGaidTest {
         api.login(LoginRequest("user", "password", "install", "test.app", "android", "1", attribution, id))
         api.anonymous(AnonymousRequest("install", "test.app", "android", "1", attribution, id))
         api.google(GoogleRequest("google-token", "install", "test.app", "android", "1", attribution, id))
-        assertEquals(listOf("/api/v1/auth/login", "/api/v1/auth/anonymous", "/api/v1/auth/google"), bodies.map { it.first })
+        assertEquals(listOf("/api/v1/auth/register", "/api/v1/auth/anonymous", "/api/v1/auth/google"), bodies.map { it.first })
         bodies.forEach { (_, body) ->
             assertEquals(id, body.getValue("gaid").jsonPrimitive.content)
             assertEquals(id, body.getValue("attribution").jsonObject.getValue("gaid").jsonPrimitive.content)

@@ -33,8 +33,9 @@ internal class LedgerAttributionReportDispatcher(
     private val startupId: String,
     private val startupNanos: Long,
     private val retryDelay: suspend () -> Unit,
-    private val report: suspend (AuthSession, StoredAttributionResult, AttributionReportMetadata) -> Unit,
-    private val completionScope: (AuthSession) -> AttributionCompletionScope,
+    private val report: suspend (AuthSession, StoredAttributionReport, StoredAttributionResult, AttributionReportMetadata) -> Unit,
+    private val completionScope: (AuthSession, StoredAttributionReport) -> AttributionCompletionScope,
+    private val deviceId: () -> String,
     private val onCompletionPersisted: suspend (StoredAttributionCompletion, StoredAttributionResult) -> Unit = { _, _ -> },
     private val nowNanos: () -> Long = System::nanoTime,
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -46,6 +47,8 @@ internal class LedgerAttributionReportDispatcher(
     private var rerunRequested = false
     private val deferredReports = mutableSetOf<String>()
     @Volatile private var session: AuthSession? = null
+    @Volatile private var sessionDeviceId: String? = null
+    @Volatile private var sessionGeneration = 0L
     @Volatile private var stage = AttributionStage.STARTUP_RECOVERY
     private val processSuccessNanos = mutableMapOf<String, Long>()
     private val mutableReceipts = MutableStateFlow<LedgerReportReceipt?>(null)
@@ -58,9 +61,14 @@ internal class LedgerAttributionReportDispatcher(
     fun updateStage(value: AttributionStage) { stage = value }
 
     fun updateSession(value: AuthSession) {
-        session = value
+        val capturedDeviceId = deviceId()
+        synchronized(stateLock) {
+            session = value
+            sessionDeviceId = capturedDeviceId
+            sessionGeneration++
+        }
         try {
-            store.ensureReports(value.userId, newId)
+            store.ensureReports(value.userId, newId, capturedDeviceId)
             publishPersistedReceipt(value)
         } catch (_: Exception) {
             mutableExhausted.value = setOf(STORAGE_FAILURE_KEY)
@@ -68,9 +76,20 @@ internal class LedgerAttributionReportDispatcher(
         kick()
     }
 
+    fun clearSession() {
+        synchronized(stateLock) {
+            session = null
+            sessionDeviceId = null
+            sessionGeneration++
+            deferredReports.clear()
+            mutableExhausted.value = emptySet()
+            mutableReceipts.value = null
+        }
+    }
+
     fun updateResult(source: AttributionResultSource, data: JsonObject) {
         store.record(source, data, startupId, newId)
-        session?.let { store.ensureReports(it.userId, newId) }
+        session?.let { active -> store.ensureReports(active.userId, newId, sessionDeviceId.orEmpty()) }
         kick()
     }
 
@@ -111,19 +130,28 @@ internal class LedgerAttributionReportDispatcher(
 
     private suspend fun drain() {
         val active = session ?: return
+        val generation = sessionGeneration
+        val activeDeviceId = sessionDeviceId ?: return
         val ledger = try {
-            store.ensureReports(active.userId, newId)
+            store.ensureReports(active.userId, newId, activeDeviceId)
         } catch (_: Exception) {
             mutableExhausted.value = setOf(STORAGE_FAILURE_KEY)
             return
         }
         for (pending in ledger.pendingReports(active.userId).filterNot { it.reportId in deferredReports }) {
+            if (sessionGeneration != generation) break
+            if (pending.deviceId.isBlank()) {
+                synchronized(stateLock) { deferredReports += pending.reportId }
+                mutableExhausted.value = mutableExhausted.value + pending.reportId
+                continue
+            }
             val result = store.snapshot().result(pending.resultId) ?: continue
             var sent = false
             for (attempt in 0 until attempts) {
                 try {
                     report(
                         active,
+                        pending,
                         result,
                         AttributionReportMetadata(
                             reportId = pending.reportId,
@@ -148,11 +176,11 @@ internal class LedgerAttributionReportDispatcher(
             }
             val successNanos = nowNanos()
             try {
-                val scope = completionScope(active)
+                val scope = completionScope(active, pending)
                 store.markReportSucceeded(pending.reportId, nowMillis(), scope)
                 store.completion(scope)?.let { completion ->
                     if (completion.reportId == pending.reportId) {
-                        onCompletionPersisted(completion, result)
+                        if (sessionGeneration == generation) onCompletionPersisted(completion, result)
                     }
                 }
             } catch (_: Exception) {
@@ -161,16 +189,17 @@ internal class LedgerAttributionReportDispatcher(
                 continue
             }
             processSuccessNanos[pending.reportId] = successNanos
-            if (session?.epoch == active.epoch) {
+            if (sessionGeneration == generation && session?.epoch == active.epoch) {
                 mutableReceipts.value = LedgerReportReceipt(
                     active.epoch, active.userId, result.id, pending.reportId, successNanos,
                 )
             }
         }
-        publishPersistedReceipt(active)
+        if (sessionGeneration == generation) publishPersistedReceipt(active)
     }
 
     private fun publishPersistedReceipt(active: AuthSession) {
+        if (session?.epoch != active.epoch) return
         val ledger = store.snapshot()
         val result = ledger.currentResult() ?: return
         val report = ledger.reportFor(active.userId, result.id)?.takeIf { it.succeeded } ?: return

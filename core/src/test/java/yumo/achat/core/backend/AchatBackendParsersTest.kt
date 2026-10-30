@@ -9,6 +9,24 @@ import org.junit.Test
 
 class AchatBackendParsersTest {
     @Test
+    fun `auth response requires business code zero`() {
+        assertThrows(IllegalStateException::class.java) {
+            AchatBackendParsers.parseAuthSession("""{"code":200,"data":{"user_id":"u","token":"t","refresh_token":"r"}}""")
+        }
+    }
+    @Test
+    fun `auth response requires nonblank session credentials`() {
+        for (data in listOf(
+            """{"user_id":"","token":"t","refresh_token":"r"}""",
+            """{"user_id":"u","token":"","refresh_token":"r"}""",
+            """{"user_id":"u","token":"t","refresh_token":""}""",
+        )) {
+            assertThrows(IllegalStateException::class.java) {
+                AchatBackendParsers.parseAuthSession("""{"code":0,"data":$data}""")
+            }
+        }
+    }
+    @Test
     fun `template and resource pages preserve pagination metadata`() {
         val templates = AchatBackendParsers.parseTemplatePage(
             """{"code":0,"data":{"items":[],"page":2,"page_size":20,"total":45}}""",
