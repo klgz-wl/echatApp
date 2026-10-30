@@ -130,6 +130,8 @@ android {
             create(env) {
                 dimension = "environment"
                 applicationId = config.getProperty("applicationId")
+                versionCode = config.getProperty("app.version.code").toInt()
+                versionName = config.getProperty("app.version.name")
                 signingConfig = signingConfigs.getByName(
                     if (env == "prod" && mode == "FORMAL") "formal" else "sharedDev",
                 )
