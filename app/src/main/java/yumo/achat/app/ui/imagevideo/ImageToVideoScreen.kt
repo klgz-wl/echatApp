@@ -4228,8 +4228,8 @@ private fun WalletTransactionHistory(transactions: List<WalletTransaction>) {
                     )
                 }
                 Text(
-                    text = formatWalletTransactionAmount(transaction.amount),
-                    color = if (transaction.amount >= 0) AchatCyan else AchatPink,
+                    text = formatWalletTransactionAmount(transaction.amount, transaction.type),
+                    color = if (walletTransactionDisplayAmount(transaction.amount, transaction.type) >= 0) AchatCyan else AchatPink,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -4238,8 +4238,16 @@ private fun WalletTransactionHistory(transactions: List<WalletTransaction>) {
     }
 }
 
-internal fun formatWalletTransactionAmount(amount: Int): String =
-    (if (amount >= 0) "+" else "") + amount.toString()
+internal fun walletTransactionDisplayAmount(amount: Int, type: String): Long = when (type) {
+    "income" -> kotlin.math.abs(amount.toLong())
+    "expense" -> -kotlin.math.abs(amount.toLong())
+    else -> amount.toLong()
+}
+
+internal fun formatWalletTransactionAmount(amount: Int, type: String): String {
+    val signedAmount = walletTransactionDisplayAmount(amount, type)
+    return (if (signedAmount >= 0) "+" else "") + signedAmount.toString()
+}
 
 @Composable
 private fun TopUpInlineStatus(text: String, color: Color) {
