@@ -5,14 +5,17 @@ import org.junit.Test
 
 class CoinPurchaseStatusTest {
     @Test
-    fun `backend owned fulfillment keeps accepted Play purchase pending`() {
+    fun `accepted Play purchase is distinct from a store pending payment`() {
         assertEquals(
-            CoinPurchaseStatus.PENDING,
+            "AWAITING_FULFILLMENT",
             resolvedCoinPurchaseStatus(
                 ConsumablePurchaseResult.Success("product"),
                 backendOwnedFulfillment = true,
-            ),
+            ).name,
         )
+        assertEquals(CoinPurchaseStatus.PENDING, resolvedCoinPurchaseStatus(
+            ConsumablePurchaseResult.Pending("product"), backendOwnedFulfillment = true,
+        ))
         assertEquals(
             CoinPurchaseStatus.COMPLETED,
             resolvedCoinPurchaseStatus(
@@ -26,6 +29,7 @@ class CoinPurchaseStatusTest {
     fun `busy and pending purchases block a second purchase`() {
         assertEquals(true, blocksNewCoinPurchase(CoinPurchaseStatus.BUSY))
         assertEquals(true, blocksNewCoinPurchase(CoinPurchaseStatus.PENDING))
+        assertEquals(true, blocksNewCoinPurchase(CoinPurchaseStatus.AWAITING_FULFILLMENT))
         assertEquals(false, blocksNewCoinPurchase(CoinPurchaseStatus.COMPLETED))
         assertEquals(false, blocksNewCoinPurchase(CoinPurchaseStatus.FAILED))
     }

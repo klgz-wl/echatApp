@@ -7,6 +7,19 @@ import yumo.achat.core.billing.CoinPurchaseState
 import yumo.achat.core.billing.CoinPurchaseStatus
 
 class PurchaseFlowTest {
+    @Test fun `accepted purchase stays locked until backend confirms terminal failure`() {
+        val purchase = CoinPurchaseState("epoch", CoinPurchaseStatus.AWAITING_FULFILLMENT)
+        val record = PaymentRecord("key", "user", "pack", "main", orderId = "order",
+            initialized = InitializedPayment("order", "official", "google_play", "sdk", PaymentSdkParams("sku")),
+            stage = PaymentStage.FAILED, error = "payment_failed")
+        val payment = PaymentViewState("epoch", record)
+        assertFalse(blocksTopUpPurchase(purchase, payment, "user"))
+        assertTrue(blocksTopUpPurchase(purchase, payment.copy(epoch = "other-epoch"), "user"))
+        assertTrue(blocksTopUpPurchase(purchase, payment.copy(record = record.copy(
+            stage = PaymentStage.UNCERTAIN, error = "verification_failed",
+        )), "user"))
+    }
+
     @Test fun `visible official error unlocks amount selection and a new attempt while active Play remains locked`() {
         val record = PaymentRecord("key", "user", "pack", "main", orderId = "old-order",
             initialized = InitializedPayment("old-order", "official", "google_play", "sdk", PaymentSdkParams("sku")),
@@ -14,6 +27,7 @@ class PurchaseFlowTest {
         val payment = PaymentViewState(epoch = "epoch", record = record)
         val pending = CoinPurchaseState(epoch = "epoch", status = CoinPurchaseStatus.PENDING)
         assertFalse(blocksTopUpPurchase(pending, payment, "user"))
+        assertTrue(blocksTopUpPurchase(pending.copy(status = CoinPurchaseStatus.AWAITING_FULFILLMENT), payment, "user"))
         assertTrue(blocksTopUpPurchase(pending, payment.copy(record = record.copy(error = null)), "user"))
         assertTrue(blocksTopUpPurchase(CoinPurchaseState("epoch", CoinPurchaseStatus.BUSY), payment, "user"))
         assertTrue(blocksTopUpPurchase(pending, payment.copy(epoch = "another-epoch"), "user"))

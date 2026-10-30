@@ -37,8 +37,9 @@ class ServicePaymentFlow @Inject constructor(private val engine: PaymentEngine,
         val retry = result.status == CoinPurchaseStatus.CANCELLED ||
             (result.status == CoinPurchaseStatus.FAILED && result.failureStage in setOf(
                 ConsumablePurchaseStage.BILLING_INITIALIZATION, ConsumablePurchaseStage.PRODUCT_QUERY))
-        engine.officialResult(key, retry,
+        val fulfilled = engine.officialResult(key, retry,
             consumed = result.status == CoinPurchaseStatus.COMPLETED && !billingConfiguration.backendOwnedFulfillment,
             failed = result.status == CoinPurchaseStatus.FAILED)
+        if (fulfilled && sessions.current?.epoch == epoch) purchases.backendFulfilled(epoch)
     }
 }

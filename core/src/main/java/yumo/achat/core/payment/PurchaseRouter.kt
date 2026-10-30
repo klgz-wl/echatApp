@@ -17,10 +17,17 @@ enum class RechargeNotificationRoute { LegacyFirst, Handled, Unknown }
 /** A visible error on the current official order releases a stale Play pending UI lock. */
 fun blocksTopUpPurchase(purchase: CoinPurchaseState, payment: PaymentViewState, userId: String?): Boolean {
     if (purchase.status == CoinPurchaseStatus.BUSY) return true
+    if (purchase.status == CoinPurchaseStatus.AWAITING_FULFILLMENT) {
+        val record = payment.record
+        val backendFailed = purchase.epoch != null && purchase.epoch == payment.epoch &&
+            record?.userId == userId && record?.initialized?.channelType == "official" &&
+            record.stage == PaymentStage.FAILED && record.error == "payment_failed"
+        return !backendFailed
+    }
     if (purchase.status != CoinPurchaseStatus.PENDING) return false
     val record = payment.record
     return purchase.epoch == null || purchase.epoch != payment.epoch || record?.userId != userId ||
-        record?.initialized?.channelType != "official" || record?.error.isNullOrBlank()
+        record?.initialized?.channelType != "official" || record.error.isNullOrBlank()
 }
 
 /** 页面统一入口；配置只影响新购买，恢复与到账按持久化订单归属分派。 */

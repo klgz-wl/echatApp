@@ -27,6 +27,36 @@ class TopUpCardTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun fulfilledOfficialPurchaseClearsPendingAndUnlocksSelection() {
+        var checkout by mutableStateOf<TopUpCheckoutState>(TopUpCheckoutState.AwaitingPayment(true))
+        var selected by mutableStateOf<String?>("pack-200")
+        composeRule.setContent {
+            AchatTheme {
+                TopUpScreen(
+                    selectedNavigation = 2,
+                    selectedProductId = selected,
+                    productSelectionEnabled = checkout is TopUpCheckoutState.Succeeded,
+                    state = TopUpUiState(catalog = catalog()),
+                    purchaseState = TopUpPurchaseState.OfficialReady(paymentRecord("pack-200", "order", true)),
+                    checkoutState = checkout,
+                    onProductSelect = { selected = it },
+                    onPreparePayment = {},
+                    onRetry = {},
+                    onNavigationSelect = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Payment is pending in Google Play").assertIsDisplayed()
+        composeRule.runOnIdle { checkout = TopUpCheckoutState.AwaitingPayment(false) }
+        composeRule.onAllNodesWithText("Payment is pending in Google Play").assertCountEquals(0)
+        composeRule.onNodeWithText("Waiting for payment confirmation...").assertIsDisplayed()
+        composeRule.runOnIdle { checkout = TopUpCheckoutState.Succeeded("order") }
+        composeRule.onAllNodesWithText("Waiting for payment confirmation...").assertCountEquals(0)
+        composeRule.onNodeWithText("100").performClick()
+        composeRule.runOnIdle { assertEquals("pack-100", selected) }
+    }
+
+    @Test
     fun selectedPackUsesLiveCatalogAndSelectionCanMove() {
         var selectedProductId by mutableStateOf<String?>("pack-200")
         var prepareCount = 0

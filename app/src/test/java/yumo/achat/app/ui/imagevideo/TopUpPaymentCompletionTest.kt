@@ -10,6 +10,30 @@ import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class TopUpPaymentCompletionTest {
+    @Test fun `accepted Play purchase waits for confirmation instead of displaying store pending`() {
+        val payment = payment(PaymentStage.OFFICIAL_LAUNCHED, "epoch-1").let {
+            it.copy(record = it.record!!.copy(initialized = yumo.achat.core.payment.InitializedPayment(
+                "order", "official", "google_play", "sdk", yumo.achat.core.payment.PaymentSdkParams("sku"),
+            )))
+        }
+        assertEquals(TopUpCheckoutState.AwaitingPayment(false), payment.toTopUpCheckoutState(
+            CoinPurchaseState("epoch-1", CoinPurchaseStatus.AWAITING_FULFILLMENT),
+        ))
+        assertEquals(TopUpCheckoutState.AwaitingPayment(true), payment.toTopUpCheckoutState(
+            CoinPurchaseState("epoch-1", CoinPurchaseStatus.PENDING),
+        ))
+        assertEquals(TopUpCheckoutState.Succeeded("order"), payment.copy(
+            record = payment.record!!.copy(stage = PaymentStage.SUCCESS),
+        ).toTopUpCheckoutState(CoinPurchaseState("epoch-1", CoinPurchaseStatus.AWAITING_FULFILLMENT)))
+    }
+
+    @Test fun `backend success releases the accepted purchase in the same session only`() {
+        val purchase = CoinPurchaseState("epoch-1", CoinPurchaseStatus.AWAITING_FULFILLMENT)
+        assertEquals("epoch-1", fulfilledBillingPurchaseEpoch(payment(PaymentStage.SUCCESS, "epoch-1"), purchase))
+        assertNull(fulfilledBillingPurchaseEpoch(payment(PaymentStage.SUCCESS, "epoch-2"), purchase))
+        assertNull(fulfilledBillingPurchaseEpoch(payment(PaymentStage.AWAITING_FULFILLMENT, "epoch-1"), purchase))
+    }
+
     @Test fun `same session backend success completes pending official purchase`() {
         assertEquals(
             "epoch-1",

@@ -56,6 +56,9 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         val migrated = saved.map { record ->
             if (record.stage == PaymentStage.INITIALIZING && record.initialized == null &&
                 record.orderId != null && record.error == "payment_order_forbidden") record.copy(stage = PaymentStage.ACCESS_DENIED)
+            else if (record.stage == PaymentStage.TIMED_OUT && record.initialized?.channelType == "official") {
+                record.copy(stage = PaymentStage.UNCERTAIN, error = null)
+            }
             else record
         }
         if (migrated != saved) storage.write(migrated)
@@ -103,7 +106,8 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             notifyFailure(session)
             return@guarded
         }
-        val old = records.lastOrNull { it.userId == session.userId && it.unresolved && it.error == null }
+        val old = records.lastOrNull { it.userId == session.userId && it.unresolved &&
+            (it.error == null || it.initialized?.channelType == "official") }
         if (old != null) { resume(old.copy(source = source), session); return@guarded }
         var record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,
@@ -201,7 +205,11 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             }
             record.initialized == null -> initialize(record, session)
             record.stage == PaymentStage.OFFICIAL_READY -> save(record, session, false)
-            !record.thirdParty -> save(if (record.stage == PaymentStage.CLOSED) record.copy(stage = PaymentStage.OFFICIAL_READY, error = null) else record, session, false)
+            !record.thirdParty -> if (record.stage == PaymentStage.CLOSED) {
+                save(record.copy(stage = PaymentStage.OFFICIAL_READY, error = null), session, false)
+            } else {
+                query(record, session, closing = false)
+            }
             record.openedAt == null -> save(record, session, true)
             else -> {
                 val checked = query(record.copy(stage = PaymentStage.CHECKOUT), session, closing = false)
@@ -237,7 +245,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
     suspend fun poll(key: String) = guarded { session ->
         val record = current(key, session) ?: return@guarded
         if (record.orderId != null && record.unresolved &&
-            (record.thirdParty || record.stage in setOf(PaymentStage.OFFICIAL_LAUNCHED, PaymentStage.AWAITING_FULFILLMENT))
+            (record.thirdParty || shouldAutoPollPayment(record))
         ) query(record, session, closing = false)
     }
     private suspend fun query(record: PaymentRecord, session: Session, closing: Boolean, publish: Boolean = true): PaymentRecord {
@@ -267,7 +275,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 next.orderId?.let { "payment:$it:fulfilled:purchase_success" })
             return next
         }
-        val timeout = next.unresolved && next.expired(clock.now())
+        val timeout = next.thirdParty && next.unresolved && next.expired(clock.now())
         if (closing && timeout) {
             if (record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
@@ -317,23 +325,33 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         return result
     }
-    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false) = guarded { session ->
-        val record = current(key, session) ?: return@guarded
-        if (record.stage == PaymentStage.SUCCESS) return@guarded
-        // 不把 consume 完成当作已发币，继续等真实充值通知。
-        val now = clock.now()
-        save(record.copy(
-            stage = when {
-                cancelledOrUnavailable -> PaymentStage.CLOSED
-                failed -> PaymentStage.FAILED
-                consumed -> PaymentStage.OFFICIAL_CONSUMED
-                else -> PaymentStage.OFFICIAL_LAUNCHED
-            },
-            openedAt = if (!cancelledOrUnavailable && !consumed) record.openedAt ?: now else record.openedAt,
-            deadline = if (!cancelledOrUnavailable && !consumed) record.deadline ?: now + config.maxSeconds * 1000L else record.deadline,
-        ), session, false)
-        if (failed) notifyFailure(session)
-        if (cancelledOrUnavailable || consumed) presentWaitingSuccess(session)
+    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false): Boolean {
+        var fulfilled = false
+        guarded { session ->
+            val record = current(key, session) ?: return@guarded
+            if (record.stage == PaymentStage.SUCCESS) {
+                fulfilled = true
+                return@guarded
+            }
+            // 不把 consume 完成当作已发币，继续等真实充值通知。
+            val now = clock.now()
+            save(record.copy(
+                stage = when {
+                    cancelledOrUnavailable -> PaymentStage.CLOSED
+                    failed -> PaymentStage.FAILED
+                    consumed -> PaymentStage.OFFICIAL_CONSUMED
+                    else -> PaymentStage.OFFICIAL_LAUNCHED
+                },
+                openedAt = if (!cancelledOrUnavailable && !consumed) record.openedAt ?: now else record.openedAt,
+                deadline = if (!cancelledOrUnavailable && !consumed) record.deadline ?: now + config.maxSeconds * 1000L else record.deadline,
+            ), session, false)
+            if (!cancelledOrUnavailable && !consumed && !failed) {
+                current(key, session)?.let { fulfilled = query(it, session, closing = false).stage == PaymentStage.SUCCESS }
+            }
+            if (failed) notifyFailure(session)
+            if (cancelledOrUnavailable || consumed) presentWaitingSuccess(session)
+        }
+        return fulfilled
     }
     suspend fun officialQuote(key: String, price: Double?, currency: String?) = guarded { session ->
         val record = current(key, session) ?: return@guarded

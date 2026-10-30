@@ -48,7 +48,9 @@ internal fun fulfilledBillingPurchaseEpoch(
     purchase: CoinPurchaseState,
 ): String? = payment.epoch?.takeIf { epoch ->
     payment.record?.stage == PaymentStage.SUCCESS &&
-        purchase.epoch == epoch && purchase.status == CoinPurchaseStatus.PENDING
+        purchase.epoch == epoch && purchase.status in setOf(
+            CoinPurchaseStatus.PENDING, CoinPurchaseStatus.AWAITING_FULFILLMENT,
+        )
 }
 
 @HiltViewModel
@@ -306,13 +308,14 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
     }
 }
 
-private fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState): TopUpCheckoutState {
+internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState): TopUpCheckoutState {
     val value = record ?: return TopUpCheckoutState.Idle
     if (value.initialized?.channelType == "official" && purchase.epoch == epoch &&
         value.stage in setOf(PaymentStage.OFFICIAL_LAUNCHED, PaymentStage.AWAITING_FULFILLMENT)
     ) {
         when (purchase.status) {
             CoinPurchaseStatus.PENDING -> return TopUpCheckoutState.AwaitingPayment(true)
+            CoinPurchaseStatus.AWAITING_FULFILLMENT -> return TopUpCheckoutState.AwaitingPayment(false)
             CoinPurchaseStatus.CANCELLED -> return TopUpCheckoutState.Cancelled
             CoinPurchaseStatus.FAILED -> return TopUpCheckoutState.Failed("Payment failed", retryPreparedRoute = true)
             else -> Unit

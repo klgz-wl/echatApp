@@ -73,5 +73,6 @@ internal fun shouldAutoPollPayment(record: PaymentRecord?): Boolean {
     return record.stage in setOf(
         PaymentStage.OFFICIAL_LAUNCHED,
         PaymentStage.AWAITING_FULFILLMENT,
-    )
+        PaymentStage.UNCERTAIN,
+    ) && record.initialized?.channelType == "official"
 }

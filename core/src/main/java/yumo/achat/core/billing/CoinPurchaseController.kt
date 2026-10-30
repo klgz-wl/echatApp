@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class CoinPurchaseStatus { IDLE, BUSY, PENDING, COMPLETED, CANCELLED, FAILED }
+enum class CoinPurchaseStatus { IDLE, BUSY, PENDING, AWAITING_FULFILLMENT, COMPLETED, CANCELLED, FAILED }
 fun blocksNewCoinPurchase(status: CoinPurchaseStatus): Boolean =
-    status == CoinPurchaseStatus.BUSY || status == CoinPurchaseStatus.PENDING
+    status == CoinPurchaseStatus.BUSY || status == CoinPurchaseStatus.PENDING ||
+        status == CoinPurchaseStatus.AWAITING_FULFILLMENT
 
 data class CoinPurchaseState(val epoch: String? = null, val status: CoinPurchaseStatus = CoinPurchaseStatus.IDLE,
     val failureStage: ConsumablePurchaseStage? = null, val revision: Long = 0,
@@ -45,7 +46,9 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
 
     fun backendFulfilled(expectedEpoch: String?) {
         val current = mutable.value
-        if (expectedEpoch != null && current.epoch == expectedEpoch && current.status == CoinPurchaseStatus.PENDING) {
+        if (expectedEpoch != null && current.epoch == expectedEpoch && current.status in setOf(
+                CoinPurchaseStatus.PENDING, CoinPurchaseStatus.AWAITING_FULFILLMENT,
+            )) {
             mutable.value = current.copy(status = CoinPurchaseStatus.COMPLETED)
         }
     }
@@ -134,7 +137,7 @@ class CoinPurchaseController @Inject constructor(private val billing: BillingRep
                 }
             } catch (cancelled: CancellationException) {
                 if (mutable.value.epoch == session.epoch && mutable.value.status != CoinPurchaseStatus.COMPLETED) {
-                    mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.PENDING, revision = revision)
+                    mutable.value = CoinPurchaseState(session.epoch, CoinPurchaseStatus.AWAITING_FULFILLMENT, revision = revision)
                 }
                 throw cancelled
             }
@@ -148,7 +151,7 @@ internal fun resolvedCoinPurchaseStatus(
     result: ConsumablePurchaseResult<*>,
     backendOwnedFulfillment: Boolean,
 ): CoinPurchaseStatus = when (result) {
-    is ConsumablePurchaseResult.Success -> if (backendOwnedFulfillment) CoinPurchaseStatus.PENDING else CoinPurchaseStatus.COMPLETED
+    is ConsumablePurchaseResult.Success -> if (backendOwnedFulfillment) CoinPurchaseStatus.AWAITING_FULFILLMENT else CoinPurchaseStatus.COMPLETED
     is ConsumablePurchaseResult.Pending -> CoinPurchaseStatus.PENDING
     is ConsumablePurchaseResult.Failure -> if (result.code == BillingResponseCode.CANCELLED) CoinPurchaseStatus.CANCELLED else CoinPurchaseStatus.FAILED
     ConsumablePurchaseResult.InProgress -> CoinPurchaseStatus.BUSY

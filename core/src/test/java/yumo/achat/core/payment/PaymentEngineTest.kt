@@ -8,6 +8,82 @@ import org.junit.Test
 import yumo.achat.core.wallet.CoinProduct
 
 class PaymentEngineTest {
+    @Test fun `late official callback recognizes durable success after presentation was acknowledged`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        val engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+        engine.poll(key); engine.shown(key); engine.acknowledge(key)
+        assertNull(engine.state.value.record)
+
+        assertEquals(true, engine.officialResult(key, cancelledOrUnavailable = false))
+        assertNull(engine.state.value.record)
+        assertEquals(1, f.tracker.events.count { it.name == "purchase_success" })
+    }
+
+    @Test fun `official reconciliation survives local deadline and restores historical timeout`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        var engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.now += 600_001
+        engine.poll(key)
+        assertEquals(PaymentStage.OFFICIAL_LAUNCHED, engine.state.value.record?.stage)
+
+        f.store.records = f.store.records.map { it.copy(stage = PaymentStage.TIMED_OUT) }
+        engine = f.engine(); engine.restore()
+        assertTrue(shouldAutoPollPayment(engine.state.value.record))
+        f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+        engine.poll(key)
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
+    }
+
+    @Test fun `official accepted order is reused after status failure`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        val engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.api.queryFailure = true; engine.poll(key)
+        f.api.queryFailure = false; f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+
+        engine.buy("other-pack", "main")
+
+        assertEquals(1, f.orders)
+        assertEquals(key, engine.state.value.record?.key)
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
+    }
+
+    @Test fun `official return reconciles an already fulfilled order without waiting for another notification`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        val engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+
+        engine.officialResult(key, cancelledOrUnavailable = false)
+
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
+        assertEquals(1, f.orders)
+    }
+
+    @Test fun `official status recovers automatically after a temporary query failure and restart`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        var engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.api.queryFailure = true
+        engine.poll(key)
+        engine = f.engine(); engine.restore()
+        assertTrue(shouldAutoPollPayment(engine.state.value.record))
+
+        f.api.queryFailure = false; f.api.status = "paid"; f.api.fulfillment = "fulfilled"
+        engine.poll(key)
+
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
+        assertEquals(1, f.orders)
+    }
+
     class Store : PaymentStorage { var records = emptyList<PaymentRecord>(); override suspend fun read() = records; override suspend fun write(records: List<PaymentRecord>) { this.records = records } }
     class Api : PaymentRepository {
         var official = false; var initializeFailure: Exception? = null; var queryFailure = false
