@@ -31,6 +31,7 @@ import yumo.achat.core.payment.blocksTopUpPurchase
 import yumo.achat.core.payment.RechargeNotificationRoute
 import yumo.achat.core.wallet.CoinProduct
 import yumo.achat.core.wallet.RechargeNotifications
+import yumo.achat.app.R
 
 internal sealed interface TopUpCheckoutState {
     data object Idle : TopUpCheckoutState
@@ -38,7 +39,14 @@ internal sealed interface TopUpCheckoutState {
     data object Closing : TopUpCheckoutState
     data class AwaitingPayment(val pendingStorePurchase: Boolean) : TopUpCheckoutState
     data class Succeeded(val orderId: String) : TopUpCheckoutState
-    data class Failed(val message: String, val retryPreparedRoute: Boolean = false) : TopUpCheckoutState
+    data class Failed(
+        val message: String,
+        val retryPreparedRoute: Boolean = false,
+        val recoverable: Boolean = false,
+        val messageRes: Int? = null,
+        val actionRes: Int? = null,
+        val recoverySummary: String? = null,
+    ) : TopUpCheckoutState
     data object Cancelled : TopUpCheckoutState
     data object TimedOut : TopUpCheckoutState
 }
@@ -124,17 +132,25 @@ internal class CoreTopUpPaymentController(
         private set
     var productSelectionLocked by mutableStateOf(false)
         private set
+    var checkoutVisible by mutableStateOf(false)
+        private set
+    var thirdPartyLaunchSerial by mutableLongStateOf(0L)
+        private set
 
     private var products: Map<String, StoreProduct> = emptyMap()
     private var userInfo: StoreUserInfo? = null
     private var coreState: PaymentViewState = PaymentViewState()
     private var purchaseState: CoinPurchaseState = CoinPurchaseState()
     private var lastSuccessKey: String? = null
+    private val thirdPartyLaunchGate = ThirdPartyLaunchGate()
+    private val browserReturn = BrowserReturnController()
 
     init {
         scope.launch {
             payments.state.collect { next ->
+                if (requestsThirdPartyLaunch(coreState, next)) thirdPartyLaunchSerial += 1
                 coreState = next
+                checkoutVisible = next.checkoutVisible
                 fulfilledBillingPurchaseEpoch(next, purchaseState)?.let { epoch ->
                     purchases.backendFulfilled(epoch)
                     purchaseState = purchases.state.value
@@ -184,7 +200,7 @@ internal class CoreTopUpPaymentController(
     fun retainAvailableProducts(products: List<StoreProduct>, userInfo: StoreUserInfo? = null) {
         this.products = products.associateBy(StoreProduct::id)
         this.userInfo = userInfo
-        val activeProduct = coreState.record?.takeIf { it.unresolved && it.error == null }?.productId
+        val activeProduct = coreState.record?.takeIf { it.unresolved }?.productId
         selectedProductId = activeProduct ?: selectedProductId?.takeIf(this.products::containsKey) ?: products.firstOrNull()?.id
     }
 
@@ -196,17 +212,29 @@ internal class CoreTopUpPaymentController(
     fun prepare(activity: Activity, entrySource: String = "main") {
         scope.launch {
             sessions.synchronize()
-            if (blocksTopUpPurchase(purchaseState, coreState, sessions.current?.userId)) return@launch
             val record = coreState.record
             if (record != null && corePaymentPresentation(coreState).canRetry) {
                 payments.retry(record.key)
                 return@launch
             }
+            if (blocksTopUpPurchase(purchaseState, coreState, sessions.current?.userId)) return@launch
             if (!corePaymentPresentation(coreState).canStartPurchase) return@launch
             val product = selectedProductId?.let(products::get) ?: return@launch
             router.buy(activity, product.toCoinProduct(userInfo), entrySource)
         }
     }
+
+    fun claimThirdPartyLaunch(): TopUpPurchaseState.ThirdPartyReady? {
+        val epoch = coreState.epoch ?: return null
+        if (sessions.current?.epoch != epoch || !checkoutVisible) return null
+        val route = state as? TopUpPurchaseState.ThirdPartyReady ?: return null
+        if (!thirdPartyLaunchGate.claim(epoch, route.record.key, thirdPartyLaunchSerial)) return null
+        if (route.openMode == "external_browser") browserReturn.launched(epoch, route.record.key)
+        return route
+    }
+
+    fun onHostPaused() = browserReturn.paused()
+    fun onHostResumed() { browserReturn.resumed(sessions.current?.epoch)?.let(payments::close) }
 
     fun openThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.opened(route.record.key)
     fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady, url: String?, htmlExcerpt: String?) =
@@ -223,7 +251,10 @@ internal class CoreTopUpPaymentController(
         )
     fun closeThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.close(route.record.key)
     fun refreshPayment(route: TopUpPurchaseState.ThirdPartyReady) = payments.poll(route.record.key)
+    fun retryPayment(route: TopUpPurchaseState.ThirdPartyReady) = payments.retry(route.record.key)
+    fun expireThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.expireCheckout(route.record.key)
     fun onCheckoutLaunchError(message: String) {
+        browserReturn.clear()
         coreState.record?.let { record ->
             payments.pageEvent(
                 record.key,
@@ -285,9 +316,11 @@ private fun StoreProduct.toCoinProduct(userInfo: StoreUserInfo?): CoinProduct {
 
 private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
     if (storageFailed) {
-        return TopUpPurchaseState.Error("", "Payment storage is unavailable. Please try again later.")
+        return TopUpPurchaseState.Error("", "", R.string.top_up_payment_storage_unavailable)
     }
+    if (recoveryLookupFailed) return TopUpPurchaseState.Error("", "", paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
     val value = record ?: return TopUpPurchaseState.Idle
+    if (value.recoveryRequired) return TopUpPurchaseState.Error(value.productId, "", R.string.top_up_recovered_order)
     return when {
         value.stage in setOf(PaymentStage.CREATING, PaymentStage.INITIALIZING) && value.error == null ->
             TopUpPurchaseState.Preparing(value.productId)
@@ -302,14 +335,30 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
         value.thirdParty -> TopUpPurchaseState.ThirdPartyReady(value)
         value.error != null -> TopUpPurchaseState.Error(
             value.productId,
-            "Payment is temporarily unavailable. Please try again later.",
+            "",
+            paymentIssueMessageRes(value.error),
         )
         else -> TopUpPurchaseState.Idle
     }
 }
 
 internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState): TopUpCheckoutState {
+    if (recoveryLookupFailed) return TopUpCheckoutState.Failed("", recoverable = true,
+        messageRes = paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
     val value = record ?: return TopUpCheckoutState.Idle
+    if (value.stage == PaymentStage.SUCCESS) return TopUpCheckoutState.Succeeded(value.orderId.orEmpty())
+    if (value.recoveryRequired) return TopUpCheckoutState.Failed("", recoverable = true,
+        messageRes = R.string.top_up_recovered_order,
+        recoverySummary = "${value.productId}: ${value.quoteCurrency.orEmpty()} ${value.quotePrice?.toString().orEmpty()}")
+    if (value.stage == PaymentStage.AWAITING_FULFILLMENT) return TopUpCheckoutState.AwaitingPayment(false)
+    if (value.error != null && value.stage != PaymentStage.TIMED_OUT &&
+        corePaymentPresentation(this).canRetry
+    ) {
+        return TopUpCheckoutState.Failed(
+            "", recoverable = true, messageRes = paymentIssueMessageRes(value.error),
+            actionRes = paymentRetryActionRes(value.error, value.retryAction),
+        )
+    }
     if (value.initialized?.channelType == "official" && purchase.epoch == epoch &&
         value.stage in setOf(PaymentStage.OFFICIAL_LAUNCHED, PaymentStage.AWAITING_FULFILLMENT)
     ) {
@@ -317,7 +366,7 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
             CoinPurchaseStatus.PENDING -> return TopUpCheckoutState.AwaitingPayment(true)
             CoinPurchaseStatus.AWAITING_FULFILLMENT -> return TopUpCheckoutState.AwaitingPayment(false)
             CoinPurchaseStatus.CANCELLED -> return TopUpCheckoutState.Cancelled
-            CoinPurchaseStatus.FAILED -> return TopUpCheckoutState.Failed("Payment failed", retryPreparedRoute = true)
+            CoinPurchaseStatus.FAILED -> return TopUpCheckoutState.Failed("", retryPreparedRoute = true, messageRes = R.string.top_up_payment_failed)
             else -> Unit
         }
     }
@@ -327,7 +376,9 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
         PaymentStage.AWAITING_FULFILLMENT,
         PaymentStage.OFFICIAL_CONSUMED,
         -> TopUpCheckoutState.AwaitingPayment(false)
-        PaymentStage.CHECKOUT -> if (value.openedAt == null) {
+        PaymentStage.CHECKOUT -> if (!checkoutVisible) {
+            TopUpCheckoutState.Failed("", recoverable = true, messageRes = R.string.top_up_payment_unconfirmed)
+        } else if (value.openedAt == null) {
             TopUpCheckoutState.Idle
         } else {
             TopUpCheckoutState.AwaitingPayment(false)
@@ -335,7 +386,8 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
         PaymentStage.SUCCESS -> TopUpCheckoutState.Succeeded(value.orderId.orEmpty())
         PaymentStage.FAILED,
         PaymentStage.ACCESS_DENIED,
-        -> TopUpCheckoutState.Failed("Payment failed")
+        -> TopUpCheckoutState.Failed("", messageRes = paymentIssueMessageRes(value.error),
+            actionRes = paymentRetryActionRes(value.error, value.retryAction))
         PaymentStage.CLOSED -> TopUpCheckoutState.Cancelled
         PaymentStage.TIMED_OUT -> TopUpCheckoutState.TimedOut
         else -> TopUpCheckoutState.Idle

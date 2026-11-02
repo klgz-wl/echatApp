@@ -435,6 +435,7 @@ internal sealed interface TopUpPurchaseState {
     data class Error(
         val productId: String,
         val message: String,
+        val messageRes: Int? = null,
     ) : TopUpPurchaseState
 }
 
@@ -1458,20 +1459,22 @@ private fun ImageToVideoHomeScreen(
                 if (activity == null) topUpPaymentController.onCheckoutLaunchError("Activity unavailable")
                 else topUpPaymentViewModel.launchOfficial(activity, route)
             }
-            is TopUpPurchaseState.ThirdPartyReady -> {
-                if (route.openMode == "external_browser") {
-                    val opened = runCatching {
-                        localContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(route.paymentUrl)))
-                    }.isSuccess
-                    if (!opened) {
-                        topUpPaymentController.onCheckoutLaunchError("Unable to open checkout")
-                        return@LaunchedEffect
-                    }
-                }
-                topUpPaymentController.openThirdParty(route)
-            }
             else -> Unit
         }
+    }
+
+    LaunchedEffect(topUpPaymentController.thirdPartyLaunchSerial) {
+        val route = topUpPaymentController.claimThirdPartyLaunch() ?: return@LaunchedEffect
+        if (route.openMode == "external_browser") {
+            val opened = runCatching {
+                localContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(route.paymentUrl)))
+            }.isSuccess
+            if (!opened) {
+                topUpPaymentController.onCheckoutLaunchError("Unable to open checkout")
+                return@LaunchedEffect
+            }
+        }
+        topUpPaymentController.openThirdParty(route)
     }
 
     LaunchedEffect(topUpPaymentController.successSerial) {
@@ -1536,12 +1539,10 @@ private fun ImageToVideoHomeScreen(
             awaitCancellation()
         }
     }
-    DisposableEffect(lifecycleOwner, topUpPaymentController.state, topUpPaymentController.checkoutState) {
+    DisposableEffect(lifecycleOwner, topUpPaymentController) {
         val observer = LifecycleEventObserver { _, event ->
-            val route = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
-            if (event == Lifecycle.Event.ON_RESUME && route?.openMode == "external_browser") {
-                topUpPaymentController.closeThirdParty(route)
-            }
+            if (event == Lifecycle.Event.ON_PAUSE) topUpPaymentController.onHostPaused()
+            if (event == Lifecycle.Event.ON_RESUME) topUpPaymentController.onHostResumed()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -1781,7 +1782,7 @@ private fun ImageToVideoHomeScreen(
         )
         val thirdPartyRoute = topUpPaymentController.state as? TopUpPurchaseState.ThirdPartyReady
         if (thirdPartyRoute != null && thirdPartyRoute.openMode == "webview" &&
-            topUpPaymentController.checkoutState is TopUpCheckoutState.AwaitingPayment
+            topUpPaymentController.checkoutVisible
         ) {
             ThirdPartyCheckoutOverlay(
                 route = thirdPartyRoute,
@@ -1790,6 +1791,12 @@ private fun ImageToVideoHomeScreen(
                 },
                 onError = { url, message -> topUpPaymentController.onThirdPartyPageError(thirdPartyRoute, url, message) },
                 onClose = { topUpPaymentController.closeThirdParty(thirdPartyRoute) },
+                onRetry = { topUpPaymentController.retryPayment(thirdPartyRoute) },
+                onExpired = { topUpPaymentController.expireThirdParty(thirdPartyRoute) },
+                recoveryMessageRes = (topUpPaymentController.checkoutState as? TopUpCheckoutState.Failed)
+                    ?.takeIf { it.recoverable }?.messageRes,
+                recoveryActionRes = (topUpPaymentController.checkoutState as? TopUpCheckoutState.Failed)
+                    ?.takeIf { it.recoverable }?.actionRes,
             )
         }
         if (deleteDialogOpen) {
@@ -4126,6 +4133,8 @@ internal fun TopUpScreen(
                             label = when {
                                 isPreparing || isReconciling -> stringResource(R.string.top_up_preparing)
                                 isReady -> stringResource(R.string.top_up_ready)
+                                checkoutState is TopUpCheckoutState.Failed && checkoutState.actionRes != null ->
+                                    stringResource(checkoutState.actionRes)
                                 purchaseState is TopUpPurchaseState.Error || terminalCheckout ->
                                     stringResource(R.string.top_up_try_again)
                                 else -> stringResource(R.string.top_up_continue)
@@ -4137,6 +4146,16 @@ internal fun TopUpScreen(
                     }
                     WalletTransactionHistory(state.transactions)
                 }
+            }
+            if ((selectedPack == null || state.isLoading || !state.errorMessage.isNullOrBlank()) &&
+                (purchaseState != TopUpPurchaseState.Idle || checkoutState != TopUpCheckoutState.Idle)) {
+                TopUpPurchaseStatus(purchaseState, checkoutState)
+                StartChatButton(
+                    label = stringResource(R.string.top_up_try_again),
+                    enabled = !isReconciling && (checkoutState is TopUpCheckoutState.Failed ||
+                        checkoutState == TopUpCheckoutState.Cancelled || checkoutState == TopUpCheckoutState.TimedOut),
+                    onClick = onPreparePayment,
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -4159,7 +4178,10 @@ private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpC
             AchatCyan,
         )
         is TopUpCheckoutState.Succeeded -> TopUpInlineStatus(stringResource(R.string.top_up_payment_success), AchatCyan)
-        is TopUpCheckoutState.Failed -> TopUpInlineStatus(checkoutState.message, AchatPink)
+        is TopUpCheckoutState.Failed -> TopUpInlineStatus(
+            (checkoutState.messageRes?.let { stringResource(it) } ?: checkoutState.message) +
+                (checkoutState.recoverySummary?.let { "\n$it" } ?: ""), AchatPink,
+        )
         TopUpCheckoutState.Cancelled -> TopUpInlineStatus(stringResource(R.string.top_up_payment_cancelled), AchatMuted)
         TopUpCheckoutState.TimedOut -> TopUpInlineStatus(stringResource(R.string.top_up_payment_timeout), AchatPink)
     }
@@ -4169,7 +4191,7 @@ private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpC
         is TopUpPurchaseState.Preparing,
         -> Unit
         is TopUpPurchaseState.Error -> Text(
-            text = state.message,
+            text = state.messageRes?.let { stringResource(it) } ?: state.message,
             color = AchatPink,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth(),
@@ -4256,12 +4278,33 @@ private fun TopUpInlineStatus(text: String, color: Color) {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun ThirdPartyCheckoutOverlay(
+internal fun ThirdPartyCheckoutOverlay(
     route: TopUpPurchaseState.ThirdPartyReady,
     onLoaded: (url: String?, htmlExcerpt: String?) -> Unit,
     onError: (url: String?, message: String) -> Unit,
     onClose: () -> Unit,
+    onRetry: () -> Unit,
+    onExpired: () -> Unit,
+    recoveryMessageRes: Int? = null,
+    recoveryActionRes: Int? = null,
 ) {
+    var reloadSerial by remember(route.record.key) { mutableIntStateOf(0) }
+    var pageLoadFailed by remember(route.record.key) { mutableStateOf(false) }
+    val expiresAt = route.record.checkoutDeadline
+    var remaining by remember(route.record.key, expiresAt, route.record.openedAt) {
+        val now = System.currentTimeMillis()
+        mutableStateOf(if (route.record.expired(now)) 0L else expiresAt?.minus(now)?.coerceAtLeast(0L))
+    }
+    LaunchedEffect(route.record.key, expiresAt, route.record.openedAt) {
+        if (expiresAt == null) return@LaunchedEffect
+        while (true) {
+            val now = System.currentTimeMillis()
+            val duration = if (route.record.expired(now)) 0L else (expiresAt - now).coerceAtLeast(0L)
+            remaining = duration
+            if (duration == 0L) { onExpired(); break }
+            delay(minOf(duration, 1_000L))
+        }
+    }
     BackHandler(onBack = onClose)
     Column(
         modifier = Modifier
@@ -4281,7 +4324,38 @@ private fun ThirdPartyCheckoutOverlay(
                 modifier = Modifier.clickable(onClick = onClose).padding(8.dp),
             )
         }
-        AndroidView(
+        remaining?.let { duration ->
+            val seconds = (duration + 999L) / 1_000L
+            Text(
+                stringResource(R.string.top_up_checkout_remaining,
+                    String.format(java.util.Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60)),
+                color = AchatMuted, style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+        if (remaining != 0L && (pageLoadFailed || recoveryMessageRes != null)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(if (pageLoadFailed) R.string.top_up_payment_network_error
+                    else recoveryMessageRes ?: R.string.top_up_payment_network_error), color = AchatPink,
+                    style = MaterialTheme.typography.bodySmall)
+                StartChatButton(
+                    label = stringResource(if (pageLoadFailed) R.string.top_up_retry else recoveryActionRes ?: R.string.top_up_retry),
+                    enabled = remaining != 0L,
+                    onClick = {
+                        if (expiresAt != null && expiresAt <= System.currentTimeMillis()) onExpired()
+                        else {
+                            pageLoadFailed = false
+                            reloadSerial += 1
+                            onRetry()
+                        }
+                    },
+                )
+            }
+        }
+        if (remaining == 0L) {
+            TopUpInlineStatus(stringResource(R.string.top_up_payment_timeout), AchatPink)
+        } else {
+        key(route.record.key, reloadSerial) { AndroidView(
             modifier = Modifier.fillMaxWidth().weight(1f),
             factory = { context ->
                 WebView(context).apply {
@@ -4299,6 +4373,7 @@ private fun ThirdPartyCheckoutOverlay(
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val target = request?.url ?: return true
                             if (target.scheme != "https") {
+                                pageLoadFailed = true
                                 onError(target.toString(), "Blocked insecure checkout navigation")
                                 return true
                             }
@@ -4315,6 +4390,7 @@ private fun ThirdPartyCheckoutOverlay(
                             error: WebResourceError?,
                         ) {
                             if (request?.isForMainFrame != true) return
+                            pageLoadFailed = true
                             onError(request.url?.toString(), error?.description?.toString().orEmpty())
                         }
                     }
@@ -4325,7 +4401,8 @@ private fun ThirdPartyCheckoutOverlay(
                 view.stopLoading()
                 view.destroy()
             },
-        )
+        ) }
+        }
     }
 }
 

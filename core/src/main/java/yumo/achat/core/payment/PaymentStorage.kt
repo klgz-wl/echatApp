@@ -22,20 +22,23 @@ import javax.inject.Singleton
     val obfuscatedAccountId: String? = null,
     val obfuscatedProfileId: String? = null,
     val officialFallbackProductId: String? = null,
+    val retryAction: String? = null,
+    val recoveryRequired: Boolean = false,
+    val recoveredPaymentMethod: String? = null,
+    val recoveredTrigger: String? = null,
 ) {
     val thirdParty get() = initialized?.channelType == "third_party"
-    val orderCreationUnknown get() = stage == PaymentStage.UNCERTAIN && orderId == null && error == "order_unknown"
+    val orderCreationUnknown get() = stage == PaymentStage.UNCERTAIN && orderId == null
     val initializationFailed get() = stage == PaymentStage.INITIALIZING && initialized == null && error != null
     // ACCESS_DENIED 只表示本客户端不得继续使用该订单，不代表服务器取消、退款或已完成。
-    val unresolved get() = !orderCreationUnknown && !initializationFailed && stage !in setOf(
+    val unresolved get() = stage !in setOf(
         PaymentStage.SUCCESS,
         PaymentStage.FAILED,
         PaymentStage.OFFICIAL_CONSUMED,
         PaymentStage.ACCESS_DENIED,
-        PaymentStage.CLOSED,
-        PaymentStage.TIMED_OUT,
     )
-    fun expired(now: Long) = deadline?.let { now >= it || (openedAt != null && now < openedAt) } ?: false
+    val checkoutDeadline get() = listOfNotNull(deadline, initialized?.expiresAt?.let(::paymentTime)).minOrNull()
+    fun expired(now: Long) = checkoutDeadline?.let { now >= it || (openedAt != null && now < openedAt) } ?: false
     override fun toString() = "PaymentRecord(订单及支付链接已隐藏, stage=$stage)"
 }
 interface PaymentStorage {

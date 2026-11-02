@@ -28,15 +28,9 @@ object NetworkModule {
     @Provides @Singleton fun paymentStorage(value: yumo.achat.core.payment.PreferencePaymentStorage): yumo.achat.core.payment.PaymentStorage = value
     @Provides @Singleton fun paymentEvents(value: yumo.achat.core.payment.PaymentEventQueue): yumo.achat.core.payment.PaymentEventSink = value
     @Provides @Singleton fun paymentClock() = yumo.achat.core.payment.PaymentClock { System.currentTimeMillis() }
-    @Provides @Singleton fun paymentOrders(wallet: yumo.achat.core.wallet.WalletRepository, config: yumo.achat.core.billing.BillingConfiguration) =
-        yumo.achat.core.payment.PaymentOrderFactory { productId, session ->
-            wallet.createOrder(productId, config.defaultTrigger, session).let { order ->
-                yumo.achat.core.payment.PaymentBusinessOrder(
-                    orderId = order.orderId,
-                    obfuscatedAccountId = order.obfuscatedAccountId,
-                    obfuscatedProfileId = order.obfuscatedProfileId,
-                )
-            }
+    @Provides @Singleton fun paymentOrders(repository: yumo.achat.core.payment.ApiPaymentRepository) =
+        yumo.achat.core.payment.PaymentOrderFactory { productId, requestId, session ->
+            repository.createOrder(productId, requestId, session)
         }
 
     @Provides @Singleton fun paymentRepository(value: yumo.achat.core.payment.ApiPaymentRepository): yumo.achat.core.payment.PaymentRepository = value

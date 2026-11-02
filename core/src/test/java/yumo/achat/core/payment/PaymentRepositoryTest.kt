@@ -12,7 +12,33 @@ import org.junit.Test
 import retrofit2.Response
 
 class PaymentRepositoryTest {
+    @Test fun `definite product unavailable create reason survives safe decoding`() {
+        assertEquals("PAYMENT_RECOVERY_REQUIRES_REVIEW", paymentErrorReason("""{"error":"PAYMENT_RECOVERY_REQUIRES_REVIEW"}""", Json))
+        assertEquals("PAYMENT_PRODUCT_UNAVAILABLE", paymentErrorReason("""{"error":"PAYMENT_PRODUCT_UNAVAILABLE"}""", Json))
+        assertNull(paymentErrorReason("""{"error":"PRODUCT_UNAVAILABLE"}""", Json))
+        assertNull(paymentErrorReason("""{"error":"raw provider response"}""", Json))
+    }
     private class Api : PaymentServiceApi {
+        var recovered: RecoveredPaymentOrder? = null
+        var recoverProduct: String? = null
+        var recoveryReviewRequired = false
+        override suspend fun recover(url: String, productId: String?, session: Session): Response<PaymentEnvelope<RecoveredPaymentData>> {
+            urls += url; owner = session
+            recoverProduct = productId
+            if (recoveryReviewRequired) return Response.error(409,
+                """{"error":"PAYMENT_RECOVERY_REQUIRES_REVIEW"}""".toResponseBody("application/json".toMediaType()))
+            return Response.success(PaymentEnvelope(RecoveredPaymentData(recovered)))
+        }
+        var createBody: CreatePaymentOrderRequest? = null
+        var createProduct = "coins"
+        var createUser = "user"
+        override suspend fun createOrder(url: String, body: CreatePaymentOrderRequest, session: Session): Response<PaymentEnvelope<CreatedPaymentOrder>> {
+            urls += url; owner = session; createBody = body
+            return Response.success(PaymentEnvelope(CreatedPaymentOrder("order", createProduct, "pending", createUser, "order")))
+        }
+        override suspend fun close(url: String, session: Session): Response<PaymentEnvelope<PaymentOrderStatus>> {
+            urls += url; return Response.success(PaymentEnvelope(PaymentOrderStatus("order", "pending")))
+        }
         val urls = mutableListOf<String>(); var owner: Session? = null; var failure: Int? = null
         override suspend fun initialize(url: String, body: InitializePaymentRequest, session: Session): Response<PaymentEnvelope<InitializedPayment>> {
             urls += url; owner = session
@@ -25,6 +51,50 @@ class PaymentRepositoryTest {
         override suspend fun event(url: String, body: PaymentClientEvent, session: Session): Response<PaymentEnvelope<PaymentEventReceipt>> {
             urls += url; return Response.success(PaymentEnvelope(PaymentEventReceipt(false)))
         }
+    }
+    @Test fun `recovery GET validates owner snapshots and null order envelope`() = runBlocking {
+        val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
+        val api = Api(); val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)
+        val repo = ApiPaymentRepository(api, config, sessions, Json)
+        assertNull(repo.recover("selected-product", sessions.current!!))
+        assertEquals("selected-product", api.recoverProduct)
+        assertEquals("https://test.example/payment-api/v1/client/payments/recover", api.urls.single())
+        val order = Json.decodeFromString<PaymentEnvelope<RecoveredPaymentData>>("""{"data":{"order":{"order_id":"order","product_id":"server-product","status":"pending","obfuscated_account_id":"user","obfuscated_profile_id":"order","amount":7.25,"currency":"USD","payment_method":"google_play","provider_product_id":"server-sku","fulfillment_status":"pending","trigger":"manual"}}}""").requireData().order!!
+        api.recovered = order
+        assertEquals(order, repo.recover("selected-product", sessions.current!!))
+        for (invalid in listOf(order.copy(obfuscatedAccountId = "other"), order.copy(obfuscatedProfileId = "wrong"),
+            order.copy(amount = Double.NaN), order.copy(amount = -1.0), order.copy(currency = "bad"),
+            order.copy(productId = ""), order.copy(status = "cancelled"), order.copy(status = "paid", fulfillmentStatus = "fulfilled"))) {
+            api.recovered = invalid
+            try { repo.recover("selected-product", sessions.current!!); fail("Invalid recovery accepted") } catch (_: PaymentFailure.InvalidResponse) { }
+        }
+        api.recoveryReviewRequired = true
+        try { repo.recover("selected-product", sessions.current!!); fail("Review required ignored") }
+        catch (_: PaymentFailure.RecoveryRequiresReview) { }
+    }
+    @Test fun `service order uses durable UUID and configured trigger with ownership validation`() = runBlocking {
+        val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
+        val api = Api(); val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)
+        val repo = ApiPaymentRepository(api, config, sessions, Json,
+            yumo.achat.core.billing.BillingConfiguration("billing", "manual"))
+        val key = java.util.UUID.randomUUID().toString(); val session = sessions.current!!
+        assertEquals("order", repo.createOrder("coins", key, session).orderId)
+        assertEquals(CreatePaymentOrderRequest("coins", key, "manual"), api.createBody)
+        assertEquals("https://test.example/payment-api/v1/client/payments/orders", api.urls.last())
+        assertEquals("pending", repo.close("order", session).status)
+        assertTrue(api.urls.last().endsWith("/order/close"))
+        api.createProduct = "other"
+        try { repo.createOrder("coins", key, session); fail() } catch (_: PaymentFailure.InvalidResponse) { }
+        api.createProduct = "coins"; api.createUser = "other"
+        try { repo.createOrder("coins", key, session); fail() } catch (_: PaymentFailure.InvalidResponse) { }
+    }
+    @Test fun `service trigger is bounded at repository boundary`() = runBlocking {
+        val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
+        val api = Api(); val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)
+        val repo = ApiPaymentRepository(api, config, sessions, Json,
+            yumo.achat.core.billing.BillingConfiguration("billing", "x".repeat(200)))
+        repo.createOrder("coins", java.util.UUID.randomUUID().toString(), sessions.current!!)
+        assertEquals(64, api.createBody!!.trigger.length)
     }
     @Test fun `支付路径独立且401之外的错误不会重试建单`() = runBlocking {
         val sessions=SessionCoordinator(MemoryStorage());sessions.saveLogin(AuthResponse("token","refresh","user"))
