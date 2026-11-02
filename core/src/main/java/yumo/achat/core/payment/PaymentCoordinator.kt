@@ -15,6 +15,15 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
     val state = engine.state
     private val foreground = MutableStateFlow(false)
     init {
+        scope.launch {
+            state.map { snapshot -> snapshot.record?.takeIf { it.thirdParty && it.unresolved }
+                ?.let { Triple(snapshot.epoch, it.key, it.checkoutDeadline) } }.distinctUntilChanged().collectLatest { timer ->
+                val (epoch, key, deadline) = timer ?: return@collectLatest
+                if (deadline == null) return@collectLatest
+                delay((deadline - System.currentTimeMillis()).coerceAtLeast(0))
+                if (sessions.current?.epoch == epoch) engine.expireCheckout(key)
+            }
+        }
         scope.launch { sessions.state.map { it?.epoch }.distinctUntilChanged().collectLatest { engine.restore() } }
         scope.launch {
             foreground.collectLatest { active ->
@@ -25,7 +34,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
                     val record = snapshot.record
                     val pollable = shouldAutoPollPayment(record)
                     if (snapshot.epoch == sessions.current?.epoch && pollable && record?.orderId != null && record.unresolved &&
-                        record.openedAt != null && (record.key != observedKey || record.stage !in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))) engine.poll(record.key)
+                        (record.openedAt != null || record.stage == PaymentStage.AWAITING_FULFILLMENT) && (record.key != observedKey || record.stage !in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))) engine.poll(record.key)
                     observedKey = record?.key
                     val current = state.value.record
                     val interval = configuration.interval(current?.initialized?.queryIntervalSeconds) * 1000L
@@ -47,6 +56,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
             return
         }
         scope.launch {
+            state.value.record?.let { engine.expireCheckout(it.key) }
             sessions.synchronize()
             foreground.value = true
         }
@@ -55,6 +65,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
     fun close(key: String) { scope.launch { engine.close(key) } }
     fun opened(key: String) { scope.launch { engine.opened(key) } }
     fun poll(key: String) { scope.launch { engine.poll(key) } }
+    fun expireCheckout(key: String) { scope.launch { engine.expireCheckout(key) } }
     fun shown(key: String) { scope.launch { engine.shown(key) } }
     fun acknowledge(key: String) { scope.launch { engine.acknowledge(key) } }
     fun pageEvent(key: String, type: String, details: PaymentClientEventDetails? = null) {
@@ -69,6 +80,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
 
 internal fun shouldAutoPollPayment(record: PaymentRecord?): Boolean {
     if (record == null) return false
+    if (record.stage == PaymentStage.AWAITING_FULFILLMENT) return true
     if (record.thirdParty) return record.initialized?.openMode != "external_browser"
     return record.stage in setOf(
         PaymentStage.OFFICIAL_LAUNCHED,

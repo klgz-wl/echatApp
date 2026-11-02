@@ -15,7 +15,41 @@ import java.util.TimeZone
     fun requireData(): T = data?.takeIf { code == null || code == 0 } ?: throw PaymentFailure.InvalidResponse
 }
 @Serializable data class InitializePaymentRequest(@SerialName("order_id") val orderId: String)
+@Serializable data class CreatePaymentOrderRequest(
+    @SerialName("product_id") val productId: String,
+    @SerialName("request_id") val requestId: String,
+    val trigger: String,
+)
+@Serializable data class CreatedPaymentOrder(
+    @SerialName("order_id") val orderId: String,
+    @SerialName("product_id") val productId: String,
+    val status: String,
+    @SerialName("obfuscated_account_id") val obfuscatedAccountId: String,
+    @SerialName("obfuscated_profile_id") val obfuscatedProfileId: String,
+)
 @Serializable data class PaymentSdkParams(@SerialName("product_id") val productId: String? = null)
+@Serializable data class RecoveredPaymentData(val order: RecoveredPaymentOrder?)
+@Serializable data class RecoveredPaymentOrder(
+    @SerialName("order_id") val orderId: String,
+    @SerialName("product_id") val productId: String,
+    val status: String,
+    @SerialName("obfuscated_account_id") val obfuscatedAccountId: String,
+    @SerialName("obfuscated_profile_id") val obfuscatedProfileId: String,
+    val amount: Double,
+    val currency: String,
+    @SerialName("payment_method") val paymentMethod: String? = null,
+    @SerialName("provider_product_id") val providerProductId: String? = null,
+    @SerialName("fulfillment_status") val fulfillmentStatus: String? = null,
+    val trigger: String? = null,
+) {
+    fun validate(userId: String): RecoveredPaymentOrder {
+        if (orderId.isBlank() || productId.isBlank() || obfuscatedAccountId != userId || obfuscatedProfileId != orderId ||
+            !amount.isFinite() || amount < 0 || !currency.matches(Regex("[A-Z]{3}")) ||
+            status !in setOf("pending", "paid") || (status == "paid" && fulfillmentStatus == "fulfilled") ||
+            (paymentMethod == "google_play" && providerProductId.isNullOrBlank())) throw PaymentFailure.InvalidResponse
+        return this
+    }
+}
 @Serializable data class InitializedPayment(
     @SerialName("order_id") val orderId: String,
     @SerialName("channel_type") val channelType: String,
@@ -43,9 +77,17 @@ import java.util.TimeZone
     @SerialName("order_id") val orderId: String,
     val status: String,
     @SerialName("fulfillment_status") val fulfillmentStatus: String? = null,
+    @SerialName("failure_reason") val failureReason: String? = null,
+    @SerialName("retry_action") val retryAction: String? = null,
 ) {
     val successful get() = status == "paid" && fulfillmentStatus == "fulfilled"
     val terminalFailure get() = status in setOf("failed", "cancelled", "expired")
+    val safeFailureReason get() = failureReason?.takeIf {
+        it in setOf("card_declined", "card_expired", "card_invalid", "insufficient_funds", "timeout", "payment_expired", "payment_failed")
+    }
+    val safeRetryAction get() = retryAction?.takeIf {
+        it in setOf("retry", "check_card", "change_card", "retry_checkout", "contact_support", "check_payment")
+    }
 }
 @Serializable data class PaymentClientEvent(
     @SerialName("event_type") val eventType: String,
@@ -65,6 +107,7 @@ import java.util.TimeZone
 @Serializable data class PaymentEventReceipt(val recorded: Boolean)
 
 sealed class PaymentFailure : Exception() {
+    data object RecoveryRequiresReview : PaymentFailure()
     data object Unavailable : PaymentFailure()
     data object InvalidResponse : PaymentFailure()
     data class Http(val status: Int, val reason: String?) : PaymentFailure() {

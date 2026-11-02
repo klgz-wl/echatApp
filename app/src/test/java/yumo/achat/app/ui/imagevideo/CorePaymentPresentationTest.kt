@@ -25,14 +25,17 @@ class CorePaymentPresentationTest {
         activeStages.forEach { stage ->
             assertTrue(corePaymentPresentation(state(stage)).locksProductSelection)
         }
-        listOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT, PaymentStage.FAILED, PaymentStage.SUCCESS).forEach { stage ->
+        listOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT).forEach { stage ->
+            assertTrue(corePaymentPresentation(state(stage)).locksProductSelection)
+        }
+        listOf(PaymentStage.FAILED, PaymentStage.SUCCESS).forEach { stage ->
             assertFalse(corePaymentPresentation(state(stage)).locksProductSelection)
         }
     }
 
     @Test
     fun `terminal order with order id can start a fresh purchase`() {
-        listOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT, PaymentStage.FAILED, PaymentStage.ACCESS_DENIED).forEach { stage ->
+        listOf(PaymentStage.FAILED, PaymentStage.ACCESS_DENIED).forEach { stage ->
             val presentation = corePaymentPresentation(state(stage, orderId = "order"))
 
             assertFalse(presentation.locksProductSelection)
@@ -42,7 +45,7 @@ class CorePaymentPresentationTest {
     }
 
     @Test
-    fun `initialization backend error with order id can start a fresh purchase`() {
+    fun `initialization backend error retries the same purchase`() {
         val presentation = corePaymentPresentation(
             state(
                 stage = PaymentStage.INITIALIZING,
@@ -51,13 +54,13 @@ class CorePaymentPresentationTest {
             ),
         )
 
-        assertFalse(presentation.locksProductSelection)
-        assertFalse(presentation.canRetry)
-        assertTrue(presentation.canStartPurchase)
+        assertTrue(presentation.locksProductSelection)
+        assertTrue(presentation.canRetry)
+        assertFalse(presentation.canStartPurchase)
     }
 
     @Test
-    fun `active stage with visible error can select another package and start fresh purchase`() {
+    fun `active stage with visible error cannot replace an unconfirmed purchase`() {
         listOf(
             PaymentStage.CREATING,
             PaymentStage.INITIALIZING,
@@ -77,14 +80,14 @@ class CorePaymentPresentationTest {
                 ),
             )
 
-            assertFalse(presentation.locksProductSelection)
-            assertFalse(presentation.canRetry)
-            assertTrue(presentation.canStartPurchase)
+            assertTrue(presentation.locksProductSelection)
+            assertTrue(presentation.canRetry)
+            assertFalse(presentation.canStartPurchase)
         }
     }
 
     @Test
-    fun `order creation failure without order id does not lock product selection`() {
+    fun `unknown creation remains locked and offers same request retry`() {
         val presentation = corePaymentPresentation(
             state(
                 stage = PaymentStage.UNCERTAIN,
@@ -93,9 +96,9 @@ class CorePaymentPresentationTest {
             ),
         )
 
-        assertFalse(presentation.locksProductSelection)
-        assertFalse(presentation.canRetry)
-        assertTrue(presentation.canStartPurchase)
+        assertTrue(presentation.locksProductSelection)
+        assertTrue(presentation.canRetry)
+        assertFalse(presentation.canStartPurchase)
     }
 
     private fun state(

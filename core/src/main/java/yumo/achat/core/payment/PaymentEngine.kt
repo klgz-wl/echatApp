@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -20,8 +21,9 @@ data class PaymentBusinessOrder(
     val orderId: String,
     val obfuscatedAccountId: String? = null,
     val obfuscatedProfileId: String? = null,
+    val status: String = "pending",
 )
-fun interface PaymentOrderFactory { suspend fun create(productId: String, session: Session): PaymentBusinessOrder }
+fun interface PaymentOrderFactory { suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder }
 data class PaymentClientEventDetails(
     val page: String = "recharge_paywall",
     val url: String? = null,
@@ -30,7 +32,8 @@ data class PaymentClientEventDetails(
 )
 fun interface PaymentEventSink { fun record(record: PaymentRecord, type: String, now: Long, error: String?, details: PaymentClientEventDetails?) }
 data class PaymentViewState(val epoch: String? = null, val record: PaymentRecord? = null,
-    val checkoutVisible: Boolean = false, val busy: Boolean = false, val storageFailed: Boolean = false)
+    val checkoutVisible: Boolean = false, val busy: Boolean = false, val storageFailed: Boolean = false,
+    val recoveryLookupFailed: Boolean = false, val recoveryLookupError: String? = null)
 
 /** 所有入口、查单、关闭和成功确认串行处理；持久记录先于任何付款动作。 */
 @Singleton
@@ -40,6 +43,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
     private val lock = Mutex()
     private var records = emptyList<PaymentRecord>()
     private var loaded = false
+    private val dismissals = java.util.concurrent.ConcurrentHashMap<String, PaymentStage>()
     private val mutable = MutableStateFlow(PaymentViewState())
     val state = mutable.asStateFlow()
     // 一次性提示不持久化、不重放；只携带所属会话，不把技术错误传给界面。
@@ -49,6 +53,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (sessions.current?.epoch == session.epoch) failures.tryEmit(session.epoch)
     }
     private fun owner(session: Session) { if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded }
+    private fun safeError(failure: Exception, fallback: String) = if (failure is java.io.IOException) "network_error" else fallback
     private suspend fun load() {
         if (loaded) return
         val saved = storage.read()
@@ -66,11 +71,28 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         loaded = true
     }
     private suspend fun save(record: PaymentRecord, session: Session, visible: Boolean = mutable.value.checkoutVisible, publish: Boolean = true) {
-        val updated = records.filterNot { it.key == record.key } + record
+        var saved = dismissedRecord(record)
+        var updated = records.filterNot { it.key == record.key } + saved
         storage.write(updated)
         records = updated
         owner(session)
-        if (publish) mutable.value = PaymentViewState(session.epoch, record, visible)
+        // Close/expiry may arrive while the storage commit is suspended.
+        val afterCommit = dismissedRecord(saved)
+        if (afterCommit != saved) {
+            saved = afterCommit
+            updated = records.filterNot { it.key == saved.key } + saved
+            storage.write(updated)
+            records = updated
+            owner(session)
+        }
+        val display = dismissedRecord(saved)
+        if (publish) mutable.value = PaymentViewState(session.epoch, display,
+            visible && !(display.thirdParty && (display.expired(clock.now()) || display.stage in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT))))
+    }
+    private fun dismissedRecord(record: PaymentRecord): PaymentRecord {
+        if (!record.thirdParty || !record.unresolved || record.stage == PaymentStage.AWAITING_FULFILLMENT) return record
+        val stage = if (record.expired(clock.now())) PaymentStage.TIMED_OUT else dismissals[record.key] ?: return record
+        return record.copy(stage = stage, error = if (stage == PaymentStage.TIMED_OUT) "timeout" else record.error)
     }
     private fun current(key: String, session: Session) = records.firstOrNull { it.key == key && it.userId == session.userId }
     private fun event(record: PaymentRecord, name: String, error: String? = null, details: PaymentClientEventDetails? = null) =
@@ -96,7 +118,9 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                     PaymentStage.OFFICIAL_READY -> saved.copy(stage = PaymentStage.CLOSED)
                     else -> saved
                 }
-                save(restored.copy(source = "restored"), session, false)
+                val recovered = if (restored.thirdParty && restored.unresolved && restored.stage != PaymentStage.AWAITING_FULFILLMENT && restored.expired(clock.now()))
+                    restored.copy(stage = PaymentStage.TIMED_OUT, error = "timeout") else restored
+                save(recovered.copy(source = "restored"), session, false)
             } else mutable.value = PaymentViewState(session.epoch)
         }
     }
@@ -106,31 +130,73 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             notifyFailure(session)
             return@guarded
         }
-        val old = records.lastOrNull { it.userId == session.userId && it.unresolved &&
-            (it.error == null || it.initialized?.channelType == "official") }
-        if (old != null) { resume(old.copy(source = source), session); return@guarded }
-        var record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
+        val old = records.lastOrNull { it.userId == session.userId && it.unresolved }
+        if (old != null) {
+            if (old.recoveryRequired) save(old, session, false) else resume(old.copy(source = source), session)
+            return@guarded
+        }
+        mutable.value = PaymentViewState(session.epoch, busy = true)
+        val recovered = try {
+            repository.recover(productId, session)?.validate(session.userId).also { owner(session) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (failure: Exception) {
+            owner(session)
+            val issue = when {
+                failure is PaymentFailure.RecoveryRequiresReview ||
+                    (failure is PaymentFailure.Http && failure.status == 409 && failure.reason == "PAYMENT_RECOVERY_REQUIRES_REVIEW") -> "payment_review_required"
+                failure is java.io.IOException -> "network_error"
+                else -> "recovery_lookup_failed"
+            }
+            // A failed lookup is not a lost create: leave durable intents untouched so every retry looks up again.
+            mutable.value = PaymentViewState(session.epoch, recoveryLookupFailed = true, recoveryLookupError = issue)
+            notifyFailure(session)
+            return@guarded
+        }
+        if (recovered != null) {
+            val official = recovered.paymentMethod == "google_play"
+            val record = PaymentRecord(UUID.randomUUID().toString(), session.userId, recovered.productId, "restored",
+                orderId = recovered.orderId,
+                stage = if (recovered.status == "paid") PaymentStage.AWAITING_FULFILLMENT else PaymentStage.UNCERTAIN,
+                initialized = if (official) InitializedPayment(recovered.orderId, "official", "google_play", "sdk",
+                    PaymentSdkParams(recovered.providerProductId)) else null,
+                quotePrice = recovered.amount, quoteCurrency = recovered.currency, quoteSource = "server_snapshot",
+                obfuscatedAccountId = recovered.obfuscatedAccountId, obfuscatedProfileId = recovered.obfuscatedProfileId,
+                officialFallbackProductId = recovered.providerProductId,
+                recoveryRequired = true, recoveredPaymentMethod = recovered.paymentMethod, recoveredTrigger = recovered.trigger)
+            save(record, session, false)
+            return@guarded
+        }
+        val record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,
             officialFallbackProductId = product?.googleProductId?.takeIf { it.isNotBlank() })
         save(record, session, false)
+        create(record, session)
+    }
+    private suspend fun create(intent: PaymentRecord, session: Session) {
+        var record = intent
         mutable.value = mutable.value.copy(busy = true)
         try {
-            val order = orders.create(productId, session)
+            val order = orders.create(record.productId, record.key, session)
             if (order.orderId.isBlank()) throw PaymentFailure.InvalidResponse
             record = record.copy(
                 orderId = order.orderId,
                 stage = PaymentStage.INITIALIZING,
                 obfuscatedAccountId = order.obfuscatedAccountId,
                 obfuscatedProfileId = order.obfuscatedProfileId,
+                error = null,
             )
             save(record, session, false)
+            if (order.status != "pending") { query(record, session, false); return }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
-            // 建单失败且无 ID 时无法安全查回；不恢复旧占位，下一次购买可重新建单。
-            save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
+            val rejected = record.orderId == null && (failure as? PaymentFailure.Http)?.let {
+                it.status == 409 && it.reason == "PAYMENT_PRODUCT_UNAVAILABLE"
+            } == true
+            save(record.copy(stage = if (rejected) PaymentStage.FAILED else PaymentStage.UNCERTAIN,
+                error = if (rejected) "product_unavailable" else safeError(failure, "order_unknown")), session, false)
             notifyFailure(session)
-            return@guarded
+            return
         }
         initialize(record, session)
     }
@@ -144,65 +210,44 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 val expired = record.copy(
                     initialized = init,
                     stage = PaymentStage.TIMED_OUT,
-                    error = "expired_link",
+                    error = "timeout",
                 )
                 save(expired, session, false)
                 event(expired, "link_error", "expired_link")
                 notifyFailure(session)
                 return
             }
-            val ready = record.copy(initialized = init, stage = if (init.channelType == "official") PaymentStage.OFFICIAL_READY else PaymentStage.CHECKOUT, error = null)
+            val ready = record.copy(initialized = init, stage = if (init.channelType == "official") PaymentStage.OFFICIAL_READY else PaymentStage.CHECKOUT,
+                deadline = if (init.channelType == "third_party") minOf(paymentTime(init.expiresAt)!!,
+                    clock.now() + config.duration(init.maxQuerySeconds) * 1000L) else record.deadline, error = null)
             save(ready, session, init.channelType == "third_party")
             if (ready.thirdParty) event(ready, "link_ok")
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
-            val httpFailure = failure as? PaymentFailure.Http
-            if (httpFailure?.status == 503 &&
-                httpFailure.reason == "PAYMENT_CHANNEL_UNAVAILABLE" && !record.officialFallbackProductId.isNullOrBlank()
-            ) {
-                save(
-                    record.copy(
-                        initialized = InitializedPayment(
-                            orderId = orderId,
-                            channelType = "official",
-                            channelCode = "google_play",
-                            openMode = "sdk",
-                            sdkParams = PaymentSdkParams(record.officialFallbackProductId),
-                        ),
-                        stage = PaymentStage.OFFICIAL_READY,
-                        error = null,
-                    ),
-                    session,
-                    false,
-                )
-                return
-            }
-            val terminal = (failure as? PaymentFailure.Http)?.cannotInitialize == true
-            val error = when ((failure as? PaymentFailure.Http)?.status) {
+            val error = safeError(failure, when ((failure as? PaymentFailure.Http)?.status) {
                 401 -> "payment_auth_failed"
                 403 -> "payment_order_forbidden"
                 503 -> if (failure.reason == "PAYMENT_CHANNEL_UNAVAILABLE") "payment_channel_unavailable" else "initialize_failed"
                 else -> "initialize_failed"
-            }
+            })
             val stage = when {
                 (failure as? PaymentFailure.Http)?.status == 403 -> PaymentStage.ACCESS_DENIED
-                terminal -> PaymentStage.FAILED
                 else -> PaymentStage.INITIALIZING
             }
             save(record.copy(stage = stage, error = error), session, false)
             notifyFailure(session)
             event(record, "link_error", error)
+            if ((failure as? PaymentFailure.Http)?.cannotInitialize == true) query(record.copy(error = error), session, false)
         }
     }
     private suspend fun resume(record: PaymentRecord, session: Session) {
         if (record.stage == PaymentStage.ACCESS_DENIED) { notifyFailure(session); return }
         mutable.value = PaymentViewState(session.epoch, record, busy = true)
+        dismissals.remove(record.key)
         when {
-            record.orderId == null -> {
-                save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
-                notifyFailure(session)
-            }
+            record.stage == PaymentStage.AWAITING_FULFILLMENT -> query(record, session, closing = false)
+            record.orderId == null -> create(record, session)
             record.initialized == null -> initialize(record, session)
             record.stage == PaymentStage.OFFICIAL_READY -> save(record, session, false)
             !record.thirdParty -> if (record.stage == PaymentStage.CLOSED) {
@@ -210,7 +255,6 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             } else {
                 query(record, session, closing = false)
             }
-            record.openedAt == null -> save(record, session, true)
             else -> {
                 val checked = query(record.copy(stage = PaymentStage.CHECKOUT), session, closing = false)
                 val urlValid = (paymentTime(checked.initialized?.expiresAt) ?: 0) > clock.now()
@@ -218,19 +262,31 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             }
         }
     }
-    suspend fun retry(key: String) = guarded { session -> current(key, session)?.let { resume(it, session) } }
+    suspend fun retry(key: String) = guarded { session ->
+        current(key, session)?.let { saved ->
+            val record = if (saved.recoveryRequired) saved.copy(recoveryRequired = false,
+                openedAt = if (saved.initialized?.channelType == "official") clock.now() else saved.openedAt) else saved
+            save(record, session, false)
+            resume(record, session)
+        }
+    }
     suspend fun opened(key: String) = guarded { session ->
         val record = current(key, session) ?: return@guarded
         if (!record.thirdParty || !record.unresolved) return@guarded
+        if (record.stage == PaymentStage.AWAITING_FULFILLMENT) return@guarded
         val now = clock.now()
         if ((paymentTime(record.initialized?.expiresAt) ?: 0) <= now || record.expired(now)) {
-            save(record.copy(stage = PaymentStage.TIMED_OUT, error = "expired_link"), session, false)
+            save(record.copy(stage = PaymentStage.TIMED_OUT, error = "timeout"), session, false)
             event(record, "link_error", "expired_link")
             notifyFailure(session)
             return@guarded
         }
-        if (record.openedAt != null) return@guarded
-        val opened = record.copy(openedAt = now, deadline = now + config.duration(record.initialized?.maxQuerySeconds) * 1000L, stage = PaymentStage.CHECKOUT)
+        if (record.openedAt != null) {
+            save(record.copy(stage = PaymentStage.CHECKOUT), session, true)
+            return@guarded
+        }
+        val opened = record.copy(openedAt = now, deadline = record.checkoutDeadline ?:
+            now + config.duration(record.initialized?.maxQuerySeconds) * 1000L, stage = PaymentStage.CHECKOUT)
         save(opened, session, true)
         val values = paymentValues(opened, "initiated", "checkout_open")
         tracker.track("initiate_pay", values + paymentRechargeProperties(values, session.userId), session.userId)
@@ -240,7 +296,12 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         val record = current(key, session) ?: return@guarded
         if (!record.thirdParty || !record.unresolved) return@guarded
         if (type in setOf("page_loaded", "page_load_error")) event(record, type, details?.errorMessage, details)
-        if (type == "page_load_error") notifyFailure(session)
+        if (type == "page_load_error") {
+            save(record.copy(error = "network_error"), session)
+            notifyFailure(session)
+        } else if (type == "page_loaded" && record.stage == PaymentStage.CHECKOUT && record.error == "network_error" && !record.expired(clock.now())) {
+            save(record.copy(error = null), session)
+        }
     }
     suspend fun poll(key: String) = guarded { session ->
         val record = current(key, session) ?: return@guarded
@@ -253,21 +314,31 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         if (publish) mutable.value = PaymentViewState(session.epoch, record, visible, busy = closing)
         var next = record
         try {
-            val response = repository.status(record.orderId!!, session)
+            val response = if (closing) repository.close(record.orderId!!, session) else repository.status(record.orderId!!, session)
             owner(session)
             if (response.orderId != record.orderId) throw PaymentFailure.InvalidResponse
             next = when {
                 response.successful -> record.copy(stage = PaymentStage.SUCCESS, error = null)
-                response.terminalFailure -> record.copy(stage = PaymentStage.FAILED, error = "payment_failed")
-                response.status == "paid" -> record.copy(stage = PaymentStage.AWAITING_FULFILLMENT, error = null)
+                record.stage == PaymentStage.AWAITING_FULFILLMENT -> record.copy(error = null, retryAction = null)
+                response.terminalFailure -> record.copy(stage = PaymentStage.FAILED,
+                    error = response.safeFailureReason ?: if (response.status == "expired") "timeout" else "payment_failed", retryAction = response.safeRetryAction)
+                response.status == "paid" -> record.copy(stage = PaymentStage.AWAITING_FULFILLMENT, error = null, retryAction = null)
                 response.status == "pending" -> record.copy(
                     stage = if (record.thirdParty) PaymentStage.CHECKOUT else PaymentStage.OFFICIAL_LAUNCHED,
-                    error = null,
+                    error = response.safeFailureReason,
+                    retryAction = response.safeRetryAction,
                 )
                 else -> record.copy(stage = PaymentStage.UNCERTAIN, error = "verification_failed")
             }
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { owner(session); next = record.copy(stage = PaymentStage.UNCERTAIN, error = "verification_failed") }
+        catch (failure: Exception) {
+            owner(session)
+            next = if (record.stage == PaymentStage.AWAITING_FULFILLMENT) record
+            else if ((failure as? PaymentFailure.Http)?.status == 403)
+                record.copy(stage = PaymentStage.ACCESS_DENIED, error = "payment_order_forbidden")
+            else record.copy(stage = if (record.thirdParty) record.stage else PaymentStage.UNCERTAIN,
+                error = safeError(failure, "verification_failed"))
+        }
         if (next.stage == PaymentStage.SUCCESS) {
             save(next, session, false, publish)
             event(next, if (closing) "paid_on_close" else "paid_while_open")
@@ -275,33 +346,66 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 next.orderId?.let { "payment:$it:fulfilled:purchase_success" })
             return next
         }
+        val awaiting = next.stage == PaymentStage.AWAITING_FULFILLMENT
         val timeout = next.thirdParty && next.unresolved && next.expired(clock.now())
         if (closing && timeout) {
-            if (record.stage != PaymentStage.TIMED_OUT) {
+            if (!awaiting && record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
                 if (record.thirdParty) event(record, "timeout_cancel")
             }
-            next = next.copy(stage = PaymentStage.TIMED_OUT)
+            if (!awaiting) next = next.copy(stage = PaymentStage.TIMED_OUT, error = "timeout")
         } else if (closing) {
             event(record, "user_cancel")
-            if (next.unresolved) next = next.copy(stage = PaymentStage.CLOSED)
+            if (next.unresolved && !awaiting) next = next.copy(stage = PaymentStage.CLOSED)
         } else if (timeout) {
-            if (record.stage != PaymentStage.TIMED_OUT) {
+            if (!awaiting && record.stage != PaymentStage.TIMED_OUT) {
                 event(record, "poll_timeout")
                 if (record.thirdParty) event(record, "timeout_cancel")
             }
-            next = next.copy(stage = PaymentStage.TIMED_OUT)
+            if (!awaiting) next = next.copy(stage = PaymentStage.TIMED_OUT, error = "timeout")
         }
-        if (!closing && next.unresolved && record.stage in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT)) next = next.copy(stage = record.stage)
-        save(next, session, visible && !closing && !timeout && next.stage != PaymentStage.FAILED, publish)
+        val dismissal = dismissals[record.key] ?: record.stage.takeIf { it in setOf(PaymentStage.CLOSED, PaymentStage.TIMED_OUT) }
+        if (next.unresolved && !awaiting && dismissal != null) next = next.copy(stage = dismissal,
+            error = if (dismissal == PaymentStage.TIMED_OUT) "timeout" else next.error)
+        save(next, session, visible && !closing && !timeout && dismissal == null && next.unresolved, publish)
         if (publish && next.stage == PaymentStage.FAILED && record.stage != PaymentStage.FAILED) notifyFailure(session)
         return next
     }
-    suspend fun close(key: String) = guarded { session ->
-        val record = current(key, session) ?: return@guarded
-        if (record.thirdParty && record.unresolved && record.orderId != null) query(record, session, closing = true)
-        else mutable.value = mutable.value.copy(checkoutVisible = false)
-        presentWaitingSuccess(session)
+    suspend fun close(key: String) {
+        dismissVisible(key, PaymentStage.CLOSED)
+        guarded { session ->
+            val record = current(key, session) ?: return@guarded
+            if (record.thirdParty && record.unresolved && record.orderId != null) {
+                val closed = if (record.stage == PaymentStage.AWAITING_FULFILLMENT) record else
+                    record.copy(stage = if (record.expired(clock.now())) PaymentStage.TIMED_OUT else PaymentStage.CLOSED)
+                save(closed, session, false)
+                query(closed, session, closing = true)
+            } else mutable.value = mutable.value.copy(checkoutVisible = false)
+            presentWaitingSuccess(session)
+        }
+    }
+    private fun dismissVisible(key: String, stage: PaymentStage) {
+        val session = sessions.current ?: return
+        mutable.update { snapshot ->
+            if (snapshot.epoch != session.epoch || sessions.current?.epoch != session.epoch) return@update snapshot
+            val record = snapshot.record?.takeIf { it.key == key && it.userId == session.userId && it.thirdParty && it.unresolved }
+                ?: return@update snapshot
+            val dismissedStage = if (record.expired(clock.now())) PaymentStage.TIMED_OUT else stage
+            dismissals[key] = dismissedStage
+            snapshot.copy(record = if (record.stage == PaymentStage.AWAITING_FULFILLMENT) record else record.copy(stage = dismissedStage,
+                error = if (dismissedStage == PaymentStage.TIMED_OUT) "timeout" else record.error), checkoutVisible = false, busy = false)
+        }
+    }
+    suspend fun expireCheckout(key: String) {
+        val record = mutable.value.record?.takeIf { it.key == key && it.thirdParty && it.unresolved && it.expired(clock.now()) } ?: return
+        dismissVisible(key, PaymentStage.TIMED_OUT)
+        guarded { session ->
+            val latest = current(record.key, session) ?: return@guarded
+            if (!latest.thirdParty || !latest.unresolved || !latest.expired(clock.now())) return@guarded
+            save(if (latest.stage == PaymentStage.AWAITING_FULFILLMENT) latest else
+                latest.copy(stage = PaymentStage.TIMED_OUT, error = "timeout"), session, false)
+            if (latest.stage !in setOf(PaymentStage.TIMED_OUT, PaymentStage.AWAITING_FULFILLMENT)) { event(latest, "poll_timeout"); event(latest, "timeout_cancel") }
+        }
     }
     private suspend fun presentWaitingSuccess(session: Session) {
         if (mutable.value.checkoutVisible || mutable.value.record?.stage == PaymentStage.SUCCESS) return
@@ -331,6 +435,10 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             val record = current(key, session) ?: return@guarded
             if (record.stage == PaymentStage.SUCCESS) {
                 fulfilled = true
+                return@guarded
+            }
+            if (record.stage == PaymentStage.AWAITING_FULFILLMENT) {
+                fulfilled = query(record, session, closing = false).stage == PaymentStage.SUCCESS
                 return@guarded
             }
             // 不把 consume 完成当作已发币，继续等真实充值通知。
@@ -368,7 +476,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 handled = true
                 if (matching.stage == PaymentStage.SUCCESS) return@guarded
                 val present = mutable.value.record == null || mutable.value.record?.key == matching.key
-                if (matching.initialized != null) query(matching, session, false, present)
+                if (matching.initialized != null || matching.stage == PaymentStage.AWAITING_FULFILLMENT) query(matching, session, false, present)
             } else {
                 val pending = records.filter { it.userId == session.userId && it.initialized != null }
                 handled = records.any { it.userId == session.userId }

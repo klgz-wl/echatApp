@@ -10,6 +10,16 @@ import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class TopUpPaymentCompletionTest {
+    @Test fun `trusted paid awaiting fulfillment outranks stale Play pending cancelled and failed UI`() {
+        val paid = payment(PaymentStage.AWAITING_FULFILLMENT, "epoch-1").let {
+            it.copy(record = it.record!!.copy(initialized = yumo.achat.core.payment.InitializedPayment(
+                "order", "official", "google_play", "sdk", yumo.achat.core.payment.PaymentSdkParams("sku"))))
+        }
+        for (status in listOf(CoinPurchaseStatus.PENDING, CoinPurchaseStatus.CANCELLED, CoinPurchaseStatus.FAILED)) {
+            assertEquals(TopUpCheckoutState.AwaitingPayment(false),
+                paid.toTopUpCheckoutState(CoinPurchaseState("epoch-1", status)))
+        }
+    }
     @Test fun `accepted Play purchase waits for confirmation instead of displaying store pending`() {
         val payment = payment(PaymentStage.OFFICIAL_LAUNCHED, "epoch-1").let {
             it.copy(record = it.record!!.copy(initialized = yumo.achat.core.payment.InitializedPayment(
