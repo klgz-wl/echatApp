@@ -6,12 +6,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import yumo.achat.app.R
 import yumo.achat.core.billing.CoinPurchaseState
+import yumo.achat.core.billing.CoinPurchaseStatus
 import yumo.achat.core.payment.InitializedPayment
 import yumo.achat.core.payment.PaymentRecord
 import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class TopUpPaymentRecoveryPresentationTest {
+    @Test fun `store cancellation carries different diagnostic evidence from closing checkout`() {
+        val closed = payment(PaymentStage.CLOSED, null).toTopUpCheckoutState(CoinPurchaseState())
+        val original = payment(PaymentStage.OFFICIAL_LAUNCHED, null)
+        val official = original.copy(record = original.record!!.copy(initialized =
+            InitializedPayment("order", "official", "google", "sdk")))
+        val cancelled = official.toTopUpCheckoutState(CoinPurchaseState(epoch = "epoch", status = CoinPurchaseStatus.CANCELLED))
+        assertTrue(closed != cancelled)
+    }
+
     @Test fun `review required displays localized support guidance and never starts checkout`() {
         val state = PaymentViewState(epoch = "epoch", recoveryLookupFailed = true,
             recoveryLookupError = "payment_review_required")

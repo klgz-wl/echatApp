@@ -4,6 +4,7 @@
 - Keep the project single-module (`:app`) until a real feature boundary justifies another Gradle module.
 - `MainActivity` owns only the Android activity shell and root composition. Feature screens live under `ui/<feature>/`; reusable visual tokens live under `ui/theme/`.
 - Put user-visible and accessibility text in Android string resources. Keep stable brand colors in the theme package.
+- User-visible error diagnostics follow the [shared error-code specification](docs/公共规范/错误码/错误码接入规范.md) and [project integration record](docs/错误码接入记录.md). Use `app/src/main/java/yumo/achat/app/ui/error/ErrorDiagnostic.kt` as the single suffix-formatting boundary; keep safe original text and append one diagnostic code. Classify by operation evidence and stage, preserve silent paths and existing retries, and record unmapped cases and pending verification instead of claiming full coverage.
 - Put density-independent photographic content in `res/drawable-nodpi/`. Record third-party asset source and release constraints in `docs/asset-sources.md`.
 - When adjacent Figma frames represent a task flow, model them as explicit Compose screen state and cover the transition with an instrumented UI test.
 - When Figma frames differ by bottom navigation section, drive the visible section from the bottom navigation state and test the selected destination's headline and tabs.

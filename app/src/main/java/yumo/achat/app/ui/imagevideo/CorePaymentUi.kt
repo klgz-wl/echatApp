@@ -119,7 +119,8 @@ internal class BrowserReturnController {
 internal fun paymentIssueMessageRes(reason: String?): Int = when (reason) {
     "payment_review_required" -> R.string.top_up_payment_review_required
     "recovery_lookup_failed" -> R.string.top_up_recovery_lookup_failed
-    "network_error", "checkout_load_error" -> R.string.top_up_payment_network_error
+    "checkout_load_error" -> R.string.top_up_checkout_page_error
+    "network_error" -> R.string.top_up_payment_network_error
     "card_declined" -> R.string.top_up_card_declined
     "card_expired" -> R.string.top_up_card_expired
     "card_invalid" -> R.string.top_up_card_invalid

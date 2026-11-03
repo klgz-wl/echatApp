@@ -20,9 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -166,33 +164,28 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit, onExit: () -> Unit) {
+internal fun RegionGateScreen(state: RegionGateState, onRetry: () -> Unit, onExit: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             if (state.busy) {
                 CircularProgressIndicator()
                 Text(stringResource(R.string.region_checking))
             } else if (state.restricted) {
-                Text(stringResource(R.string.region_restricted))
-                RegionDiagnosticReference(state.diagnosticCode)
+                val body = stringResource(R.string.region_restricted)
+                Text(if (state.diagnosticCode == null) body else yumo.achat.app.ui.error.diagnosticString(
+                    body = body,
+                    code = state.diagnosticCode,
+                ))
                 Button(onClick = onExit) { Text(stringResource(R.string.region_exit)) }
             } else if (state.error) {
-                Text(stringResource(if (state.offline) R.string.region_offline else R.string.region_unavailable))
-                RegionDiagnosticReference(state.diagnosticCode)
+                val body = stringResource(if (state.offline) R.string.region_offline else R.string.region_unavailable)
+                Text(if (state.diagnosticCode == null) body else yumo.achat.app.ui.error.diagnosticString(
+                    body = body,
+                    code = state.diagnosticCode,
+                ))
                 Button(onClick = onRetry) { Text(stringResource(R.string.region_retry)) }
                 Button(onClick = onExit) { Text(stringResource(R.string.region_exit)) }
             }
         }
-    }
-}
-
-@Composable
-private fun RegionDiagnosticReference(code: String?) {
-    code?.let {
-        Text(
-            text = stringResource(R.string.region_reference, it),
-            color = Color.Gray,
-            fontSize = 13.sp,
-        )
     }
 }

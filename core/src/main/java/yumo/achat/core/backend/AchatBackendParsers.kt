@@ -278,6 +278,23 @@ object AchatBackendParsers {
         }
     }
 
+    internal fun generationCreationRejection(json: String): GenerationCreationRejectedException? {
+        val root = try {
+            JSONObject(json)
+        } catch (_: org.json.JSONException) {
+            return null
+        }
+        // Do not coerce missing, string, fractional or out-of-range codes into rejection evidence.
+        val code = root.opt("code") as? Int ?: return null
+        if (code == 0 || code == 200) return null
+        return GenerationCreationRejectedException(code, root.optString("message", "Backend request failed"))
+    }
+
+    fun parseVisualGenerationCreation(json: String): VisualGenerationTask {
+        generationCreationRejection(json)?.let { throw it }
+        return parseVisualGenerationTask(json)
+    }
+
     fun parseVisualGenerationTask(json: String): VisualGenerationTask {
         val data = dataObject(json)
         return VisualGenerationTask(

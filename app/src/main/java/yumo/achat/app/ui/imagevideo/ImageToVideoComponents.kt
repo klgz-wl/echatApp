@@ -85,6 +85,7 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import yumo.achat.app.R
+import yumo.achat.app.ui.error.diagnosticString
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.theme.AchatCyan
@@ -333,7 +334,7 @@ private fun TemplatePreviewImage(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = stringResource(R.string.template_feed_retry),
+                            text = diagnosticString(stringResource(R.string.template_feed_retry), "E-302"),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
@@ -423,7 +424,7 @@ private fun TemplatePreviewImage(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = stringResource(R.string.template_feed_retry),
+                            text = diagnosticString(stringResource(R.string.template_feed_retry), "E-302"),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
@@ -441,7 +442,7 @@ private fun TemplatePreviewImage(
                     }
                 } else if (posterHasError && !hasRenderedFirstFrame) {
                     Text(
-                        text = stringResource(R.string.template_feed_retry),
+                        text = diagnosticString(stringResource(R.string.template_feed_retry), "E-302"),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
@@ -689,7 +690,7 @@ internal fun MyTaskVideoPlayer(
         )
         if (posterHasError && !hasRenderedFirstFrame) {
             Text(
-                text = stringResource(R.string.template_feed_retry),
+                text = diagnosticString(stringResource(R.string.template_feed_retry), "E-302"),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier

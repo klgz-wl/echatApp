@@ -13,7 +13,7 @@
     <string name="login_terms">Terms of Service</string>
     <string name="login_agreement_join">and acknowledge our</string>
     <string name="login_privacy">Privacy Policy</string>
-    <string name="login_agreement_required">Please agree to the Terms of Service and Privacy Policy first.</string>
+    <string name="login_agreement_required">Please agree to the Terms of Service and Privacy Policy first. (E-201)</string>
     <string name="login_agreement_checkbox">Agree to the Terms of Service and Privacy Policy</string>
     <string name="login_auth_protocol">● NEO-AUTH PROTOCOL</string>
     <string name="login_account_caption">Log in with your account to access your Zorv model and workspace.</string>
@@ -24,12 +24,12 @@
     <string name="login_account_hint">Enter account</string>
     <string name="login_password_hint">Enter password</string>
     <string name="login_sign_in">SIGN IN →</string>
-    <string name="login_account_invalid">Account must have 3–50 characters without spaces.</string>
-    <string name="login_password_invalid">Password must have 6–18 characters without spaces.</string>
-    <string name="login_failed">Login failed. Please try again.</string>
+    <string name="login_account_invalid">Account must have 3–50 characters without spaces. (E-202)</string>
+    <string name="login_password_invalid">Password must have 6–18 characters without spaces. (E-203)</string>
+    <string name="login_failed">Login failed. Please try again. (E-204)</string>
     <string name="login_back">Back</string>
     <string name="login_show_password">Show password</string>
     <string name="login_hide_password">Hide password</string>
-    <string name="login_page_unavailable">Unable to load this page.</string>
+    <string name="login_page_unavailable">Unable to load this page. (E-303)</string>
     <string name="login_loading_page">Loading page</string>
 </resources>

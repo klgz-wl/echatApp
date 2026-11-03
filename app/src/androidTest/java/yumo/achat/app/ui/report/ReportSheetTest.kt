@@ -24,6 +24,29 @@ import org.junit.runner.RunWith
 class ReportSheetTest {
     @get:Rule val composeRule = createComposeRule()
 
+    @Test fun reportFailureDisplaysE701AndKeepsExistingRetryAction() {
+        var attempts = 0
+        composeRule.setContent {
+            MediaReportSheet(
+                mediaId = "template-1",
+                onDismiss = {},
+                onSuccess = {},
+                repository = MediaReportRepository {
+                    attempts++
+                    throw IllegalStateException("Report unavailable")
+                },
+            )
+        }
+        composeRule.onNodeWithText("REPORT").performClick()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("Couldn’t report this content. Please try again. (E-701)")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Couldn’t report this content. Please try again. (E-701)").assertIsDisplayed()
+        composeRule.onNodeWithText("REPORT").performClick()
+        composeRule.waitUntil(5_000) { attempts == 2 }
+    }
+
     @Test fun previewControlOpensReportSheetAndSubmitsOnce() {
         composeRule.setContent {
             var open by remember { mutableStateOf(false) }

@@ -2,6 +2,7 @@ package yumo.achat.core.backend
 
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
+import yumo.achat.core.network.ServiceFailure
 
 data class AuthSession(
     val userId: String,
@@ -185,6 +186,7 @@ data class TemplateLoadResult(
     val page: Int = 1,
     val pageSize: Int = templates.size.coerceAtLeast(1),
     val total: Long = templates.size.toLong(),
+    val sessionUnavailable: Boolean = false,
 )
 
 internal suspend inline fun loadTemplateResult(
@@ -206,6 +208,7 @@ internal suspend inline fun loadTemplateResult(
     TemplateLoadResult(
         templates = emptyList(),
         errorMessage = error.message?.takeIf { it.isNotBlank() } ?: fallbackMessage,
+        sessionUnavailable = error is SignedOutException || error is ServiceFailure.SignedOut || error is ServiceFailure.Superseded,
     )
 }
 
@@ -253,4 +256,6 @@ data class AchatHomeData(
     val videoTemplatesHasMore: Boolean = false,
     val imageTemplatePage: Int = 1,
     val imageTemplatesHasMore: Boolean = false,
+    val videoTemplateSessionUnavailable: Boolean = false,
+    val imageTemplateSessionUnavailable: Boolean = false,
 )

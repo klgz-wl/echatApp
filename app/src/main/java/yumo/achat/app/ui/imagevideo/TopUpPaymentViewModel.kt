@@ -48,6 +48,7 @@ internal sealed interface TopUpCheckoutState {
         val recoverySummary: String? = null,
     ) : TopUpCheckoutState
     data object Cancelled : TopUpCheckoutState
+    data object UserCancelled : TopUpCheckoutState
     data object TimedOut : TopUpCheckoutState
 }
 
@@ -365,7 +366,7 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
         when (purchase.status) {
             CoinPurchaseStatus.PENDING -> return TopUpCheckoutState.AwaitingPayment(true)
             CoinPurchaseStatus.AWAITING_FULFILLMENT -> return TopUpCheckoutState.AwaitingPayment(false)
-            CoinPurchaseStatus.CANCELLED -> return TopUpCheckoutState.Cancelled
+            CoinPurchaseStatus.CANCELLED -> return TopUpCheckoutState.UserCancelled
             CoinPurchaseStatus.FAILED -> return TopUpCheckoutState.Failed("", retryPreparedRoute = true, messageRes = R.string.top_up_payment_failed)
             else -> Unit
         }
