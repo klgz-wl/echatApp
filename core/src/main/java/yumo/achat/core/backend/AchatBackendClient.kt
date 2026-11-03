@@ -325,28 +325,34 @@ class AchatBackendClient(
         idempotencyKey: String,
     ): VisualGenerationTask {
         val boundary = "achat-${UUID.randomUUID()}"
-        val response = request(
-            path = "/api/v1/visual-generation/$modality/tasks",
-            method = "POST",
-            headers = mapOf(
-                "Authorization" to "Bearer $token",
-                "Idempotency-Key" to idempotencyKey,
-                "Content-Type" to "multipart/form-data; boundary=$boundary",
-            ),
-            writeBody = { outputStream ->
-                MultipartFormData.write(
-                    outputStream = outputStream,
-                    boundary = boundary,
-                    parts = listOf(
-                        MultipartFormData.textPart("template_id", templateId),
-                        MultipartFormData.textPart("quality", quality),
-                        MultipartFormData.textPart("idempotency_key", idempotencyKey),
-                        MultipartFormData.textPart("resource_id", resourceId),
-                    ),
-                )
-            },
-        )
-        return AchatBackendParsers.parseVisualGenerationTask(response)
+        val response = try {
+            request(
+                path = "/api/v1/visual-generation/$modality/tasks",
+                method = "POST",
+                headers = mapOf(
+                    "Authorization" to "Bearer $token",
+                    "Idempotency-Key" to idempotencyKey,
+                    "Content-Type" to "multipart/form-data; boundary=$boundary",
+                ),
+                writeBody = { outputStream ->
+                    MultipartFormData.write(
+                        outputStream = outputStream,
+                        boundary = boundary,
+                        parts = listOf(
+                            MultipartFormData.textPart("template_id", templateId),
+                            MultipartFormData.textPart("quality", quality),
+                            MultipartFormData.textPart("idempotency_key", idempotencyKey),
+                            MultipartFormData.textPart("resource_id", resourceId),
+                        ),
+                    )
+                },
+            )
+        } catch (error: AchatBackendHttpException) {
+            // Keep the HTTP shell so authenticated() can still recover from 401.
+            AchatBackendParsers.generationCreationRejection(error.responseBody)?.let { error.initCause(it) }
+            throw error
+        }
+        return AchatBackendParsers.parseVisualGenerationCreation(response)
     }
 
     fun visualGenerationTask(token: String, taskId: String): VisualGenerationTask =

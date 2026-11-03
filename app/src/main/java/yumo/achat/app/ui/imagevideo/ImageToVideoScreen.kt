@@ -171,6 +171,8 @@ import yumo.achat.core.backend.hasMore
 import yumo.achat.app.ui.components.TransientMessage
 import yumo.achat.app.ui.components.TransientMessageHost
 import yumo.achat.app.ui.components.TransientMessageTone
+import yumo.achat.app.ui.error.diagnosticMessage
+import yumo.achat.app.ui.error.diagnosticString
 import yumo.achat.app.ui.login.LoginScreen
 import yumo.achat.app.ui.login.DeleteAccountDialog
 import yumo.achat.app.ui.report.MediaReportIconButton
@@ -717,9 +719,9 @@ private fun ImageToVideoHomeScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                accountActionError = context.getString(
+                accountActionError = context.diagnosticMessage(context.getString(
                     if (delete) R.string.account_delete_failed else R.string.account_logout_failed,
-                )
+                ), businessOperationDiagnostic(error, if (delete) "E-703" else "E-702"))
             } finally {
                 accountActionBusy = false
             }
@@ -900,7 +902,10 @@ private fun ImageToVideoHomeScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                TemplateLoadResult(templates = emptyList(), errorMessage = error.message ?: "Backend unavailable")
+                TemplateLoadResult(
+                    templates = emptyList(), errorMessage = error.message ?: "Backend unavailable",
+                    sessionUnavailable = businessOperationDiagnostic(error, "") == "E-207",
+                )
             }
             if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
                     gateTargetAtStart != attributionRuntime.currentGateTarget())) return@launch
@@ -910,7 +915,11 @@ private fun ImageToVideoHomeScreen(
             }
             if (!isLatestRequest) return@launch
             val fallback = if (section == TemplateSection.Video) videoTemplatesFallback else imageTemplatesFallback
-            val errorMessage = result.errorMessage?.let { apiEnvelopeUserMessage(it, fallback) }
+            val errorMessage = result.errorMessage?.let {
+                val body = if (append) context.getString(R.string.template_load_more_retry)
+                    else apiEnvelopeUserMessage(it, fallback)
+                context.diagnosticMessage(body, if (result.sessionUnavailable) "E-207" else "E-501")
+            }
             backendState = backendState.withTemplateLoadResult(
                 modality = modality,
                 result = result.copy(errorMessage = errorMessage),
@@ -978,7 +987,10 @@ private fun ImageToVideoHomeScreen(
                 throw cancelled
             } catch (error: Exception) {
                 if (refreshSerialAtStart == taskHistoryRefreshSerial) {
-                    taskHistoryPaginationError = error.message ?: "Failed to load more task history"
+                    taskHistoryPaginationError = context.diagnosticMessage(
+                        context.getString(R.string.task_history_load_more_retry),
+                        businessOperationDiagnostic(error, "E-501"),
+                    )
                 }
             } finally {
                 if (refreshSerialAtStart == taskHistoryRefreshSerial) taskHistoryPaginationLoading = false
@@ -1324,12 +1336,18 @@ private fun ImageToVideoHomeScreen(
                 videoTemplatesLoading = if (applyStartupVideo) false else backendState.videoTemplatesLoading,
                 imageTemplatesLoading = if (applyStartupImage) false else backendState.imageTemplatesLoading,
                 videoTemplateErrorMessage = if (applyStartupVideo) {
-                    homeData.videoTemplateErrorMessage?.let { apiEnvelopeUserMessage(it, videoTemplatesFallback) }
+                    homeData.videoTemplateErrorMessage?.let {
+                        context.diagnosticMessage(apiEnvelopeUserMessage(it, videoTemplatesFallback),
+                            if (homeData.videoTemplateSessionUnavailable) "E-207" else "E-501")
+                    }
                 } else {
                     backendState.videoTemplateErrorMessage
                 },
                 imageTemplateErrorMessage = if (applyStartupImage) {
-                    homeData.imageTemplateErrorMessage?.let { apiEnvelopeUserMessage(it, imageTemplatesFallback) }
+                    homeData.imageTemplateErrorMessage?.let {
+                        context.diagnosticMessage(apiEnvelopeUserMessage(it, imageTemplatesFallback),
+                            if (homeData.imageTemplateSessionUnavailable) "E-207" else "E-501")
+                    }
                 } else {
                     backendState.imageTemplateErrorMessage
                 },
@@ -1353,12 +1371,12 @@ private fun ImageToVideoHomeScreen(
                 videoTemplatesLoading = if (applyStartupVideo) false else backendState.videoTemplatesLoading,
                 imageTemplatesLoading = if (applyStartupImage) false else backendState.imageTemplatesLoading,
                 videoTemplateErrorMessage = if (applyStartupVideo) {
-                    apiEnvelopeUserMessage(rawMessage, videoTemplatesFallback)
+                    context.diagnosticMessage(operationUserMessage(error, videoTemplatesFallback), businessOperationDiagnostic(error, "E-501"))
                 } else {
                     backendState.videoTemplateErrorMessage
                 },
                 imageTemplateErrorMessage = if (applyStartupImage) {
-                    apiEnvelopeUserMessage(rawMessage, imageTemplatesFallback)
+                    context.diagnosticMessage(operationUserMessage(error, imageTemplatesFallback), businessOperationDiagnostic(error, "E-501"))
                 } else {
                     backendState.imageTemplateErrorMessage
                 },
@@ -1399,7 +1417,10 @@ private fun ImageToVideoHomeScreen(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            taskHistoryError = error.message ?: "Failed to load task history"
+            taskHistoryError = context.diagnosticMessage(
+                operationUserMessage(error, context.getString(R.string.task_history_load_error)),
+                businessOperationDiagnostic(error, "E-501"),
+            )
             isLoadingTaskHistory = false
         }
     }
@@ -1442,10 +1463,10 @@ private fun ImageToVideoHomeScreen(
             throw error
         } catch (error: Exception) {
             topUpState = TopUpUiState(
-                errorMessage = apiEnvelopeUserMessage(
-                    error.message,
+                errorMessage = context.diagnosticMessage(operationUserMessage(
+                    error,
                     context.getString(R.string.top_up_error),
-                ),
+                ), businessOperationDiagnostic(error, "E-501")),
                 diamondBalance = backendState.diamondBalance,
             )
         }
@@ -2021,7 +2042,7 @@ private fun TemplateBrowserScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             !paginationErrorMessage.isNullOrBlank() -> Text(
-                text = stringResource(R.string.template_load_more_retry),
+                text = paginationErrorMessage,
                 color = AchatPink,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -2916,7 +2937,7 @@ internal fun MyTasksScreen(
                             )
                         } else if (!paginationError.isNullOrBlank()) {
                             Text(
-                                text = stringResource(R.string.task_history_load_more_retry),
+                                text = paginationError,
                                 color = AchatPink,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
@@ -3010,7 +3031,9 @@ private fun TaskStatusCard(task: TrackedGenerationTask, onOpen: () -> Unit) {
             if (!task.errorMessage.isNullOrBlank()) {
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    text = task.errorMessage,
+                    text = if (task.status == "failed") diagnosticString(
+                        apiEnvelopeUserMessage(task.errorMessage, stringResource(R.string.task_failed_fallback)), "E-401",
+                    ) else apiEnvelopeUserMessage(task.errorMessage, stringResource(R.string.default_task_title)),
                     color = AchatPink.copy(alpha = 0.9f),
                     fontSize = 9.sp,
                 )
@@ -3111,7 +3134,7 @@ internal fun GenerationResultScreen(
                     if (videoPlaybackFailed) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = stringResource(R.string.task_result_file_unavailable),
+                                text = diagnosticString(stringResource(R.string.task_result_file_unavailable), "E-302"),
                                 color = AchatMuted,
                                 fontSize = 11.sp,
                             )
@@ -3144,7 +3167,7 @@ internal fun GenerationResultScreen(
                     }
                 } else {
                     Text(
-                        text = stringResource(R.string.task_result_preview_unavailable),
+                        text = diagnosticString(stringResource(R.string.task_result_preview_unavailable), "E-404"),
                         color = AchatMuted,
                         fontSize = 11.sp,
                     )
@@ -3240,7 +3263,7 @@ private fun MyTaskProgressiveImage(
         }
         if (shouldShowMyTaskImageRetry(hasFullImageError)) {
             Text(
-                text = stringResource(R.string.template_feed_retry),
+                text = diagnosticString(stringResource(R.string.template_feed_retry), "E-302"),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -4125,6 +4148,7 @@ internal fun TopUpScreen(
                         val isPreparing = purchaseState is TopUpPurchaseState.Preparing
                         val terminalCheckout = checkoutState is TopUpCheckoutState.Failed ||
                             checkoutState == TopUpCheckoutState.Cancelled ||
+                            checkoutState == TopUpCheckoutState.UserCancelled ||
                             checkoutState == TopUpCheckoutState.TimedOut ||
                             checkoutState is TopUpCheckoutState.Succeeded
                         val isReady = (purchaseState is TopUpPurchaseState.OfficialReady ||
@@ -4153,7 +4177,8 @@ internal fun TopUpScreen(
                 StartChatButton(
                     label = stringResource(R.string.top_up_try_again),
                     enabled = !isReconciling && (checkoutState is TopUpCheckoutState.Failed ||
-                        checkoutState == TopUpCheckoutState.Cancelled || checkoutState == TopUpCheckoutState.TimedOut),
+                        checkoutState == TopUpCheckoutState.Cancelled || checkoutState == TopUpCheckoutState.UserCancelled ||
+                        checkoutState == TopUpCheckoutState.TimedOut),
                     onClick = onPreparePayment,
                 )
             }
@@ -4179,10 +4204,15 @@ private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpC
         )
         is TopUpCheckoutState.Succeeded -> TopUpInlineStatus(stringResource(R.string.top_up_payment_success), AchatCyan)
         is TopUpCheckoutState.Failed -> TopUpInlineStatus(
-            (checkoutState.messageRes?.let { stringResource(it) } ?: checkoutState.message) +
-                (checkoutState.recoverySummary?.let { "\n$it" } ?: ""), AchatPink,
+            if (checkoutState.recoverySummary != null) diagnosticString(
+                (checkoutState.messageRes?.let { stringResource(it) } ?: checkoutState.message) +
+                    "\n${checkoutState.recoverySummary}", "E-602",
+            ) else checkoutState.messageRes?.let { stringResource(it) } ?: checkoutState.message, AchatPink,
         )
         TopUpCheckoutState.Cancelled -> TopUpInlineStatus(stringResource(R.string.top_up_payment_cancelled), AchatMuted)
+        TopUpCheckoutState.UserCancelled -> TopUpInlineStatus(
+            diagnosticString(stringResource(R.string.top_up_payment_cancelled), "E-603"), AchatMuted,
+        )
         TopUpCheckoutState.TimedOut -> TopUpInlineStatus(stringResource(R.string.top_up_payment_timeout), AchatPink)
     }
     if (checkoutState != TopUpCheckoutState.Idle) return
@@ -4335,8 +4365,8 @@ internal fun ThirdPartyCheckoutOverlay(
         }
         if (remaining != 0L && (pageLoadFailed || recoveryMessageRes != null)) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(if (pageLoadFailed) R.string.top_up_payment_network_error
-                    else recoveryMessageRes ?: R.string.top_up_payment_network_error), color = AchatPink,
+                Text(if (pageLoadFailed) diagnosticString(stringResource(R.string.top_up_payment_network_error), "E-303")
+                    else stringResource(recoveryMessageRes ?: R.string.top_up_payment_network_error), color = AchatPink,
                     style = MaterialTheme.typography.bodySmall)
                 StartChatButton(
                     label = stringResource(if (pageLoadFailed) R.string.top_up_retry else recoveryActionRes ?: R.string.top_up_retry),
@@ -4775,22 +4805,24 @@ private fun UploadPhotoScreen(
         uploadInProgress = true
         uploadMessage = null
         scope.launch {
-            runCatching {
-                repository.uploadSourceImage(uri)
-            }.onSuccess { resource ->
+            try {
+                val resource = repository.uploadSourceImage(uri)
                 uploadedResourceId = resource.id
                 showUploadMessage(
                     text = uploadSuccessPattern.format(resource.id.take(8)),
                     tone = TransientMessageTone.Success,
                 )
-            }.onFailure { error ->
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
                 uploadedResourceId = null
                 showUploadMessage(
-                    text = visualGenerationUserMessage(error.message, uploadFailedMessage),
+                    text = context.diagnosticMessage(operationUserMessage(error, uploadFailedMessage), imageUploadDiagnostic(error)),
                     tone = TransientMessageTone.Error,
                 )
+            } finally {
+                uploadInProgress = false
             }
-            uploadInProgress = false
         }
     }
     val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -4846,7 +4878,9 @@ private fun UploadPhotoScreen(
                 )
             } else {
                 showUploadMessage(
-                    text = taskFailedPattern.format(task.errorMessage ?: task.status),
+                    text = context.diagnosticMessage(
+                        taskFailedPattern.format(apiEnvelopeUserMessage(task.errorMessage, task.status)), "E-401",
+                    ),
                     tone = TransientMessageTone.Error,
                 )
             }
@@ -4933,15 +4967,14 @@ private fun UploadPhotoScreen(
                 generationSubmissionKey = submissionKey
                 generationAnalytics.clickGenerate(template.analyticsContext(), submissionKey.idempotencyKey)
                 scope.launch {
-                    runCatching {
-                        repository.createVisualGenerationTask(
+                    try {
+                        val task = repository.createVisualGenerationTask(
                             modality = template.modality,
                             templateId = template.templateId,
                             quality = template.quality,
                             resourceId = resourceId,
                             idempotencyKey = submissionKey.idempotencyKey,
                         )
-                    }.onSuccess { task ->
                         generationAnalytics.submitResult(
                             template.analyticsContext(), submissionKey.idempotencyKey, task, null,
                         )
@@ -4958,12 +4991,14 @@ private fun UploadPhotoScreen(
                             ),
                         )
                         showUploadMessage(taskCreatedPattern.format(task.taskId.take(8), task.status))
-                    }.onFailure { error ->
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
                         generationAnalytics.submitResult(
                             template.analyticsContext(), submissionKey.idempotencyKey, null, error,
                         )
                         showUploadMessage(
-                            text = visualGenerationUserMessage(error.message, uploadFailedMessage),
+                            text = context.diagnosticMessage(operationUserMessage(error, uploadFailedMessage), generationSubmissionDiagnostic(error)),
                             tone = TransientMessageTone.Error,
                         )
                         val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message)
@@ -4971,8 +5006,9 @@ private fun UploadPhotoScreen(
                             delay(topUpRouteDelayMillis)
                             onInsufficientBalanceTopUp()
                         }
+                    } finally {
+                        uploadInProgress = false
                     }
-                    uploadInProgress = false
                 }
             },
         )

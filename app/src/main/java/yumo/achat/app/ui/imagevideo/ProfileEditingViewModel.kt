@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import yumo.achat.app.R
+import yumo.achat.app.ui.error.diagnosticMessage
 import yumo.achat.core.backend.ProfileEditingGateway
 import yumo.achat.core.backend.UserProfile
 
@@ -104,10 +105,10 @@ internal class ProfileEditingViewModel(application: Application) : AndroidViewMo
         gateway = createAchatRepository(application),
         scope = viewModelScope,
         fallbackError = { error ->
-            apiEnvelopeUserMessage(
-                error.message,
+            application.diagnosticMessage(operationUserMessage(
+                error,
                 application.getString(R.string.profile_update_failed),
-            )
+            ), profileUpdateDiagnostic(error))
         },
     )
 }

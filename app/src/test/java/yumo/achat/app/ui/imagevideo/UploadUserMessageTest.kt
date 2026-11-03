@@ -6,6 +6,22 @@ import org.junit.Test
 
 class UploadUserMessageTest {
     @Test
+    fun `typed technical failures use localized fallback instead of raw messages`() {
+        val fallback = "Upload failed"
+        assertEquals(fallback, operationUserMessage(java.io.IOException("raw connection state"), fallback))
+        assertEquals(fallback, operationUserMessage(org.json.JSONException("task_id parse failed"), fallback))
+        assertEquals("Insufficient diamond balance", operationUserMessage(
+            yumo.achat.core.backend.GenerationCreationRejectedException(400101, "Insufficient diamond balance"), fallback))
+    }
+
+    @Test
+    fun `irrelevant envelope metadata cannot change generation balance routing`() {
+        val raw = """{"code":400101,"message":"Insufficient diamond balance","trace":"https://internal.example/${"x".repeat(1024)}"}"""
+        assertEquals("Insufficient diamond balance", visualGenerationUserMessage(raw, "Upload failed"))
+        assertEquals(1200L, generationTopUpRouteDelayMillis(raw))
+    }
+
+    @Test
     fun `api envelope user message hides trace fields`() {
         assertEquals(
             "Catalog unavailable",
