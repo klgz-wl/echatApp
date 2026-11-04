@@ -35,7 +35,10 @@ class AttributionHttpClient(
             .header("X-Package-Name", value("package_name"))
             .header("X-App-Version", value("app_version"))
             .header("X-Version", value("app_version"))
-            .header("X-Platform", "android").header("X-App-Platform", "android").build()
+            .header("X-Platform", "android").header("X-App-Platform", "android")
+            .apply {
+                value("af_uid").takeIf(String::isNotBlank)?.let { header("X-AF-UID", it) }
+            }.build()
         val call = calls.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         try {

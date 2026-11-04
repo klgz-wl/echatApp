@@ -45,6 +45,8 @@ fun deviceAttributionReport(
             put("is_gcd_http_result", it.source == AttributionResultSource.GCD_HTTP)
         }
         userId?.let { put("user_id", it) }
+        attribution.afUid.takeIf(String::isNotBlank)?.let { put("af_uid", it) }
+        attribution.channel?.let { put("channel", it) }
         attribution.network?.let { put("network", it) }
         attribution.campaign?.let { put("campaign", it) }
         attribution.campaignId?.let { put("campaign_id", it) }

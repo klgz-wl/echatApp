@@ -207,8 +207,8 @@ class AttributionCoordinatorTest {
         assertEquals(JsonPrimitive("device"), payload["device_id"])
         assertEquals(JsonPrimitive("12345678-1234-4234-8234-123456789abc"), payload["gaid"])
         assertEquals(JsonPrimitive("user"), payload["user_id"])
-        assertFalse(payload.containsKey("af_uid"))
-        assertFalse(payload.containsKey("channel"))
+        assertEquals(JsonPrimitive("af-uid"), payload["af_uid"])
+        assertEquals(JsonPrimitive("paid-social"), payload["channel"])
         val extra = payload["extra_data"] as JsonObject
         assertEquals(JsonPrimitive("af-uid"), extra["af_uid"])
         assertEquals(JsonPrimitive("user"), extra["app_user_id"])

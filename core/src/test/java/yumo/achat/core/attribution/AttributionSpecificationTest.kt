@@ -8,14 +8,22 @@ import yumo.achat.core.config.ClientIdentity
 class AttributionSpecificationTest {
     private val identity = ClientIdentity("test.package", "2.0.0", 15)
 
-    @Test fun `report excludes login only top level identifiers`() {
+    @Test fun `report includes frozen matching identifiers and retains evidence`() {
         val raw = buildJsonObject {
             put("af_status", "Non-organic"); put("af_uid", "af-install"); put("af_channel", "paid")
         }
         val report = deviceAttributionReport(raw, identity, "device", "user")
-        assertFalse(report.containsKey("af_uid"))
-        assertFalse(report.containsKey("channel"))
+        assertEquals(JsonPrimitive("af-install"), report["af_uid"])
+        assertEquals(JsonPrimitive("paid"), report["channel"])
         assertEquals(JsonPrimitive("af-install"), report["extra_data"]!!.jsonObject["af_uid"])
+    }
+
+    @Test fun `report omits missing matching identifiers and uses channel fallback`() {
+        val empty = deviceAttributionReport(buildJsonObject { put("af_uid", " "); put("af_channel", JsonNull) }, identity, "device", null)
+        assertFalse(empty.containsKey("af_uid"))
+        assertFalse(empty.containsKey("channel"))
+        val fallback = deviceAttributionReport(buildJsonObject { put("channel", "fallback") }, identity, "device", null)
+        assertEquals(JsonPrimitive("fallback"), fallback["channel"])
     }
 
     @Test fun `generic adset takes priority over generic adgroup`() {

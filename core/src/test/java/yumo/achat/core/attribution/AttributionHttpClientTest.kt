@@ -11,6 +11,7 @@ class AttributionHttpClientTest {
     private val payload = buildJsonObject {
         put("device_id", "frozen-device"); put("user_id", "frozen-user")
         put("package_name", "test.package"); put("app_version", "2.0.0")
+        put("af_uid", "frozen-af-install")
     }
 
     @Test fun `HTTP success with failed business code is rejected`() = runBlocking {
@@ -30,6 +31,7 @@ class AttributionHttpClientTest {
             assertTrue(headers.contains("X-Device-ID: frozen-device"))
             assertTrue(headers.contains("X-APP-USER-ID: frozen-user"))
             assertTrue(headers.contains("X-App-Version: 2.0.0"))
+            assertTrue(headers.contains("X-AF-UID: frozen-af-install"))
         }
     }
 
