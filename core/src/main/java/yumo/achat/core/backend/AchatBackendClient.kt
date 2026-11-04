@@ -7,11 +7,22 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import yumo.achat.core.attribution.LoginAttribution
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 internal interface AchatAuthApi {
     fun loginAnonymously(deviceId: String, attribution: LoginAttribution): AuthSession
     fun register(username: String, password: String, deviceId: String, attribution: LoginAttribution): AuthSession
     fun refreshAccessToken(refreshToken: String): String
+    suspend fun refreshAccessTokenCancellable(refreshToken: String): String = refreshAccessToken(refreshToken)
     fun logout(token: String)
     fun deleteAccount(token: String)
 }
@@ -27,6 +38,10 @@ class AchatBackendClient(
     private val baseUrl: String = configuration.apiBaseUrl.trimEnd('/').removeSuffix("/api/v1")
     private val packageName: String = configuration.packageName
     private val clientVersion: String = configuration.clientVersion
+    private val cancellableRequests by lazy {
+        OkHttpClient.Builder().retryOnConnectionFailure(false).followRedirects(false)
+            .followSslRedirects(false).callTimeout(20, TimeUnit.SECONDS).build()
+    }
 
     fun clientConfigs(keys: Collection<String>, token: String? = null, deviceId: String? = null): ClientConfigs {
         val requestedKeys = ClientConfigKeys.merged(keys)
@@ -119,6 +134,14 @@ class AchatBackendClient(
         )
     }
 
+    override suspend fun refreshAccessTokenCancellable(refreshToken: String): String {
+        val body = JSONObject().put("refresh_token", refreshToken).toString()
+        val request = Request.Builder().url(baseUrl + "/api/v1/auth/refresh")
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .header("X-Package-Name", packageName).header("X-App-Version", clientVersion).build()
+        return cancellableRequest(request, AchatBackendParsers::parseRefreshedAccessToken)
+    }
+
     fun reportAttribution(payload: JSONObject) {
         val afUid = payload.optString("af_uid").takeIf(String::isNotBlank)
             ?: payload.optJSONObject("extra_data")?.optString("af_uid")?.takeIf(String::isNotBlank)
@@ -144,6 +167,37 @@ class AchatBackendClient(
 
     fun userProfile(token: String): UserProfile =
         AchatBackendParsers.parseUserProfile(get("/api/v1/user/profile", token))
+
+    suspend fun userProfileCancellable(token: String): UserProfile {
+        val request = Request.Builder().url(baseUrl + "/api/v1/user/profile")
+            .header("Authorization", "Bearer $token")
+            .header("X-Package-Name", packageName).header("X-App-Version", clientVersion).build()
+        return cancellableRequest(request, AchatBackendParsers::parseUserProfile)
+    }
+
+    private suspend fun <T> cancellableRequest(request: Request, parse: (String) -> T): T = suspendCancellableCoroutine { continuation ->
+        val call = cancellableRequests.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        try {
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resumeWith(Result.failure(e))
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    val result = runCatching {
+                        response.use {
+                            val body = it.body?.string().orEmpty()
+                            if (!it.isSuccessful) throw AchatBackendHttpException(it.code, body)
+                            parse(body)
+                        }
+                    }
+                    if (continuation.isActive) continuation.resumeWith(result)
+                }
+            })
+        } catch (error: Exception) {
+            if (continuation.isActive) continuation.resumeWith(Result.failure(error))
+        }
+    }
 
     fun updateUserProfile(
         token: String,

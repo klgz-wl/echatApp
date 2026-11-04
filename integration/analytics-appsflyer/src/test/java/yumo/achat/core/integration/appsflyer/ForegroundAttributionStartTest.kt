@@ -4,6 +4,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ForegroundAttributionStartTest {
+    @Test fun `uncorrelated conversion cannot release current lease after launch accepted`() {
+        val f = Fixture()
+        f.start.attach(Host())
+        f.start.request()
+        val attempt = f.start.latestAttempt
+        f.start.launchAccepted(attempt)
+        f.now = 1_000
+        f.start.request(retry = true)
+        f.start.conversionFinished()
+        assertEquals(1, f.started.size)
+        f.now = 15_000
+        f.start.request(retry = true)
+        assertEquals(2, f.started.size)
+    }
     private class Host(var valid: Boolean = true)
     private class Fixture {
         val started = mutableListOf<Pair<Host, Long>>()

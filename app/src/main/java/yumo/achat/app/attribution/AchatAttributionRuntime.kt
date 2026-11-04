@@ -31,6 +31,11 @@ import yumo.achat.app.ui.imagevideo.achatBackendConfiguration
 import yumo.achat.core.attribution.AttributionConfiguration
 import yumo.achat.core.attribution.AttributionCoordinator
 import yumo.achat.core.attribution.AttributionStorage
+import yumo.achat.core.attribution.AttributionHttpClient
+import yumo.achat.core.attribution.HomeAttributionGate
+import yumo.achat.core.attribution.AttributionAcquisitionFence
+import yumo.achat.core.attribution.withoutAdvertisingIdentifiers
+import yumo.achat.core.integration.appsflyer.AppsFlyerCallbackOwner
 import yumo.achat.core.attribution.AttributionStage
 import yumo.achat.core.attribution.AttributionResult
 import yumo.achat.core.attribution.AttributionResultSource
@@ -43,6 +48,7 @@ import yumo.achat.core.attribution.deviceAttributionReport
 import yumo.achat.core.analytics.AnalyticsSink
 import yumo.achat.core.auth.Session
 import yumo.achat.core.auth.SessionStorage
+import yumo.achat.core.auth.InstallationOwner
 import yumo.achat.core.backend.AchatBackendClient
 import yumo.achat.core.backend.AchatSessionStore
 import yumo.achat.core.backend.AuthSession
@@ -62,6 +68,12 @@ internal object AchatAttributionRuntime {
 }
 
 internal data class HomeGateTarget(val epoch: String?, val resultId: String?)
+
+internal fun captureAttributionCallbackOwner(clock: () -> Long, snapshot: () -> InstallationOwner?): AppsFlyerCallbackOwner {
+    val arrivedAt = clock()
+    val owner = snapshot()
+    return AppsFlyerCallbackOwner(owner?.deviceId.orEmpty(), owner?.userId, arrivedAt)
+}
 
 internal fun shouldActivateCompletion(
     activeUserId: String?,
@@ -83,7 +95,7 @@ internal suspend fun loginAttributionWithGaid(
     val currentId = async { advertisingIds.readOrNull() }
     val existing = attribution()
     val gaid = currentId.await()
-    existing.copy(deviceId = gaid ?: installDeviceId, gaid = gaid)
+    existing.copy(deviceId = installDeviceId, gaid = gaid)
 }
 
 internal suspend fun persistCurrentAttributionIfMissing(
@@ -109,20 +121,18 @@ internal class AppsFlyerBackendAttribution(
     )
     private val storage = AppAttributionStorage(appContext)
     private val advertisingIds = AdvertisingIdRuntime.get(appContext)
-    private val ledgerStore = SharedPreferencesAttributionLedgerStore(
-        appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE),
-    )
+    private val ledgerStore = DataStoreAttributionLedgerStore(appContext,
+        timeoutMillis = BuildConfig.ATTRIBUTION_STORAGE_TIMEOUT_MS.toLong())
     private fun completionScope(userId: String, deviceId: String = storage.deviceIdBlocking()) = AttributionCompletionScope(
         userId = userId,
         installDeviceId = deviceId,
         packageName = identity.packageName,
         environment = BuildConfig.FLAVOR,
     )
-    private val cachedCompletionScope = storage.cachedUserIdBlocking()?.let(::completionScope)
+    private val cachedCompletionScope = runCatching { storage.cachedUserIdBlocking()?.let(::completionScope) }.getOrNull()
     private val restoredLedger = runCatching { ledgerStore.snapshot() }.getOrNull()
     private val restoredCompletion = cachedCompletionScope?.let { completionScope ->
-        restoredLedger?.completionFor(completionScope)
-            ?: restoredLedger?.historicalCompletionFor(completionScope)
+        runCatching { ledgerStore.completion(completionScope) }.getOrNull()
     }
     private val restoredCompletionNeedsMigration = cachedCompletionScope != null &&
         restoredCompletion != null && restoredLedger?.completionFor(cachedCompletionScope) == null
@@ -132,11 +142,12 @@ internal class AppsFlyerBackendAttribution(
     }
     private val mutableAttributionCompleted = MutableStateFlow(restoredCompletion != null)
     val attributionCompleted = mutableAttributionCompleted.asStateFlow()
+    private val acquisitionFence = AttributionAcquisitionFence().also { if (restoredCompletion != null) it.suppress() }
     private val source = AppsFlyerAnalytics(
         context = appContext,
         config = AppsFlyerConfig(
             devKey = BuildConfig.APPSFLYER_DEV_KEY,
-            debugLogging = BuildConfig.APPSFLYER_DEBUG_LOGGING && BuildConfig.DEBUG,
+            debugLogging = false,
             enabled = BuildConfig.ENABLE_APPSFLYER,
             diagnosticLogging = BuildConfig.APPSFLYER_DIAGNOSTIC_LOGGING,
             canCollect = { AnalyticsConsent.granted(appContext) },
@@ -152,9 +163,14 @@ internal class AppsFlyerBackendAttribution(
             eventQueueCapacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
             minSessionIntervalSeconds = BuildConfig.APPSFLYER_MIN_SESSION_INTERVAL_SECONDS,
             requestTimeoutMillis = BuildConfig.APPSFLYER_REQUEST_TIMEOUT_MILLIS.toLong(),
+            callbackOwner = { captureAttributionCallbackOwner(System::currentTimeMillis, storage::ownerSnapshot) },
+            onAttributionResult = { result ->
+                val ticket = acquisitionFence.ticket() ?: throw CancellationException("Attribution acquisition paused")
+                kotlinx.coroutines.withContext(Dispatchers.IO) { persistResult(result, ticket) }
+            },
         ),
     )
-    private val client = AchatBackendClient(backendConfiguration)
+    private val client = AttributionHttpClient(backendConfiguration.apiBaseUrl)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutableSession = MutableStateFlow<AuthSession?>(null)
     @Volatile private var resumeAttributionForNextSession = false
@@ -163,12 +179,20 @@ internal class AppsFlyerBackendAttribution(
     val homeGateRevision = mutableHomeGateRevision.asStateFlow()
     private val mutableSnapshots = MutableStateFlow<JsonObject?>(null)
     private val mutableReportReceipts = MutableStateFlow<LedgerReportReceipt?>(null)
+    private val mutableProfileRetryRevision = MutableStateFlow(0L)
+    val profileRetryRevision = mutableProfileRetryRevision.asStateFlow()
     private val mutableStorageFailure = MutableStateFlow<AttributionResult?>(null)
+    private val pendingResultsLock = Any()
+    private val pendingResults = linkedMapOf<AttributionResult, Long>()
     private val startupNanos = System.nanoTime()
     private val startupId = java.util.UUID.randomUUID().toString()
     private val ownerLock = Any()
     @Volatile private var coordinatorInstance: AttributionCoordinator? = null
     @Volatile private var reporterInstance: LedgerAttributionReportDispatcher? = null
+    private val homeGate = HomeAttributionGate(scope, ::isAttributionComplete) {
+        reporter().updateStage(AttributionStage.HOME)
+        coordinator().awaitHome()
+    }
 
     init {
         if (restoredCompletionNeedsMigration) {
@@ -195,9 +219,6 @@ internal class AppsFlyerBackendAttribution(
         ).also { created ->
             coordinatorInstance = created
             scope.launch {
-                created.results.collect(::persistResult)
-            }
-            scope.launch {
                 created.snapshots.collect { mutableSnapshots.value = it }
             }
         }
@@ -220,23 +241,10 @@ internal class AppsFlyerBackendAttribution(
                     metadata = metadata,
                     gaid = advertisingIds.readOrNull(),
                 )
-                client.reportAttribution(JSONObject(payload.toString()))
+                client.report(payload)
             },
             completionScope = { _, pending -> completionScope(pending.userId, pending.deviceId) },
             deviceId = storage::deviceIdBlocking,
-            onCompletionPersisted = { completion, result ->
-                identityMutex.withLock {
-                    val activeCompletion = mutableSession.value?.let { active ->
-                        runCatching { ledgerStore.completion(completionScope(active.userId)) }.getOrNull()
-                    }
-                    if (activeCompletion?.reportId == completion.reportId &&
-                        shouldActivateCompletion(mutableSession.value?.userId, activeCompletion, result)) {
-                        mutableAttributionCompleted.value = true
-                        source.stopAttributionAcquisition(AttributionResult(result.source, result.data))
-                        mutableHomeGateRevision.value += 1L
-                    }
-                }
-            },
             nowNanos = System::nanoTime,
         ).also { created ->
             reporterInstance = created
@@ -248,27 +256,57 @@ internal class AppsFlyerBackendAttribution(
         }
     }
 
-    private suspend fun persistResult(result: AttributionResult) {
+    private suspend fun persistResult(result: AttributionResult, ticket: Long = acquisitionFence.ticket()
+        ?: throw CancellationException("Attribution acquisition paused")) {
+        if (!acquisitionFence.permits(ticket)) throw CancellationException("Stale attribution acquisition")
+        synchronized(pendingResultsLock) {
+            pendingResults[result] = ticket
+            mutableStorageFailure.value = pendingResults.keys.firstOrNull()
+        }
+        val previousTarget = reporter().currentResult()?.id
         var saved = false
         for (attempt in 0 until BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1)) {
             try {
-                reporter().updateResult(result.source, result.data)
+                if (!acquisitionFence.permits(ticket)) {
+                    forgetCandidate(result, ticket)
+                    throw CancellationException("Stale attribution acquisition")
+                }
+                reporter().updateResult(result.source, result.data) { acquisitionFence.permits(ticket) }
+                if (!acquisitionFence.permits(ticket)) {
+                    forgetCandidate(result, ticket)
+                    throw CancellationException("Stale attribution acquisition")
+                }
                 saved = true
                 break
             } catch (cancelled: CancellationException) {
+                if (!acquisitionFence.permits(ticket)) forgetCandidate(result, ticket)
                 throw cancelled
             } catch (error: Exception) {
-                Log.e("Attribution/Storage", "Failed to persist attribution result", error)
+                if (BuildConfig.APPSFLYER_DIAGNOSTIC_LOGGING) Log.w("Attribution/Storage", "Attribution persistence unavailable")
                 if (attempt + 1 < BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS) {
                     delay(BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong())
                 }
             }
         }
         if (saved) {
-            if (mutableStorageFailure.value == result) mutableStorageFailure.value = null
-            mutableHomeGateRevision.value += 1L
+            forgetCandidate(result, ticket)
+            if (reporter().currentResult()?.id != previousTarget) mutableHomeGateRevision.value += 1L
         } else {
-            mutableStorageFailure.value = result
+            throw AttributionStorageException()
+        }
+    }
+
+    private fun forgetCandidate(result: AttributionResult, ticket: Long) {
+        synchronized(pendingResultsLock) {
+            if (pendingResults[result] == ticket) pendingResults.remove(result)
+            mutableStorageFailure.value = pendingResults.keys.firstOrNull()
+        }
+    }
+
+    private fun invalidateCandidates() {
+        synchronized(pendingResultsLock) {
+            pendingResults.clear()
+            mutableStorageFailure.value = null
         }
     }
 
@@ -278,7 +316,7 @@ internal class AppsFlyerBackendAttribution(
         persistCurrentAttributionIfMissing(
             current = currentState,
             hasResult = activeReporter::hasResult,
-            persist = ::persistResult,
+            persist = { persistResult(it) },
         )
         val current = currentState as? ConversionResult.Success ?: return
         if (activeReporter.hasResult(current.source, current.data)) return
@@ -308,31 +346,32 @@ internal class AppsFlyerBackendAttribution(
     suspend fun awaitSplashPreAuthWindow() {
         if (isAttributionComplete()) return
         reporter().updateStage(AttributionStage.SPLASH)
-        mutableStorageFailure.value?.let { persistResult(it) }
         coordinator().awaitInitial()
-        awaitCurrentResultPersisted()
     }
     suspend fun awaitSplashPostAuthWindow() {
         if (isAttributionComplete()) return
         reporter().updateStage(AttributionStage.POST_LOGIN)
         coordinator().awaitAfterAuth()
-        awaitCurrentResultPersisted()
     }
     suspend fun awaitHomeWindow() {
         if (isAttributionComplete()) return
-        reporter().updateStage(AttributionStage.HOME)
-        coordinator().awaitHome()
+        homeGate.enterAndVerify()
+        mutableStorageFailure.value?.let { persistResult(it) }
         awaitCurrentResultPersisted()
     }
 
     suspend fun awaitHomeDataGate() {
         if (isAttributionComplete()) return
+        homeGate.awaitVerification()
         val expectedEpoch = mutableSession.value?.epoch ?: throw CancellationException("Signed out")
         val activeReporter = reporter()
         while (true) {
             if (mutableSession.value?.epoch != expectedEpoch) throw CancellationException("Session changed")
             if (activeReporter.storageFailed()) throw AttributionStorageException()
-            val target = activeReporter.currentResult() ?: return
+            if (mutableStorageFailure.value != null) throw AttributionStorageException()
+            val target = activeReporter.currentResult()
+            if (activeReporter.storageFailed()) throw AttributionStorageException()
+            if (target == null) return
             val session = mutableSession.value
             if (session == null) {
                 mutableSession.first { it != null }
@@ -359,13 +398,38 @@ internal class AppsFlyerBackendAttribution(
 
     fun retryHomeReport() {
         if (isAttributionComplete()) return
-        mutableStorageFailure.value?.let { failed -> scope.launch { persistResult(failed) } }
+        synchronized(pendingResultsLock) { pendingResults.toMap() }.forEach { (failed, ticket) ->
+            scope.launch {
+                try { persistResult(failed, ticket) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Keep this candidate for the next explicit Retry. */ }
+            }
+        }
         reporter().retryPending()
+        retryProfileRefresh()
+    }
+
+    fun retryProfileRefresh() { mutableProfileRetryRevision.value += 1L }
+
+    suspend fun beginAuthentication() {
+        if (isAttributionComplete()) return
+        acquisitionFence.beginSubmission()
+        invalidateCandidates()
+        source.resumeAttributionAcquisition()
+        coordinator().beginAuthentication()
+    }
+
+    fun pauseForLoginChoice() {
+        acquisitionFence.pause()
+        invalidateCandidates()
+        coordinatorInstance?.pauseAcquisition()
+        source.pauseAttributionAcquisition()
+        reporterInstance?.clearSession()
     }
 
     fun onActivityResumed(activity: Activity) {
         source.onActivityResumed(activity)
-        if (!isAttributionComplete()) reporter().retryPending()
+        if (!isAttributionComplete()) reporter().resumePending()
     }
 
     fun resumeRestoredSessionAttribution() {
@@ -391,11 +455,15 @@ internal class AppsFlyerBackendAttribution(
 
     suspend fun onSignedOut() {
         identityMutex.withLock {
+            acquisitionFence.pause()
+            invalidateCandidates()
             resumeAttributionForNextSession = resumeAttributionForNextSession || mutableAttributionCompleted.value
             mutableSession.value = null
             reporterInstance?.clearSession()
             mutableReportReceipts.value = null
             mutableAttributionCompleted.value = false
+            coordinatorInstance?.pauseAcquisition()
+            source.pauseAttributionAcquisition()
             mutableHomeGateRevision.value += 1L
         }
     }
@@ -419,7 +487,15 @@ internal class AppsFlyerBackendAttribution(
         identityMutex.withLock {
             val epochChanged = mutableSession.value?.epoch != session.epoch
             mutableSession.value = session
-            val completion = runCatching { ledgerStore.completion(completionScope(session.userId)) }.getOrNull()
+            val completion = runCatching {
+                ledgerStore.restoreCompletion(completionScope(session.userId)) {
+                    acquisitionFence.suppress()
+                    invalidateCandidates()
+                    reporterInstance?.clearSession()
+                    mutableReportReceipts.value = null
+                    mutableAttributionCompleted.value = true
+                }
+            }.getOrNull()
             if (completion != null) {
                 mutableAttributionCompleted.value = true
                 ledgerStore.snapshot().result(completion.resultId)?.let { result ->
@@ -428,6 +504,7 @@ internal class AppsFlyerBackendAttribution(
             } else {
                 val wasCompleted = mutableAttributionCompleted.value
                 mutableAttributionCompleted.value = false
+                acquisitionFence.activate()
                 if (wasCompleted || restoredCompletion != null || resumeAttributionForNextSession) source.resumeAttributionAcquisition()
                 reporter().updateSession(session)
             }
@@ -439,14 +516,15 @@ internal class AppsFlyerBackendAttribution(
 
 private class AppAttributionStorage(context: Context) : AttributionStorage, SessionStorage {
     private val appContext = context.applicationContext
-    private val preferences = appContext.getSharedPreferences("achat_attribution", Context.MODE_PRIVATE)
+    private val ledger = DataStoreAttributionLedgerStore(appContext,
+        timeoutMillis = BuildConfig.ATTRIBUTION_STORAGE_TIMEOUT_MS.toLong())
     private val sessionStore = AchatSessionStore(appContext)
 
     override suspend fun readAttribution(): JsonObject? =
-        preferences.getString(KEY_ATTRIBUTION, null)?.let { Json.parseToJsonElement(it) as? JsonObject }
+        ledger.readAttribution()
 
     override suspend fun writeAttribution(data: JsonObject) {
-        preferences.edit().putString(KEY_ATTRIBUTION, data.toString()).apply()
+        // The source hook commits the compatibility snapshot with its result and reports.
     }
 
     override suspend fun read(): Session? = null
@@ -455,6 +533,7 @@ private class AppAttributionStorage(context: Context) : AttributionStorage, Sess
 
     fun deviceIdBlocking(): String = sessionStore.deviceId()
     fun cachedUserIdBlocking(): String? = sessionStore.readSession()?.userId
+    fun ownerSnapshot() = sessionStore.ownerSnapshot()
 
     private companion object {
         const val KEY_ATTRIBUTION = "appsflyer_install_attribution"

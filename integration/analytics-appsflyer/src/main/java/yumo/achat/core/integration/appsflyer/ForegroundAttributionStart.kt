@@ -43,7 +43,8 @@ internal class ForegroundAttributionStart<T : Any>(
             dispatch()
         }
     }
-    fun conversionFinished(attempt: Long = activeAttempt) {
+    // SDK conversion listeners have no request correlation; only an explicitly known lease may end.
+    fun conversionFinished(attempt: Long = 0L) {
         if (attempt == activeAttempt) { conversionPending = false; dispatch() }
     }
     private fun dispatch() {

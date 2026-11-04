@@ -2,19 +2,72 @@ package yumo.achat.core.integration.appsflyer
 
 import java.net.URLDecoder
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 
 @Serializable
 data class InstallReferrerRaw(
-    val installReferrer: String,
+    val installReferrer: String?,
     val referrerClickTimestampSeconds: Long,
     val installBeginTimestampSeconds: Long,
-    val referrerClickTimestampServerSeconds: Long? = null,
-    val installBeginTimestampServerSeconds: Long? = null,
+    val referrerClickTimestampServerSeconds: Long = 0,
+    val installBeginTimestampServerSeconds: Long = 0,
     val installVersion: String? = null,
-    val googlePlayInstant: Boolean? = null,
-)
+    val googlePlayInstant: Boolean = false,
+) {
+    override fun toString(): String = "InstallReferrerRaw(redacted)"
+}
+
+internal fun InstallReferrerRaw.evidenceData(): JsonObject = buildJsonObject {
+    put("install_referrer", installReferrer?.let(::JsonPrimitive) ?: JsonNull)
+    put("referrer_click_timestamp_seconds", referrerClickTimestampSeconds)
+    put("install_begin_timestamp_seconds", installBeginTimestampSeconds)
+    put("referrer_click_timestamp_server_seconds", referrerClickTimestampServerSeconds)
+    put("install_begin_timestamp_server_seconds", installBeginTimestampServerSeconds)
+    put("install_version", installVersion?.let(::JsonPrimitive) ?: JsonNull)
+    put("google_play_instant", googlePlayInstant)
+}
+
+internal fun encodeInstallReferrerCache(firstInstallTime: Long, raw: InstallReferrerRaw): String {
+    require(firstInstallTime > 0)
+    return buildJsonObject {
+        put("first_install_time_ms", firstInstallTime)
+        put("data", raw.evidenceData())
+    }.toString()
+}
+
+internal fun decodeInstallReferrerCache(
+    encoded: String,
+    firstInstallTime: Long,
+    legacyFirstInstallTime: Long? = null,
+): InstallReferrerRaw? = runCatching {
+    if (firstInstallTime <= 0) return@runCatching null
+    val root = Json.parseToJsonElement(encoded) as? JsonObject ?: return@runCatching null
+    if ("first_install_time_ms" !in root) {
+        if (legacyFirstInstallTime != firstInstallTime) return@runCatching null
+        // Older successful_result stored the camel-case raw object with nullable optional fields.
+        val legacy = JsonObject(root.filterValues { it != JsonNull })
+        return@runCatching Json { ignoreUnknownKeys = true }.decodeFromJsonElement<InstallReferrerRaw>(legacy)
+    }
+    val install = root["first_install_time_ms"] as? JsonPrimitive ?: return@runCatching null
+    if (install.isString || install.longOrNull != firstInstallTime) return@runCatching null
+    val data = root["data"] as? JsonObject ?: return@runCatching null
+    fun string(key: String): String? = when (val value = data.getValue(key)) {
+        JsonNull -> null
+        is JsonPrimitive -> { require(value.isString); value.content }
+        else -> error("Invalid string")
+    }
+    fun number(key: String): Long = (data.getValue(key) as JsonPrimitive).let {
+        require(!it.isString); requireNotNull(it.longOrNull)
+    }
+    val instant = data.getValue("google_play_instant") as JsonPrimitive
+    require(!instant.isString)
+    InstallReferrerRaw(
+        string("install_referrer"), number("referrer_click_timestamp_seconds"),
+        number("install_begin_timestamp_seconds"), number("referrer_click_timestamp_server_seconds"),
+        number("install_begin_timestamp_server_seconds"), string("install_version"),
+        requireNotNull(instant.booleanOrNull),
+    )
+}.getOrNull()
 
 private val invalidReferrerValues = setOf("", "unknown", "null", "undefined", "none", "(none)", "not set", "(not set)")
 
@@ -22,7 +75,8 @@ internal fun installReferrerSupplement(
     raw: InstallReferrerRaw,
     afUid: String,
     paidMediums: Set<String>,
-) = parseReferrer(raw.installReferrer)?.let { parameters ->
+) = parseReferrer(raw.installReferrer.orEmpty())?.let { parameters ->
+    if (parameters.values.any { it.distinct().size > 1 }) return@let null
     val gclid = parameters.singleValue("gclid")?.takeUnless(::invalidReferrerValue)
     val source = parameters.singleValue("utm_source")?.takeUnless(::invalidReferrerValue)
     val medium = parameters.singleValue("utm_medium")?.lowercase()?.takeUnless(::invalidReferrerValue)
@@ -36,15 +90,7 @@ internal fun installReferrerSupplement(
         medium?.let { put("af_channel", it); put("utm_medium", it) }
         parameters.singleValue("utm_campaign")?.takeUnless(::invalidReferrerValue)?.let { put("campaign", it) }
         parameters.singleValue("utm_id")?.takeUnless(::invalidReferrerValue)?.let { put("campaign_id", it) }
-        buildJsonObject {
-            put("install_referrer", raw.installReferrer)
-            put("referrer_click_timestamp_seconds", raw.referrerClickTimestampSeconds)
-            put("install_begin_timestamp_seconds", raw.installBeginTimestampSeconds)
-            raw.referrerClickTimestampServerSeconds?.let { put("referrer_click_timestamp_server_seconds", it) }
-            raw.installBeginTimestampServerSeconds?.let { put("install_begin_timestamp_server_seconds", it) }
-            raw.installVersion?.let { put("install_version", it) }
-            raw.googlePlayInstant?.let { put("google_play_instant", it) }
-        }.also { put("install_referrer_evidence", it) }
+        put("install_referrer_evidence", raw.evidenceData())
     }
 }
 

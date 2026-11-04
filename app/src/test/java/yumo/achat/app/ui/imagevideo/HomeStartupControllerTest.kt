@@ -1,15 +1,162 @@
 package yumo.achat.app.ui.imagevideo
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import java.io.IOException
 import javax.net.ssl.SSLException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeStartupControllerTest {
+    private fun timeoutController() = HomeStartupController(
+        awaitPreAuth = {}, awaitPostAuth = {}, awaitHomeWindow = {}, awaitHomeDataGate = {},
+        networkTimeoutMillis = 20,
+    )
+
+    @Test fun `owned auth timeout is a visible failure before session exists`() = runBlocking {
+        var profileCalls = 0
+        val failure = runCatching {
+            timeoutController().startup(authenticate = { awaitCancellation() }, profile = { profileCalls++ })
+        }.exceptionOrNull()
+        assertTrue(failure is StartupOperationTimeout)
+        assertEquals(0, profileCalls)
+    }
+
+    @Test fun `owned first profile timeout preserves authenticated session for splash retry`() = runBlocking {
+        var saved: String? = null
+        val controller = timeoutController()
+        val failure = runCatching {
+            controller.startup(authenticate = { saved = "saved"; saved }, profile = { awaitCancellation() })
+        }.exceptionOrNull()
+        assertTrue(failure is StartupOperationTimeout)
+        assertEquals("saved", saved)
+        assertEquals("saved" to "profile", controller.resumeAfterAuthentication(saved) { "profile" })
+    }
+
+    @Test fun `external cancellation remains cancellation across all owned timeout boundaries`() = runBlocking {
+        val cancelled = CancellationException("screen disposed")
+        val failure = runCatching {
+            timeoutController().restoreSession("saved") { throw cancelled }
+        }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
+        assertEquals(cancelled.javaClass, failure?.javaClass)
+        assertEquals(cancelled.message, failure?.message)
+        assertTrue(currentCoroutineContext().isActive)
+        val outerTimeout = runCatching {
+            withTimeout(5) { timeoutController().restoreSession("saved") { awaitCancellation() } }
+        }.exceptionOrNull()
+        assertTrue(outerTimeout is CancellationException)
+        assertTrue(outerTimeout !is StartupOperationTimeout)
+    }
+
+    @Test fun `timeout inside owned request is visible without cancelling the caller`() = runBlocking {
+        val failure = runCatching {
+            timeoutController().restoreSession("saved") {
+                withTimeout(5) { awaitCancellation() }
+            }
+        }.exceptionOrNull()
+        assertTrue("Expected owned timeout, got $failure", failure is StartupOperationTimeout)
+        assertTrue(currentCoroutineContext().isActive)
+    }
+
+    @Test fun `outer timeout cancels profile refresh instead of exhausting retries`() = runBlocking {
+        var attempts = 0
+        val failure = runCatching {
+            withTimeout(5) {
+                timeoutController().refreshAttributionProfile(10, 1, { true }) {
+                    attempts++
+                    awaitCancellation()
+                }
+            }
+        }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
+        assertEquals(1, attempts)
+    }
+
+    @Test fun `successful nullable operation is not treated as timeout`() = runBlocking {
+        val result = timeoutController().restoreSession("saved") { null }
+        assertEquals("saved" to null, result)
+    }
+
+    @Test fun `valid submission prepares identity before binding and beginning attribution`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            awaitPreAuth = { calls += "pre" }, awaitPostAuth = { calls += "post" },
+            awaitHomeWindow = {}, awaitHomeDataGate = {}, networkTimeoutMillis = 1_000,
+            beginAuthentication = { calls += "begin" },
+        )
+        controller.startup(
+            prepare = { calls += "identity"; calls += "bind" },
+            authenticate = { calls += "auth"; "session" }, profile = { calls += "profile"; "profile" },
+        )
+        assertEquals(listOf("identity", "bind", "begin", "pre", "auth", "post", "profile"), calls)
+    }
+
+    @Test fun `identity preparation failure cannot start attribution or authentication`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            awaitPreAuth = { calls += "pre" }, awaitPostAuth = {}, awaitHomeWindow = {},
+            awaitHomeDataGate = {}, networkTimeoutMillis = 1_000, beginAuthentication = { calls += "begin" },
+        )
+        assertThrows(IllegalStateException::class.java) { runBlocking {
+            controller.startup(prepare = { error("identity unavailable") },
+                authenticate = { calls += "auth" }, profile = { calls += "profile" })
+        } }
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    @Test fun `session restoration never begins authentication or waits attribution`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val controller = HomeStartupController(
+            awaitPreAuth = { calls += "pre" }, awaitPostAuth = { calls += "post" },
+            awaitHomeWindow = {}, awaitHomeDataGate = {}, networkTimeoutMillis = 1_000,
+            beginAuthentication = { calls += "begin" },
+        )
+        val result = controller.restoreSession("saved") { calls += "profile"; "profile" }
+        assertEquals("saved" to "profile", result)
+        assertEquals(listOf("profile"), calls)
+    }
+
+    @Test fun `exhausted attribution profile refresh is retryable without authentication or report calls`() = runBlocking {
+        var attempts = 0
+        var succeeds = false
+        val controller = HomeStartupController(
+            awaitPreAuth = { error("must not authenticate") }, awaitPostAuth = { error("must not authenticate") },
+            awaitHomeWindow = {}, awaitHomeDataGate = {}, networkTimeoutMillis = 1_000,
+        )
+        assertThrows(AttributionProfileRefreshExhausted::class.java) { runBlocking {
+            controller.refreshAttributionProfile(2, 1, { true }) {
+                attempts++; throw IOException("offline")
+            }
+        } }
+        succeeds = true
+        val result = controller.refreshAttributionProfile(2, 1, { true }) {
+            attempts++; check(succeeds); "profile"
+        }
+        assertEquals("profile", result)
+        assertEquals(3, attempts)
+    }
+
+    @Test fun `profile response from superseded result or account is discarded`() = runBlocking {
+        var current = true
+        val controller = HomeStartupController(
+            awaitPreAuth = {}, awaitPostAuth = {}, awaitHomeWindow = {}, awaitHomeDataGate = {},
+            networkTimeoutMillis = 1_000,
+        )
+        val result = controller.refreshAttributionProfile(3, 1, { current }) {
+            current = false
+            "stale"
+        }
+        assertEquals(null, result)
+    }
     @Test fun `retry after successful authentication resumes at post auth without signing in again`() = runBlocking {
         val calls = mutableListOf<String>()
         val controller = HomeStartupController(

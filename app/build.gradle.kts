@@ -62,6 +62,7 @@ val flavorConfigurations = listOf("dev", "prod").associateWith { env ->
         putAll(common)
         putAll(readProperties("config/$env.properties"))
         setProperty("applicationId", flavorApplicationIds.getValue(env))
+        setProperty("build.string.ACHAT_CLIENT_VERSION", getProperty("app.version.name"))
         val endpointKey = if (env == "prod" && mode == "DEV_REUSE") "dev" else env
         flavorEndpoints.getValue(endpointKey).forEach { (key, value) ->
             setProperty("build.string.$key", value)
@@ -92,7 +93,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "ACHAT_API_BASE_URL", "\"https://test.appjoly.com\"")
         buildConfigField("String", "ACHAT_WS_URL", "\"wss://test.appjoly.com/connection/websocket\"")
-        buildConfigField("String", "ACHAT_CLIENT_VERSION", "\"2.0.0\"")
+        buildConfigField("String", "ACHAT_CLIENT_VERSION", quoted(common.getProperty("app.version.name")))
     }
 
     signingConfigs {
@@ -136,6 +137,10 @@ android {
                     if (env == "prod" && mode == "FORMAL") "formal" else "sharedDev",
                 )
                 manifestPlaceholders["appLabel"] = config.getProperty("app.display.name", "Achat")
+                manifestPlaceholders["attributionStorageName"] = config.getProperty("build.string.STORAGE_NAME")
+                    .also { check(!it.isNullOrBlank()) { "STORAGE_NAME must not be blank" } }
+                manifestPlaceholders["attributionEnvironment"] = env
+                manifestPlaceholders["attributionStorageTimeout"] = config.getProperty("build.int.ATTRIBUTION_STORAGE_TIMEOUT_MS")
                 manifestPlaceholders["firebaseAnalyticsEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_ANALYTICS", "false")
                 manifestPlaceholders["firebaseCrashlyticsEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_CRASHLYTICS", "false")
                 manifestPlaceholders["firebaseMessagingEnabled"] = config.getProperty("build.boolean.ENABLE_FIREBASE_MESSAGING", "false")
@@ -332,7 +337,8 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         val text = buildConfig.get().asFile.readText()
         val expected = mapOf(
             "APPLICATION_ID" to "com.zorv.app",
-            "ACHAT_CLIENT_VERSION" to "1.0.1",
+            "ACHAT_CLIENT_VERSION" to flavorConfigurations.getValue("prod").getProperty("app.version.name"),
+            "VERSION_NAME" to flavorConfigurations.getValue("prod").getProperty("app.version.name"),
             "ACHAT_API_BASE_URL" to "https://release.zorv.date",
             "ACHAT_WS_URL" to "wss://release.zorv.date/connection/websocket",
             "CORE_BASE_URL" to "https://release.zorv.date/api/v1/",

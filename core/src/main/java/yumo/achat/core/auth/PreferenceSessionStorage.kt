@@ -1,33 +1,27 @@
 package yumo.achat.core.auth
 
 import android.content.Context
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStoreFile
-import yumo.achat.core.config.CoreRuntimeConfig
+import android.provider.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 import yumo.achat.core.attribution.AttributionStorage
+import yumo.achat.core.attribution.DataStoreAttributionLedgerStore
 import yumo.achat.core.backend.AchatSessionStore
+import yumo.achat.core.config.CoreRuntimeConfig
 import kotlinx.serialization.json.JsonObject
 
 @Singleton
 class PreferenceSessionStorage @Inject constructor(@ApplicationContext context: Context, config: CoreRuntimeConfig) : SessionStorage, AttributionStorage {
-    private val data = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(config.storage.preferencesName) }
-    private val sharedDeviceStore = AchatSessionStore(context)
-    private val sessionKey = stringPreferencesKey("auth_session")
-    private val attributionKey = stringPreferencesKey("appsflyer_install_attribution")
-    override suspend fun readAttribution(): JsonObject? = data.data.first()[attributionKey]?.let { Json.decodeFromString<JsonObject>(it) }
-    override suspend fun writeAttribution(data: JsonObject) {
-        this.data.edit { it[attributionKey] = data.toString() }
+    private val installation = InstallationPreferences(context, config.storage.preferencesName)
+    private val session = AchatSessionStore(installation) {
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?.takeIf(String::isNotBlank) ?: error("Android ID unavailable")
     }
-    override suspend fun read(): Session? = data.data.first()[sessionKey]?.let { Json.decodeFromString<Session>(it) }
-    override suspend fun write(session: Session?) {
-        data.edit { if (session == null) it.remove(sessionKey) else it[sessionKey] = Json.encodeToString(Session.serializer(), session) }
-    }
-    override suspend fun deviceId(): String = sharedDeviceStore.deviceId()
+    private val attribution = DataStoreAttributionLedgerStore(installation)
+    override suspend fun readAttribution(): JsonObject? = attribution.readAttribution()
+    override suspend fun writeAttribution(data: JsonObject) = attribution.writeAttribution(data)
+    override suspend fun read(): Session? = session.readCoreSession()
+    override suspend fun write(session: Session?) = this.session.writeCoreSession(session)
+    override suspend fun deviceId(): String = session.deviceId()
 }

@@ -16,8 +16,13 @@ class GoogleAdvertisingIdProviderTest {
     private val first = "12345678-1234-4234-8234-123456789abc"
     private val second = "87654321-4321-4321-8321-cba987654321"
 
+    @Test fun `snapshot diagnostics never echo advertising identifiers`() {
+        assertFalse(AdvertisingIdSnapshot(first, false).toString().contains(first))
+    }
+
     @Test fun `limited deleted blank and malformed IDs are unavailable`() {
         assertEquals(first, usableAdvertisingId(AdvertisingIdSnapshot(first, false)))
+        assertEquals(first, usableAdvertisingId(AdvertisingIdSnapshot(first.uppercase(), false)))
         for (snapshot in listOf(
             AdvertisingIdSnapshot(first, true), AdvertisingIdSnapshot(null, false),
             AdvertisingIdSnapshot("", false),
@@ -47,25 +52,24 @@ class GoogleAdvertisingIdProviderTest {
         assertEquals(2, calls.get())
     }
 
-    @Test fun `timed out stuck read is retired and late completion cannot replace newer read`() = runBlocking {
+    @Test fun `timed out callers keep sharing the actual blocking read until completion`() = runBlocking {
         val calls = AtomicInteger()
         val releaseFirst = CountDownLatch(1)
-        val enteredSecond = CountDownLatch(1)
-        val releaseSecond = CountDownLatch(1)
+        val completed = CountDownLatch(1)
         val provider = GoogleAdvertisingIdProvider(lookup = {
             when (calls.incrementAndGet()) {
-                1 -> { releaseFirst.await(2, TimeUnit.SECONDS); AdvertisingIdSnapshot(first, false) }
-                else -> { enteredSecond.countDown(); releaseSecond.await(2, TimeUnit.SECONDS); AdvertisingIdSnapshot(second, false) }
+                1 -> { releaseFirst.await(2, TimeUnit.SECONDS); completed.countDown(); AdvertisingIdSnapshot(first, false) }
+                else -> AdvertisingIdSnapshot(second, false)
             }
         }, timeoutMillis = 200)
         assertNull(provider.current())
+        assertNull(provider.current())
+        assertEquals(1, calls.get())
         val retry = async(start = CoroutineStart.UNDISPATCHED) { provider.current() }
-        assertTrue(enteredSecond.await(1, TimeUnit.SECONDS))
         releaseFirst.countDown()
-        val overlapping = async(start = CoroutineStart.UNDISPATCHED) { provider.current() }
-        releaseSecond.countDown()
-        assertEquals(second, retry.await())
-        assertEquals(second, overlapping.await())
+        assertEquals(first, retry.await())
+        assertTrue(completed.await(1, TimeUnit.SECONDS))
+        assertEquals(second, provider.current())
         assertEquals(2, calls.get())
     }
 

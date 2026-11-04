@@ -26,6 +26,10 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     @Volatile private var started = false
     @Volatile private var sdkMediaObserved = config.restoredAttribution?.data?.isMediaAttribution() == true
     @Volatile private var acquisitionSuppressed = config.restoredAttribution != null
+    @Volatile private var attributionListening = false
+    @Volatile private var acquisitionPaused = false
+    private var listenerRegistered = false
+    @Volatile private var acquisitionGeneration = 0L
     private val sdkLock = Any()
     private val pendingEvents = PendingAppsFlyerEvents(config.eventQueueCapacity)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -46,11 +50,12 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
         scope = scope,
         timeoutMillis = config.gcd.timeoutMillis,
         uid = ::currentId,
-        eligible = { ready && config.enabled && config.canCollect() && !sdkMediaObserved && !acquisitionSuppressed },
+        eligible = { ready && config.enabled && config.canCollect() && !sdkMediaObserved && !acquisitionSuppressed && !acquisitionPaused },
         validHost = { !it.isFinishing && !it.isDestroyed },
         fetch = gcdClient::fetch,
         referrer = { afUid -> withTimeoutOrNull(config.installReferrerTimeoutMillis) { installReferrer.supplement(afUid) } },
         onResult = conversionState::auxiliarySnapshot,
+        persistResult = { source, data -> config.onAttributionResult(AttributionResult(source, data)) },
     )
     private val callbackSequencer = AppsFlyerConversionCallbackSequencer()
     private val callbackEvents = ConversionCallbackEvents<AppsFlyerConversionCallback>()
@@ -63,20 +68,31 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     fun onActivityResumed(activity: Activity) {
         foregroundStart.attach(activity)
         gcd.attach(activity)
-        if (sdkMediaObserved && !started) requestStart(retry = true)
+        if (acquisitionSuppressed && !acquisitionPaused && !started) requestStart(retry = false, attribution = false)
     }
     fun onActivityPaused(activity: Activity) { foregroundStart.detach(activity); gcd.detach(activity) }
     fun onAccessRevoked() { foregroundStart.revokeAccess(); gcd.revokeAccess() }
 
-    override fun initialize() = startAttribution()
+    override fun initialize() { requestStart(retry = false, attribution = false) }
     override fun startAttribution() { requestStart(retry = false) }
     override fun retryAttribution() { requestStart(retry = true) }
-    private fun requestStart(retry: Boolean) {
+    private fun requestStart(retry: Boolean, attribution: Boolean = true) {
         scope.launch {
+            if (acquisitionPaused) return@launch
             if (!appsFlyerCollectionAllowed(config.enabled, config.canCollect())) {
                 updateStartStatus(AttributionStartStage.DISABLED)
                 conversionState.sdkFailure()
                 return@launch
+            }
+            if (attribution) {
+                if (acquisitionSuppressed) return@launch
+                attributionListening = true
+                synchronized(sdkLock) {
+                    if (ready && !listenerRegistered) {
+                        AppsFlyerLib.getInstance().registerConversionListener(context, conversionListener())
+                        listenerRegistered = true
+                    }
+                }
             }
             val known = conversionState.data
             if (known?.hasValidAttribution() == true && started) {
@@ -92,61 +108,13 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
         try {
             synchronized(sdkLock) { AppsFlyerLib.getInstance().apply {
                 if (!ready) {
-                    setDebugLog(config.debugLogging)
+                    setDebugLog(false)
                     setMinTimeBetweenSessions(config.minSessionIntervalSeconds)
-                    init(config.devKey, object : AppsFlyerConversionListener {
-                        override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
-                            val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
-                            if (acquisitionSuppressed) {
-                                val callbackAttempt = foregroundStart.latestAttempt
-                                scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
-                                return
-                            }
-                            if (snapshot.isMediaAttribution()) sdkMediaObserved = true
-                            val status = (snapshot["af_status"] as? JsonPrimitive)?.contentOrNull
-                            val callbackAttempt = foregroundStart.latestAttempt
-                            callbackEvents.publish(callbackSequencer.success(status, callbackAttempt))
-                            scope.launch {
-                                conversionState.sdkSnapshot(snapshot)
-                                if (snapshot.isMediaAttribution()) gcd.sdkMedia()
-                                else if (status.equals("Organic", ignoreCase = true)) {
-                                    foregroundStart.dropPendingRetry()
-                                    gcd.sdkOrganic()
-                                }
-                                foregroundStart.conversionFinished(callbackAttempt)
-                                diagnostic("AppsFlyer/Attribution", "收到归因回调，有效=${snapshot.hasValidAttribution()}")
-                            }
-                        }
-                        override fun onConversionDataFail(message: String?) {
-                            val callbackAttempt = foregroundStart.latestAttempt
-                            if (acquisitionSuppressed) {
-                                scope.launch { foregroundStart.conversionFinished(callbackAttempt) }
-                                return
-                            }
-                            callbackEvents.publish(callbackSequencer.failure(callbackAttempt))
-                            scope.launch {
-                                conversionState.sdkFailure()
-                                foregroundStart.conversionFinished(callbackAttempt)
-                            }
-                            // 仅提取 SDK 已知格式中的 HTTP 数字，不输出任意回调原文。
-                            val status = Regex("^Launch status code: ([0-9]{3})$")
-                                .matchEntire(message.orEmpty().trim())?.groupValues?.get(1)
-                            diagnostic("AppsFlyer/Attribution", "SDK 归因回调失败，HTTP=${status ?: "unknown"}")
-                        }
-                        override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
-                            if (acquisitionSuppressed) return
-                            val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
-                            if (snapshot.isMediaAttribution()) sdkMediaObserved = true
-                            if (snapshot.hasValidAttribution()) scope.launch {
-                                conversionState.sdkSnapshot(snapshot)
-                                if (snapshot.isMediaAttribution()) gcd.sdkMedia()
-                            }
-                        }
-                        override fun onAttributionFailure(message: String?) { /* 保留已有安装归因。 */ }
-                    }, context)
+                    init(config.devKey, if (attributionListening && !acquisitionSuppressed) conversionListener() else null, context)
+                    listenerRegistered = attributionListening && !acquisitionSuppressed
                     ready = true
                 }
-                conversionState.startPending()
+                if (attributionListening && !acquisitionSuppressed) conversionState.startPending()
                 updateStartStatus(AttributionStartStage.START_CALLED)
                 // 延迟启动必须传当前 Activity；Application Context 会遗漏已经发生的首次前台事件。
                 start(activity, config.devKey, object : AppsFlyerRequestListener {
@@ -187,6 +155,68 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
             return false
         }
     }
+    private fun conversionListener(): AppsFlyerConversionListener {
+        val listenerGeneration = acquisitionGeneration
+        fun active(): Boolean = attributionListening && !acquisitionSuppressed && !acquisitionPaused &&
+            listenerGeneration == acquisitionGeneration
+        return object : AppsFlyerConversionListener {
+            override fun onConversionDataSuccess(data: MutableMap<String, Any>?) {
+                val owner = config.callbackOwner()
+                val callbackAttempt = foregroundStart.latestAttempt
+                if (!active()) return
+                val snapshot = appsFlyerConversionSnapshot(data.orEmpty(), currentId())
+                val status = (snapshot["af_status"] as? JsonPrimitive)?.contentOrNull
+                callbackEvents.publish(callbackSequencer.success(status, callbackAttempt, owner))
+                scope.launch {
+                    if (!active()) return@launch
+                    acceptSdkSnapshot(snapshot, ::active)
+                }
+            }
+
+            override fun onConversionDataFail(message: String?) {
+                val owner = config.callbackOwner()
+                val callbackAttempt = foregroundStart.latestAttempt
+                if (!active()) return
+                callbackEvents.publish(callbackSequencer.failure(callbackAttempt, owner))
+                scope.launch { if (active()) conversionState.sdkFailure() }
+                val status = Regex("^Launch status code: ([0-9]{3})$")
+                    .matchEntire(message.orEmpty().trim())?.groupValues?.get(1)
+                diagnostic("AppsFlyer/Attribution", "SDK 归因回调失败，HTTP=${status ?: "unknown"}")
+            }
+
+            override fun onAppOpenAttribution(data: MutableMap<String, String>?) {
+                if (!active()) return
+                val snapshot = appsFlyerAppOpenAttributionSnapshot(data.orEmpty(), currentId())
+                if (snapshot.hasValidAttribution()) scope.launch {
+                    if (active()) acceptSdkSnapshot(snapshot, ::active)
+                }
+            }
+
+            override fun onAttributionFailure(message: String?) { }
+        }
+    }
+
+    private suspend fun acceptSdkSnapshot(snapshot: JsonObject, active: () -> Boolean) {
+        try {
+            if (snapshot.hasValidAttribution()) {
+                config.onAttributionResult(AttributionResult(AttributionResultSource.APPSFLYER_SDK, snapshot))
+                if (!active()) return
+            }
+            conversionState.sdkSnapshot(snapshot)
+            if (snapshot.isMediaAttribution()) {
+                sdkMediaObserved = true
+                foregroundStart.dropPendingRetry()
+                gcd.sdkMedia()
+            } else if ((snapshot["af_status"] as? JsonPrimitive)?.contentOrNull.equals("Organic", ignoreCase = true)) {
+                foregroundStart.dropPendingRetry()
+                gcd.sdkOrganic()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            diagnostic("AppsFlyer/Attribution", "归因持久化失败，保留待处理状态")
+        }
+    }
     private fun updateStartStatus(stage: AttributionStartStage, code: Int? = null) {
         mutableStartStatus.value = AttributionStartStatus(stage, code)
         diagnostic("AppsFlyer/Startup", "启动阶段=${stage.name}，错误码=$code")
@@ -204,9 +234,28 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
         return true
     }
     override val preHomeConfirmation = gcd.preHomeComplete
+    override fun pauseAttributionAcquisition() {
+        scope.launch {
+            acquisitionPaused = true
+            attributionListening = false
+            acquisitionGeneration++
+            synchronized(sdkLock) {
+                if (ready) AppsFlyerLib.getInstance().unregisterConversionListener()
+                listenerRegistered = false
+            }
+            foregroundStart.revokeAccess()
+            gcd.revokeAccess()
+        }
+    }
     override suspend fun stopAttributionAcquisition(restored: AttributionResult?) {
         withContext(Dispatchers.Main.immediate) {
             acquisitionSuppressed = true
+            attributionListening = false
+            acquisitionGeneration++
+            synchronized(sdkLock) {
+                if (ready) AppsFlyerLib.getInstance().unregisterConversionListener()
+                listenerRegistered = false
+            }
             sdkMediaObserved = true
             restored?.let(conversionState::restoreSnapshot)
             foregroundStart.dropPendingRetry()
@@ -215,11 +264,16 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
     }
     override suspend fun resumeAttributionAcquisition() {
         withContext(Dispatchers.Main.immediate) {
-            if (!acquisitionSuppressed) return@withContext
+            if (!acquisitionSuppressed && !acquisitionPaused) return@withContext
+            val resetIdentity = acquisitionSuppressed
+            acquisitionPaused = false
             acquisitionSuppressed = false
-            sdkMediaObserved = false
-            conversionState.clearRestoredSnapshot()
-            gcd.resetForNewIdentity()
+            acquisitionGeneration++
+            if (resetIdentity) {
+                sdkMediaObserved = false
+                conversionState.clearRestoredSnapshot()
+                gcd.resetForNewIdentity()
+            }
             requestStart(retry = true)
         }
     }
@@ -250,7 +304,7 @@ class AppsFlyerAnalytics @Inject constructor(@ApplicationContext private val con
 internal fun appsFlyerConversionSnapshot(data: Map<String, Any>, afUid: String): JsonObject = buildJsonObject {
     (conversionJson(data) as JsonObject).forEach { (key, value) -> put(key, value) }
     put("af_uid", afUid)
-}
+}.withoutAdvertisingIdentifiers()
 
 internal fun appsFlyerAppOpenAttributionSnapshot(data: Map<String, String>, afUid: String): JsonObject = buildJsonObject {
     val hasSignal = data.hasAppOpenAttributionSignal()
@@ -262,7 +316,7 @@ internal fun appsFlyerAppOpenAttributionSnapshot(data: Map<String, String>, afUi
         put("af_status", data["af_status"]?.takeIf { it.isNotBlank() } ?: "Non-organic")
     }
     put("af_uid", afUid)
-}
+}.withoutAdvertisingIdentifiers()
 
 private fun Map<String, String>.hasAppOpenAttributionSignal(): Boolean =
     listOf("media_source", "network", "campaign", "deep_link_value", "af_dp", "link")

@@ -27,9 +27,19 @@ import org.junit.Test
 
 class GcdAttributionClientTest {
     private val config = GcdRecheckConfig(
-        baseUrl = "https://gcdsdk.appsflyer.com/install_data/v4.0/".toHttpUrl(),
+        baseUrl = "https://gcdsdk.appsflyer.com/".toHttpUrl(),
         timeoutMillis = 10_000,
     )
+
+    @Test fun `GCD accepts only an HTTPS root without credentials query or fragment`() {
+        listOf(
+            "http://gcdsdk.appsflyer.com/", "https://gcdsdk.appsflyer.com/api/",
+            "https://user:pass@gcdsdk.appsflyer.com/", "https://gcdsdk.appsflyer.com/?q=1",
+            "https://gcdsdk.appsflyer.com/#fragment",
+        ).forEach { value ->
+            assertTrue(value, runCatching { GcdRecheckConfig(value.toHttpUrl(), 1000) }.isFailure)
+        }
+    }
 
     @Test fun `request encodes package key and UID separately without business credentials`() = runBlocking {
         val factory = FakeFactory()

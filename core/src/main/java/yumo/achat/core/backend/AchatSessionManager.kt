@@ -2,6 +2,8 @@ package yumo.achat.core.backend
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +13,7 @@ import kotlinx.coroutines.sync.withLock
 private const val AuthFailureCooldownMillis = 1_000L
 
 private data class TimedAuthFailure(
-    val token: String?,
+    val session: AuthSession,
     val timestampMillis: Long,
     val error: Exception,
 )
@@ -32,7 +34,20 @@ internal class AchatSessionManager(
 
     suspend fun session(): AuthSession? = store.readSession()
 
-    suspend fun startupSession(): AuthSession? = store.readSession()?.also { reportAttribution(it) }
+    suspend fun startupSession(): AuthSession? = store.readSession()?.also {
+        reportAttribution(it)
+        requireOwner(it)
+    }
+
+    suspend fun prepareAnonymousDeviceIdentity() = sessionMutex.withLock {
+        if (store.readSession() == null) store.prepareAnonymousDeviceId()
+        Unit
+    }
+
+    suspend fun prepareAccountDeviceIdentity() = sessionMutex.withLock {
+        store.deviceId()
+        Unit
+    }
 
     suspend fun loginAnonymouslyExplicit(): AuthSession = sessionMutex.withLock {
         check(store.readSession() == null) { "Already signed in" }
@@ -56,8 +71,10 @@ internal class AchatSessionManager(
         } catch (error: AchatBackendHttpException) {
             if (error.statusCode != 401) throw error
             val recovered = recoverAfterUnauthorizedLocked(active)
+            requireOwner(active)
             action(recovered.token)
         }
+        requireOwner(active)
         store.clearSession()
         recoveryFailure = null
     }
@@ -67,6 +84,7 @@ internal class AchatSessionManager(
             store.saveSession(session)
             mutableSessionInvalidated.value = false
             reportAttribution(session)
+            requireOwner(session)
             onLoginResult(true, null, session.userId)
         }
     } catch (cancelled: CancellationException) {
@@ -76,41 +94,64 @@ internal class AchatSessionManager(
         throw error
     }
 
-    suspend fun <T> authenticated(operation: (String) -> T): T {
-        val session = store.readSession() ?: throw SignedOutException()
+    suspend fun <T> authenticated(operation: (String) -> T): T =
+        authenticatedCancellable { operation(it) }
+
+    suspend fun <T> authenticatedCancellable(operation: suspend (String) -> T): T {
+        val original = store.readSession() ?: throw SignedOutException()
         try {
-            return operation(session.token)
+            requireOwner(original)
+            val result = operation(original.token)
+            requireOwner(original)
+            return result
         } catch (error: AchatBackendHttpException) {
+            requireOwner(original)
             if (error.statusCode != 401) throw error
         }
 
-        val recovered = recoverAfterUnauthorized(session)
-        return operation(recovered.token)
+        val recovered = recoverAfterUnauthorized(original)
+        requireOwner(original)
+        val result = operation(recovered.token)
+        requireOwner(original)
+        return result
+    }
+
+    private suspend fun requireOwner(original: AuthSession): AuthSession {
+        currentCoroutineContext().ensureActive()
+        val current = store.readSession()
+        if (current == null || current.userId != original.userId || current.epoch != original.epoch) {
+            throw CancellationException("Authentication owner changed")
+        }
+        return current
     }
 
     private suspend fun recoverAfterUnauthorized(failedSession: AuthSession): AuthSession =
         sessionMutex.withLock { recoverAfterUnauthorizedLocked(failedSession) }
 
     private suspend fun recoverAfterUnauthorizedLocked(failedSession: AuthSession): AuthSession {
-        val latest = store.readSession()
-        if (latest == null) throw SignedOutException()
+        val latest = requireOwner(failedSession)
         if (latest.token != failedSession.token) {
             return latest
         }
 
         val sessionToRecover = latest
-        recentFailure(recoveryFailure, sessionToRecover.token)?.let { throw it }
+        recentFailure(recoveryFailure, sessionToRecover)?.let { throw it }
         try {
             val recovered = try {
-                val newAccessToken = authApi.refreshAccessToken(sessionToRecover.refreshToken)
+                val newAccessToken = authApi.refreshAccessTokenCancellable(sessionToRecover.refreshToken)
+                val current = requireOwner(failedSession)
+                if (current.token != sessionToRecover.token) return current
                 sessionToRecover.copy(token = newAccessToken)
             } catch (error: AchatBackendHttpException) {
+                val current = requireOwner(failedSession)
+                if (current.token != sessionToRecover.token) return current
                 if (error.statusCode != 400 && error.statusCode != 401) throw error
                 store.clearSession()
                 mutableSessionInvalidated.value = true
                 throw SignedOutException()
             }
             return recovered.also { session ->
+                requireOwner(failedSession)
                 store.saveSession(session)
                 reportAttribution(session)
                 recoveryFailure = null
@@ -118,13 +159,14 @@ internal class AchatSessionManager(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            recoveryFailure = TimedAuthFailure(sessionToRecover.token, nowMillis(), error)
+            recoveryFailure = TimedAuthFailure(sessionToRecover, nowMillis(), error)
             throw error
         }
     }
 
-    private fun recentFailure(failure: TimedAuthFailure?, token: String?): Exception? = failure
-        ?.takeIf { it.token == token && nowMillis() - it.timestampMillis < AuthFailureCooldownMillis }
+    private fun recentFailure(failure: TimedAuthFailure?, session: AuthSession): Exception? = failure
+        ?.takeIf { it.session.userId == session.userId && it.session.epoch == session.epoch &&
+            it.session.token == session.token && nowMillis() - it.timestampMillis < AuthFailureCooldownMillis }
         ?.error
 
     private suspend fun reportAttribution(session: AuthSession) {
@@ -138,10 +180,11 @@ internal class AchatSessionManager(
         if (!shouldReport) return
         try {
             attribution.report(session)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             synchronized(attributionReportGuard) {
                 if (lastAttributionReportEpoch == session.epoch) lastAttributionReportEpoch = null
             }
+            if (error is CancellationException) throw error
             // Attribution is telemetry; a report retry/failure must not break authentication.
         }
     }

@@ -11,8 +11,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import yumo.achat.core.attribution.AdvertisingIdProvider
+import yumo.achat.app.BuildConfig
+import java.util.Locale
 
-internal data class AdvertisingIdSnapshot(val id: String?, val limited: Boolean)
+internal data class AdvertisingIdSnapshot(val id: String?, val limited: Boolean) {
+    override fun toString(): String = "AdvertisingIdSnapshot(limited=$limited)"
+}
 
 private val ADVERTISING_ID_FORMAT = Regex("[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 private const val ZERO_ADVERTISING_ID = "00000000-0000-0000-0000-000000000000"
@@ -20,11 +24,12 @@ private const val ZERO_ADVERTISING_ID = "00000000-0000-0000-0000-000000000000"
 internal fun usableAdvertisingId(snapshot: AdvertisingIdSnapshot?): String? = snapshot
     ?.takeUnless { it.limited }
     ?.id?.takeIf { ADVERTISING_ID_FORMAT.matches(it) && !it.equals(ZERO_ADVERTISING_ID, ignoreCase = true) }
+    ?.lowercase(Locale.ROOT)
 
 /** A caller times out without cancelling a lookup shared by other callers. */
 internal class GoogleAdvertisingIdProvider(
     private val lookup: () -> AdvertisingIdSnapshot?,
-    private val timeoutMillis: Long = 1_200L,
+    private val timeoutMillis: Long = BuildConfig.ADVERTISING_ID_TIMEOUT_MS.toLong(),
 ) : AdvertisingIdProvider {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Any()
@@ -43,11 +48,7 @@ internal class GoogleAdvertisingIdProvider(
             }
         }
         return try {
-            val result = withTimeoutOrNull(timeoutMillis) { pending.await() }
-            if (result == null && pending.isActive) synchronized(lock) {
-                if (inFlight === pending) inFlight = null
-            }
-            result
+            withTimeoutOrNull(timeoutMillis) { pending.await() }
         }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { null }

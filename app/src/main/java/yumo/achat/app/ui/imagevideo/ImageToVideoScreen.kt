@@ -67,6 +67,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -146,15 +147,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import yumo.achat.app.R
 import yumo.achat.app.BuildConfig
 import yumo.achat.app.analytics.AchatAnalyticsRuntime
 import yumo.achat.app.analytics.GenerationAnalytics
 import yumo.achat.app.analytics.GenerationAnalyticsContext
-import yumo.achat.app.analytics.AnalyticsConsent
-import yumo.achat.app.attribution.AchatAttributionRuntime
-import yumo.achat.app.attribution.AppsFlyerBackendAttribution
 import yumo.achat.core.backend.AchatRepository
 import yumo.achat.core.backend.AuthSession
 import yumo.achat.core.backend.SignedOutException
@@ -175,6 +172,7 @@ import yumo.achat.app.ui.error.diagnosticMessage
 import yumo.achat.app.ui.error.diagnosticString
 import yumo.achat.app.ui.login.LoginScreen
 import yumo.achat.app.ui.login.DeleteAccountDialog
+import yumo.achat.app.ui.login.AuthViewModel
 import yumo.achat.app.ui.report.MediaReportIconButton
 import yumo.achat.app.ui.report.MediaReportSheet
 import yumo.achat.app.ui.theme.AchatCyan
@@ -526,39 +524,31 @@ internal fun formatStoreMoney(amount: BigDecimal, currencyCode: String, locale: 
 }
 
 @Composable
-fun ImageToVideoScreen(modifier: Modifier = Modifier, onAuthFlowStart: () -> Unit = {}, onSignedOut: () -> Unit = {}) {
+fun ImageToVideoScreen(
+    modifier: Modifier = Modifier,
+    onAuthFlowStart: () -> Unit = {},
+    onSignedOut: () -> Unit = {},
+    onSessionRestored: () -> Unit = {},
+) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
-    val repository = remember(context) { createAchatRepository(context) }
-    val attributionRuntime = remember(context) {
-        if (AnalyticsConsent.granted(context) && BuildConfig.ENABLE_APPSFLYER) AchatAttributionRuntime.get(context) else null
-    }
-    val startupController = remember(attributionRuntime) {
-        HomeStartupController(
-            awaitPreAuth = { attributionRuntime?.awaitSplashPreAuthWindow() },
-            awaitPostAuth = { attributionRuntime?.awaitSplashPostAuthWindow() },
-            awaitHomeWindow = { attributionRuntime?.awaitHomeWindow() },
-            awaitHomeDataGate = { attributionRuntime?.awaitHomeDataGate() },
-            networkTimeoutMillis = BuildConfig.STARTUP_TIMEOUT_MS.toLong(),
-            attributionCompleted = { attributionRuntime?.isAttributionComplete() == true },
-        )
-    }
+    val authViewModel: AuthViewModel = viewModel()
+    val repository = authViewModel.repository
+    val attributionRuntime = authViewModel.attribution
     var startup by remember { mutableStateOf<Pair<AuthSession, UserProfile>?>(null) }
     var startupError by remember { mutableStateOf<String?>(null) }
     var startupRetry by remember { mutableIntStateOf(0) }
     var loginRequired by remember { mutableStateOf(false) }
     var loginSubmitting by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
-    var pendingAuthenticatedLogin by remember { mutableStateOf(false) }
     val loginScope = rememberCoroutineScope()
-    val sessionInvalidated by repository.sessionInvalidated.collectAsState()
+    val sessionInvalidated by authViewModel.sessionInvalidated.collectAsState()
     LaunchedEffect(sessionInvalidated) {
         if (sessionInvalidated) {
-            attributionRuntime?.onSignedOut()
+            authViewModel.onSignedOut()
             startup = null
             loginRequired = true
             loginError = null
-            pendingAuthenticatedLogin = false
             onSignedOut()
         }
     }
@@ -567,25 +557,15 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier, onAuthFlowStart: () -> Uni
         if (startup != null || loginRequired) return@LaunchedEffect
         startupError = null
         try {
-            val restored = repository.authenticateStartup()
+            val restored = authViewModel.authenticateStartup(onSessionRestored)
             if (restored == null) {
                 loginRequired = true
             } else {
-                onAuthFlowStart()
-                attributionRuntime?.resumeRestoredSessionAttribution()
-                startup = if (pendingAuthenticatedLogin) {
-                    startupController.resumeAfterAuthentication(restored, repository::loadStartupProfile)
-                } else {
-                    val profile = withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.loadStartupProfile() }
-                    restored to profile
-                }
-                pendingAuthenticatedLogin = false
+                startup = restored
             }
         } catch (_: SignedOutException) {
-            attributionRuntime?.onSignedOut()
+            authViewModel.onSignedOut()
             loginRequired = true
-        } catch (_: TimeoutCancellationException) {
-            startupError = context.getString(R.string.startup_unavailable)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -596,31 +576,20 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier, onAuthFlowStart: () -> Uni
         if (loginSubmitting) return
         loginSubmitting = true
         loginError = null
-        onAuthFlowStart()
         loginScope.launch {
             try {
-                val saved = repository.authenticateStartup()
-                val result = if (saved != null) {
-                    startupController.resumeAfterAuthentication(saved, repository::loadStartupProfile)
-                } else {
-                    startupController.startup(
-                        authenticate = {
-                            if (account == null) repository.loginAnonymously()
-                            else repository.register(account, requireNotNull(password))
-                        },
-                        profile = repository::loadStartupProfile,
-                    )
-                }
+                val result = if (account == null) authViewModel.loginAnonymously(onAuthFlowStart)
+                    else authViewModel.register(account, requireNotNull(password), onAuthFlowStart)
                 startup = result
                 loginRequired = false
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                if (runCatching { repository.authenticateStartup() }.getOrNull() != null) {
-                    pendingAuthenticatedLogin = true
+                if (authViewModel.hasAuthenticatedSession) {
                     loginRequired = false
                     startupError = context.getString(R.string.startup_unavailable)
                 } else {
+                    authViewModel.pauseForLoginChoice()
                     loginError = context.getString(R.string.login_failed)
                 }
             } finally {
@@ -659,12 +628,12 @@ fun ImageToVideoScreen(modifier: Modifier = Modifier, onAuthFlowStart: () -> Uni
     }
     ImageToVideoHomeScreen(
         repository = repository,
-        attributionRuntime = attributionRuntime,
-        startupController = startupController,
+        authViewModel = authViewModel,
         startupSession = ready.first,
         startupProfile = ready.second,
         onSignedOut = {
             startup = null
+            authViewModel.pauseForLoginChoice()
             loginRequired = true
             loginError = null
             onSignedOut()
@@ -687,10 +656,25 @@ private fun StartupSplash(error: String?, onRetry: () -> Unit, modifier: Modifie
 }
 
 @Composable
+internal fun AttributionProfileRetry(required: Boolean, onRetry: () -> Unit) {
+    if (!required) return
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(stringResource(R.string.startup_unavailable), color = Color.White,
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        TextButton(onClick = onRetry) {
+            Text(stringResource(R.string.template_feed_retry), color = AchatCyan)
+        }
+    }
+}
+
+@Composable
 private fun ImageToVideoHomeScreen(
     repository: AchatRepository,
-    attributionRuntime: AppsFlyerBackendAttribution?,
-    startupController: HomeStartupController,
+    authViewModel: AuthViewModel,
     startupSession: AuthSession,
     startupProfile: UserProfile,
     onSignedOut: () -> Unit,
@@ -700,6 +684,7 @@ private fun ImageToVideoHomeScreen(
     val context = localContext.applicationContext
     val localTaskStore = remember(context) { LocalGenerationTaskStore(context) }
     val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
+    val attributionRuntime = authViewModel.attribution
     val homeGateRevision by attributionRuntime?.homeGateRevision?.collectAsState()
         ?: remember { mutableStateOf(0L) }
     val screenScope = rememberCoroutineScope()
@@ -712,8 +697,7 @@ private fun ImageToVideoHomeScreen(
         accountActionError = null
         screenScope.launch {
             try {
-                if (delete) repository.deleteAccount() else repository.logout()
-                attributionRuntime?.onSignedOut()
+                authViewModel.logout(delete)
                 analytics.identify(null)
                 onSignedOut()
             } catch (cancelled: CancellationException) {
@@ -887,7 +871,7 @@ private fun ImageToVideoHomeScreen(
         templateRequestJobs[jobIndex]?.cancel()
         templateRequestJobs[jobIndex] = screenScope.launch {
             val result = try {
-                startupController.loadTemplates {
+                authViewModel.loadTemplates {
                     if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
                             gateTargetAtStart != attributionRuntime.currentGateTarget())) {
                         throw CancellationException("Home attribution changed")
@@ -930,7 +914,7 @@ private fun ImageToVideoHomeScreen(
 
     fun retryTemplates(section: TemplateSection) {
         if (backendState.errorMessage != null || templateRetryAction(backendState, section) == TemplateRetryAction.Startup) {
-            attributionRuntime?.retryHomeReport()
+            authViewModel.retryHome()
             startupReloadSerial += 1
             return
         }
@@ -1264,29 +1248,11 @@ private fun ImageToVideoHomeScreen(
         topUpPaymentViewModel.startReconciliation()
     }
 
-    LaunchedEffect(attributionRuntime, repository, startupSession) {
-        attributionRuntime?.reportReceipts?.filterNotNull()?.collectLatest { receipt ->
-            if (receipt.epoch != startupSession.epoch) return@collectLatest
-            attributionRuntime.awaitHomeDataGate()
-            repeat(BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS.coerceAtLeast(1)) { attempt ->
-                val profile = try {
-                    withTimeout(BuildConfig.STARTUP_TIMEOUT_MS.toLong()) { repository.userProfileSnapshot() }
-                } catch (_: TimeoutCancellationException) {
-                    null
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    null
-                }
-                if (profile != null && attributionRuntime.isCurrentReceipt(receipt) &&
-                    attributionRuntime.reportReceipts.value == receipt && analytics.currentUserId() == startupSession.userId) {
-                    applyProfile(profile)
-                    analytics.mode(if (profile.isNew == true) "B" else "A")
-                    return@collectLatest
-                }
-                if (attempt + 1 < BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS) {
-                    delay(BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong())
-                }
+    LaunchedEffect(authViewModel, startupSession) {
+        authViewModel.collectAttributionProfiles(startupSession) { profile ->
+            if (analytics.currentUserId() == startupSession.userId) {
+                applyProfile(profile)
+                analytics.mode(if (profile.isNew == true) "B" else "A")
             }
         }
     }
@@ -1307,7 +1273,7 @@ private fun ImageToVideoHomeScreen(
             imageTemplateErrorMessage = null,
         )
         try {
-            val homeData = startupController.loadHome {
+            val homeData = authViewModel.loadHome {
                 if (attributionRuntime != null && (gateRevisionAtStart != attributionRuntime.homeGateRevision.value ||
                         gateTargetAtStart != attributionRuntime.currentGateTarget())) {
                     throw CancellationException("Home attribution changed")
@@ -1660,6 +1626,8 @@ private fun ImageToVideoHomeScreen(
                     isAvatarSaving = profileEditingController.avatarSaving,
                     localProfileAvatarUri = localProfileAvatarUri,
                     onTemplateRetry = ::retryTemplates,
+                    attributionProfileRetryRequired = authViewModel.attributionProfileRetryRequired,
+                    onAttributionProfileRetry = authViewModel::retryProfileRefresh,
                     onLoadMoreTemplates = ::loadNextTemplatePage,
                     onNavigationSelect = ::navigateFromBottomNavigation,
                     selectedProductId = topUpPaymentController.selectedProductId,
@@ -1870,6 +1838,8 @@ private fun TemplateBrowserScreen(
     edgeHint: TransientMessage?,
     onEdgeHintDismiss: (Long) -> Unit,
     backendState: AchatBackendUiState,
+    attributionProfileRetryRequired: Boolean = false,
+    onAttributionProfileRetry: () -> Unit = {},
 ) {
     if (selectedNavigation == 2) {
         TopUpScreen(
@@ -2004,6 +1974,7 @@ private fun TemplateBrowserScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick)
+        AttributionProfileRetry(attributionProfileRetryRequired, onAttributionProfileRetry)
         Spacer(Modifier.height(8.dp))
         if (shouldShowTemplateTabs(section)) {
             CategoryTabs(

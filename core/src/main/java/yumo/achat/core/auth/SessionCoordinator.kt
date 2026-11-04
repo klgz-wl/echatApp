@@ -45,7 +45,7 @@ class SessionCoordinator @Inject constructor(private val storage: SessionStorage
             val active = current
             if (saved == null) {
                 mutable.value = null
-            } else if (active?.userId != saved.userId || active.token != saved.token ||
+            } else if (active?.userId != saved.userId || active.epoch != saved.epoch || active.token != saved.token ||
                 active.refreshToken != saved.refreshToken || active.revision != saved.revision
             ) {
                 mutable.value = saved

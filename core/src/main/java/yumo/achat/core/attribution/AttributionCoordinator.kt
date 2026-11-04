@@ -40,6 +40,7 @@ class AttributionCoordinator @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dataLock = Mutex()
     private val started = AtomicBoolean(false)
+    @Volatile private var acquisitionPaused = false
     private val deadlines = mutableMapOf<Stage, Long>()
     private var latest: JsonObject? = null
     private val accepted = mutableSetOf<Pair<AttributionResultSource, JsonObject>>()
@@ -51,7 +52,7 @@ class AttributionCoordinator @Inject constructor(
 
     private val cacheLoaded = scope.launch {
         try {
-            val cached = storage.readAttribution()?.takeIf { it.hasValidAttribution() }
+            val cached = storage.readAttribution()?.withoutAdvertisingIdentifiers()?.takeIf { it.hasValidAttribution() }
             dataLock.withLock { if (latest == null) latest = cached }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { Timber.tag("AppsFlyer/Attribution").w("归因缓存读取失败") }
@@ -71,9 +72,11 @@ class AttributionCoordinator @Inject constructor(
         }
     }
     private suspend fun accept(
-        data: JsonObject,
+        raw: JsonObject,
         source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
     ) = dataLock.withLock {
+        if (acquisitionPaused) return@withLock
+        val data = raw.withoutAdvertisingIdentifiers()
         if (!data.hasValidAttribution()) return@withLock
         val sourced = source to data
         if (accepted.add(sourced)) mutableResults.tryEmit(AttributionResult(source, data))
@@ -87,11 +90,20 @@ class AttributionCoordinator @Inject constructor(
         scope.launch {
             while (true) {
                 delay(config.retryIntervalMillis)
+                if (acquisitionPaused) continue
                 if (snapshots.value?.hasValidAttribution() == true ||
                     (source.conversion.value as? ConversionResult.Success)?.data?.hasValidAttribution() == true) return@launch
                 runCatching { source.retryAttribution() }
             }
         }
+    }
+    fun beginAuthentication() {
+        synchronized(deadlines) { deadlines.clear() }
+        acquisitionPaused = false
+    }
+    fun pauseAcquisition() {
+        acquisitionPaused = true
+        source.pauseAttributionAcquisition()
     }
     private suspend fun awaitStage(stage: Stage, timeoutMillis: Long): Boolean {
         ensureGlobalRetry()
@@ -130,7 +142,7 @@ class AttributionCoordinator @Inject constructor(
         (source.conversion.value as? ConversionResult.Success)?.let { accept(it.data, it.source) }
         val data = dataLock.withLock { latest } ?: JsonObject(emptyMap())
         val gaid = advertisingIds.readOrNull()
-        return attributionPayload(data, identity, gaid ?: sessions.deviceId(), source.attributionUid(), gaid = gaid)
+        return attributionPayload(data, identity, sessions.deviceId(), source.attributionUid(), gaid = gaid)
     }
 }
 

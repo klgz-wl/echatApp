@@ -3,15 +3,260 @@ package yumo.achat.core.backend
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.*
 import org.junit.Test
 import yumo.achat.core.attribution.LoginAttribution
 
 class AchatSessionManagerTest {
+    @Test fun `cancelling suspended 401 refresh releases recovery without replay or owner mutation`() = runBlocking {
+        for (replacement in listOf<AuthSession?>(null, session("B").copy(userId = "B"), session("relogin"))) {
+            val original = session("old")
+            val store = FakeStore(original)
+            val entered = CompletableDeferred<Unit>()
+            val cancelled = CompletableDeferred<Unit>()
+            var suspendRefresh = true
+            val api = object : AchatAuthApi by FakeApi() {
+                override suspend fun refreshAccessTokenCancellable(refreshToken: String): String {
+                    if (!suspendRefresh) return "renewed"
+                    entered.complete(Unit)
+                    try { awaitCancellation() } finally { cancelled.complete(Unit) }
+                }
+            }
+            val manager = AchatSessionManager(store, api)
+            var requests = 0
+            val job = launch {
+                manager.authenticatedCancellable<String> {
+                    requests++
+                    throw AchatBackendHttpException(401, "expired")
+                }
+            }
+            withTimeout(1_000) {
+                entered.await()
+                if (replacement != null) store.saved = replacement
+                job.cancelAndJoin()
+                cancelled.await()
+            }
+            assertEquals(1, requests)
+            assertEquals(replacement ?: original, store.saved)
+            assertFalse(manager.sessionInvalidated.value)
+            suspendRefresh = false
+            val expiredToken = store.saved!!.token
+            assertEquals("renewed", withTimeout(1_000) {
+                manager.authenticatedCancellable { token ->
+                    if (token == expiredToken) throw AchatBackendHttpException(401, "expired")
+                    token
+                }
+            })
+        }
+    }
+
+    @Test fun `suspended refresh result cannot overwrite replacement account or login epoch`() = runBlocking {
+        for (replacement in listOf(session("B").copy(userId = "B"), session("relogin"))) {
+            val store = FakeStore(session("old"))
+            val entered = CompletableDeferred<Unit>()
+            val response = CompletableDeferred<String>()
+            val api = object : AchatAuthApi by FakeApi() {
+                override suspend fun refreshAccessTokenCancellable(refreshToken: String): String {
+                    entered.complete(Unit)
+                    return response.await()
+                }
+            }
+            val manager = AchatSessionManager(store, api)
+            var requests = 0
+            val result = async {
+                runCatching {
+                    manager.authenticatedCancellable<String> {
+                        requests++
+                        throw AchatBackendHttpException(401, "expired")
+                    }
+                }.exceptionOrNull()
+            }
+            withTimeout(1_000) {
+                entered.await()
+                store.saved = replacement
+                response.complete("stale-refresh")
+                assertTrue(result.await() is CancellationException)
+            }
+            assertEquals(1, requests)
+            assertEquals(replacement, store.saved)
+            assertFalse(manager.sessionInvalidated.value)
+        }
+    }
+
+    @Test fun `account identity preparation reads device without migration or authentication`() = runBlocking {
+        val store = FakeStore()
+        val api = FakeApi()
+        AchatSessionManager(store, api).prepareAccountDeviceIdentity()
+        assertEquals(1, store.deviceReads)
+        assertFalse(store.prepared)
+        assertNull(store.saved)
+        assertEquals(0, api.anonymousCalls)
+        assertNull(api.registerUsername)
+    }
+
+    @Test fun `old operation must never replay as a newly logged in account`() = runBlocking {
+        assertStaleUnauthorizedRejected(session("B").copy(userId = "B"))
+    }
+
+    @Test fun `old operation must never replay as same user in new epoch`() = runBlocking {
+        assertStaleUnauthorizedRejected(session("new-login"))
+        assertStaleUnauthorizedRejected(session("A"))
+    }
+
+    private suspend fun assertStaleUnauthorizedRejected(replacement: AuthSession) {
+        for (cancellable in listOf(false, true)) {
+            val store = FakeStore(session("A"))
+            val api = FakeApi()
+            val manager = AchatSessionManager(store, api)
+            val tokens = mutableListOf<String>()
+            val operation: suspend (String) -> String = { token ->
+                tokens += token
+                store.saved = replacement
+                throw AchatBackendHttpException(401, "expired")
+            }
+            val error = try {
+                if (cancellable) manager.authenticatedCancellable(operation)
+                else manager.authenticated { token ->
+                    tokens += token
+                    store.saved = replacement
+                    throw AchatBackendHttpException(401, "expired")
+                }
+                null
+            } catch (error: CancellationException) { error }
+            assertNotNull(error)
+            assertEquals(listOf("A"), tokens)
+            assertEquals(0, api.refreshCalls)
+            assertEquals(replacement, store.saved)
+        }
+    }
+
+    @Test fun `new access token within original owner can replay in both wrappers`() = runBlocking {
+        for (cancellable in listOf(false, true)) {
+            val original = session("old")
+            val store = FakeStore(original)
+            val api = FakeApi()
+            val manager = AchatSessionManager(store, api)
+            val tokens = mutableListOf<String>()
+            val operation: (String) -> String = { token ->
+                tokens += token
+                if (token == "old") {
+                    store.saved = original.copy(token = "new")
+                    throw AchatBackendHttpException(401, "expired")
+                }
+                token
+            }
+            val result = if (cancellable) manager.authenticatedCancellable { operation(it) }
+                else manager.authenticated(operation)
+            assertEquals("new", result)
+            assertEquals(listOf("old", "new"), tokens)
+            assertEquals(0, api.refreshCalls)
+        }
+    }
+
+    @Test fun `success from old user or epoch cannot be applied in either wrapper`() = runBlocking {
+        for (replacement in listOf(session("B").copy(userId = "B"), session("relogin"))) {
+            for (cancellable in listOf(false, true)) {
+                val store = FakeStore(session("old"))
+                val manager = AchatSessionManager(store, FakeApi())
+                val operation: (String) -> String = { store.saved = replacement; "stale-profile" }
+                val failure = runCatching {
+                    if (cancellable) manager.authenticatedCancellable { operation(it) }
+                    else manager.authenticated(operation)
+                }.exceptionOrNull()
+                assertTrue(failure is CancellationException)
+                assertEquals(replacement, store.saved)
+            }
+        }
+    }
+
+    @Test fun `cancellable operation refreshes once and propagates caller cancellation`() = runBlocking {
+        val api = FakeApi()
+        val manager = AchatSessionManager(FakeStore(session("old")), api)
+        assertEquals("refreshed", manager.authenticatedCancellable { token ->
+            if (token == "old") throw AchatBackendHttpException(401, "expired")
+            token
+        })
+        assertEquals(1, api.refreshCalls)
+        val entered = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Unit>()
+        val job = launch {
+            manager.authenticatedCancellable {
+                entered.complete(Unit)
+                try { awaitCancellation() } finally { cancelled.complete(Unit) }
+            }
+        }
+        entered.await()
+        job.cancelAndJoin()
+        assertTrue(cancelled.isCompleted)
+    }
+
+    @Test fun `attribution cancellation is propagated and next startup can retry`() = runBlocking {
+        var reports = 0
+        val attribution = object : BackendAttribution by FakeAttribution() {
+            override suspend fun report(session: AuthSession) {
+                reports++
+                if (reports == 1) throw CancellationException("owner cancelled")
+            }
+        }
+        val saved = session("saved")
+        val manager = AchatSessionManager(FakeStore(saved), FakeApi(), attribution)
+        assertTrue(runCatching { manager.startupSession() }.exceptionOrNull() is CancellationException)
+        assertEquals(saved, manager.startupSession())
+        assertEquals(2, reports)
+    }
+
+    @Test fun `refresh cannot overwrite or clear changed owner even for same user new epoch`() = runBlocking {
+        for (replacement in listOf(session("B").copy(userId = "B"), session("relogin"))) {
+            for (refreshError in listOf(null, AchatBackendHttpException(401, "invalid"))) {
+                val store = FakeStore(session("old"))
+                val api = FakeApi().apply {
+                    onRefresh = { store.saved = replacement }
+                    this.refreshError = refreshError
+                }
+                val manager = AchatSessionManager(store, api)
+                val failure = runCatching {
+                    manager.authenticatedCancellable<String> { throw AchatBackendHttpException(401, "expired") }
+                }.exceptionOrNull()
+                assertTrue(failure is CancellationException)
+                assertEquals(replacement, store.saved)
+                assertFalse(manager.sessionInvalidated.value)
+            }
+        }
+    }
+
+    @Test fun `replayed response is rejected when epoch changes during retry`() = runBlocking {
+        for (cancellable in listOf(false, true)) {
+            val original = session("old")
+            val replacement = session("relogin")
+            val store = FakeStore(original)
+            val manager = AchatSessionManager(store, FakeApi())
+            val tokens = mutableListOf<String>()
+            val operation: (String) -> String = { token ->
+                tokens += token
+                if (token == "old") throw AchatBackendHttpException(401, "expired")
+                store.saved = replacement
+                "stale"
+            }
+            val failure = runCatching {
+                if (cancellable) manager.authenticatedCancellable { operation(it) }
+                else manager.authenticated(operation)
+            }.exceptionOrNull()
+            assertTrue(failure is CancellationException)
+            assertEquals(listOf("old", "refreshed"), tokens)
+            assertEquals(replacement, store.saved)
+        }
+    }
+
     @Test fun `startup without session never authenticates`() = runBlocking {
         val api = FakeApi()
         assertNull(AchatSessionManager(FakeStore(), api).startupSession())
@@ -206,7 +451,8 @@ class AchatSessionManagerTest {
 
     private class FakeStore(var saved: AuthSession? = null) : AuthSessionStore {
         var prepared = false
-        override fun deviceId() = "stable-device"
+        var deviceReads = 0
+        override fun deviceId(): String { deviceReads++; return "stable-device" }
         override fun prepareAnonymousDeviceId(): String { prepared = true; return "migrated-device" }
         override fun readSession() = saved
         override fun saveSession(session: AuthSession) { saved = session }
@@ -220,6 +466,7 @@ class AchatSessionManagerTest {
         var registerResult: AuthSession = AuthSession("user", "registered", "refresh", "session", false)
         var refreshed = "refreshed"
         var refreshError: Exception? = null
+        var onRefresh: () -> Unit = {}
         var logoutError: Exception? = null
         var anonymousError: Exception? = null
         var anonymousDeviceId: String? = null
@@ -241,6 +488,7 @@ class AchatSessionManagerTest {
         }
         override fun refreshAccessToken(refreshToken: String): String {
             refreshCalls++
+            onRefresh()
             refreshError?.let { throw it }
             return refreshed
         }

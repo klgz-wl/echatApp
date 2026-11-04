@@ -189,7 +189,7 @@ internal class CoreTopUpPaymentController(
 
     fun syncSession(session: AuthSession) {
         scope.launch {
-            sessions.restore()
+            sessions.synchronize()
             val current = sessions.current
             if (current?.userId != session.userId || current.token != session.token || current.refreshToken != session.refreshToken) {
                 sessions.saveLogin(AuthResponse(session.token, session.refreshToken, session.userId))

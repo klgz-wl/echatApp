@@ -1,7 +1,8 @@
 # echatApp Project Conventions
 
 - `/Users/kuailegeziwl/android/echatApp` is both the Android project root and the Git repository root. Open this directory in Android Studio; do not open `app/` as a separate project.
-- Keep the project single-module (`:app`) until a real feature boundary justifies another Gradle module.
+- Preserve the existing `app`, `core`, and SDK `integration` module boundaries.
+- Attribution follows the immutable [1.0.0 specification](docs/公共规范/归因/归因实施与校验规范.md) and [project acceptance record](docs/归因规范接入记录.md). Core owns the configured single installation DataStore, ledger, identity migration, reporting and home gate. Preserve existing IDs and durable success when migrating legacy SharedPreferences; freeze event ownership at callback ingress, keep GAID request-only, and separate restored-success bypass from live report success. Version names and all reported versions come from the same per-flavor configuration. C01-C38 backend/platform/release evidence must be recorded separately from local tests.
 - `MainActivity` owns only the Android activity shell and root composition. Feature screens live under `ui/<feature>/`; reusable visual tokens live under `ui/theme/`.
 - Put user-visible and accessibility text in Android string resources. Keep stable brand colors in the theme package.
 - User-visible error diagnostics follow the [shared error-code specification](docs/公共规范/错误码/错误码接入规范.md) and [project integration record](docs/错误码接入记录.md). Use `app/src/main/java/yumo/achat/app/ui/error/ErrorDiagnostic.kt` as the single suffix-formatting boundary; keep safe original text and append one diagnostic code. Classify by operation evidence and stage, preserve silent paths and existing retries, and record unmapped cases and pending verification instead of claiming full coverage.

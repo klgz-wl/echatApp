@@ -20,6 +20,15 @@ internal class MemoryStorage : SessionStorage {
 }
 
 class SessionCoordinatorTest {
+    @Test fun `synchronize observes a new epoch even when credentials repeat`() = runBlocking {
+        val storage = MemoryStorage().apply { saved = Session("token", "refresh", "user", "old-epoch") }
+        val coordinator = SessionCoordinator(storage)
+        coordinator.restore()
+        storage.saved = storage.saved!!.copy(epoch = "new-epoch")
+        coordinator.synchronize()
+        assertEquals("new-epoch", coordinator.current?.epoch)
+    }
+
     @Test fun `并发的过期请求只刷新一次`() = runBlocking {
         val coordinator = SessionCoordinator(MemoryStorage())
         coordinator.saveLogin(AuthResponse("old-token", "refresh", "user"))

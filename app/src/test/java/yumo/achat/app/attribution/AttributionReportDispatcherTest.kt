@@ -17,6 +17,126 @@ import yumo.achat.core.attribution.AttributionStage
 import yumo.achat.core.backend.AuthSession
 
 class AttributionReportDispatcherTest {
+    @Test fun `recovered receipt remains stable across foreground and clock drift`() = runBlocking {
+        val ledger = AttributionLedger.empty()
+            .record(AttributionResultSource.GCD_HTTP, buildJsonObject { put("af_status", "Organic") }, "old", { "result" }).ledger
+            .ensureReports("user", { "report" }, "install").markSucceeded("report", 1_000L)
+        var nanos = 10_000_000_000L
+        var millis = 5_000L
+        val dispatcher = LedgerAttributionReportDispatcher(
+            attempts = 1, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            store = MemoryLedgerStore(ledger), startupId = "new", startupNanos = 0,
+            retryDelay = {}, report = { _, _, _, _ -> error("already delivered") },
+            completionScope = { session, pending -> completionScope(session, pending.deviceId) },
+            deviceId = { "install" }, nowNanos = { nanos }, nowMillis = { millis },
+        )
+        dispatcher.updateSession(session("user"))
+        val first = dispatcher.receipts.value
+        nanos += 500_000_000L
+        millis += 700L
+        dispatcher.resumePending()
+        yield()
+        assertEquals(first, dispatcher.receipts.value)
+    }
+
+    @Test fun `historical successes cannot displace durable final receipt while another old report is slow`() = runBlocking {
+        var reportIndex = 0
+        var ledger = AttributionLedger.empty()
+        for (id in listOf("old-one", "old-two", "final")) {
+            ledger = ledger.record(AttributionResultSource.GCD_HTTP,
+                buildJsonObject { put("af_status", "Organic"); put("campaign", id) }, "old", { id }).ledger
+        }
+        ledger = ledger.ensureReports("user", { "report-${++reportIndex}" }, "install")
+        ledger = ledger.markSucceeded(ledger.reportFor("user", "final")!!.reportId, 1)
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val dispatcher = dispatcher(MemoryLedgerStore(ledger), 1) { _, _, result, _ ->
+            if (result.id == "old-two") { entered.complete(Unit); release.await() }
+        }
+        dispatcher.updateSession(session("user"))
+        entered.await()
+        try { assertEquals("final", dispatcher.receipts.value?.resultId) }
+        finally { release.complete(Unit) }
+        yield()
+    }
+
+    @Test fun `foreground attachment does not reopen an exhausted report round`() = runBlocking {
+        val store = MemoryLedgerStore()
+        var sends = 0
+        val dispatcher = dispatcher(store, 2) { _, _, _, _ -> sends++; error("offline") }
+        dispatcher.updateResult(AttributionResultSource.GCD_HTTP, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("user"))
+        yield()
+        assertEquals(2, sends)
+        repeat(3) { dispatcher.resumePending(); yield() }
+        assertEquals(2, sends)
+        dispatcher.retryPending()
+        yield()
+        assertEquals(4, sends)
+    }
+
+    @Test fun `recovered success keeps elapsed age beyond a configured one second baseline`() = runBlocking {
+        val ledger = AttributionLedger.empty()
+            .record(AttributionResultSource.GCD_HTTP, buildJsonObject { put("af_status", "Organic") }, "old", { "result" }).ledger
+            .ensureReports("user", { "report" }, "install").markSucceeded("report", 1_000L)
+        val dispatcher = LedgerAttributionReportDispatcher(
+            attempts = 1, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            store = MemoryLedgerStore(ledger), startupId = "new", startupNanos = 0,
+            retryDelay = {}, report = { _, _, _, _ -> error("already delivered") },
+            completionScope = { session, pending -> completionScope(session, pending.deviceId) },
+            deviceId = { "install" }, nowNanos = { 10_000_000_000L }, nowMillis = { 5_000L },
+        )
+        dispatcher.updateSession(session("user"))
+        assertEquals(6_000_000_000L, dispatcher.receipts.value?.reportedAtNanos)
+    }
+
+    @Test fun `unreadable current result is a storage failure rather than an empty ledger`() {
+        val store = object : AttributionLedgerStore by MemoryLedgerStore() {
+            override fun snapshot(): AttributionLedger = error("storage timeout")
+        }
+        val dispatcher = dispatcher(store, 1) { _, _, _, _ -> }
+        assertEquals(null, dispatcher.currentResult())
+        assertEquals(true, dispatcher.storageFailed())
+    }
+
+    @Test fun `storage failure during drain publishes retryable exhaustion`() = runBlocking {
+        val delegate = MemoryLedgerStore()
+        var reads = 0
+        val store = object : AttributionLedgerStore by delegate {
+            override fun snapshot(): AttributionLedger {
+                reads++
+                if (reads >= 2) error("temporary read failure")
+                return delegate.snapshot()
+            }
+        }
+        val dispatcher = dispatcher(store, 1) { _, _, _, _ -> error("must not send") }
+        dispatcher.updateResult(AttributionResultSource.APPSFLYER_SDK, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("user"))
+        yield()
+        assertEquals(true, dispatcher.storageFailed())
+        assertEquals(null, dispatcher.receipts.value)
+    }
+
+    @Test fun `sign out cancels current round instead of sending remaining retries`() = runBlocking {
+        val store = MemoryLedgerStore()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var sends = 0
+        val dispatcher = dispatcher(store, attempts = 10) { _, _, _, _ ->
+            sends++
+            if (sends == 1) { entered.complete(Unit); release.await() }
+            error("offline")
+        }
+        dispatcher.updateResult(AttributionResultSource.GCD_HTTP, buildJsonObject { put("af_status", "Organic") })
+        dispatcher.updateSession(session("old-user"))
+        entered.await()
+        dispatcher.clearSession()
+        release.complete(Unit)
+        yield()
+        assertEquals(1, sends)
+        assertEquals(false, store.snapshot().reports.single().succeeded)
+    }
+
     @Test fun `legacy pending report without known device is withheld after migration`() = runBlocking {
         val raw = """{"latestResultId":"result","results":[{"id":"result","source":"APPSFLYER_SDK","data":{"af_status":"Organic"},"index":1,"startupId":"old"}],"reports":[{"reportId":"stable-report","resultId":"result","userId":"old-user"}]}"""
         val store = MemoryLedgerStore(AttributionLedger.decode(raw))

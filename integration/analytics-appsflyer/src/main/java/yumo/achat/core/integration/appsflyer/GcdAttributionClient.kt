@@ -22,7 +22,9 @@ data class GcdRecheckConfig(
     val timeoutMillis: Long,
 ) {
     init {
-        require(baseUrl.scheme == "https" && baseUrl.encodedPath.endsWith('/'))
+        require(baseUrl.scheme == "https" && baseUrl.encodedPath == "/" &&
+            baseUrl.username.isEmpty() && baseUrl.password.isEmpty() &&
+            baseUrl.query == null && baseUrl.fragment == null) { "GCD requires an HTTPS root URL" }
         require(timeoutMillis > 0)
     }
 }
@@ -50,6 +52,8 @@ internal class GcdAttributionClient(
     suspend fun fetch(uid: String): JsonObject? {
         if (uid.isBlank()) return null
         val url = config.baseUrl.newBuilder()
+            .addPathSegment("install_data")
+            .addPathSegment("v4.0")
             .addPathSegment(appId)
             .addQueryParameter("devkey", devKey)
             .addQueryParameter("device_id", uid)

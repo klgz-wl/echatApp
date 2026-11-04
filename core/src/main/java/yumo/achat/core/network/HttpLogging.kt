@@ -10,7 +10,9 @@ internal fun createHttpLoggingInterceptor(config: CoreRuntimeConfig): HttpLoggin
 
 internal fun createHttpLoggingInterceptor(enabled: Boolean,
     sanitize: (String) -> String = ::sanitizeHttpLogMessage, redact: Boolean = true): HttpLoggingInterceptor =
-    HttpLoggingInterceptor { message -> Timber.tag("OkHttp").d(if (redact) sanitize(message) else sanitizeGaidLogMessage(message)) }.apply {
+    HttpLoggingInterceptor { message ->
+        Timber.tag("OkHttp").d(sanitizeGaidLogMessage(if (redact) sanitize(message) else message))
+    }.apply {
         redactHeader("X-GAID")
         redactHeader("X-Advertising-ID")
         if (redact) SENSITIVE_HTTP_HEADERS.forEach(::redactHeader)
@@ -43,22 +45,37 @@ private val SENSITIVE_QUERY_LOG_VALUE = Regex(
     option = RegexOption.IGNORE_CASE,
 )
 
+private const val AD_SEPARATOR = "(?:[_-]|%5f|%2d)*"
+private val AD_FIELD = listOf("gaid", "advertisingid", "googleadvertisingid", "gpsadid")
+    .joinToString("|") { alias -> alias.map(Char::toString).joinToString(AD_SEPARATOR) }
 private val GAID_JSON_LOG_VALUE = Regex(
-    """("(?:gaid|advertising_?id)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|null)""",
+    """("(?:$AD_FIELD)"\s*:\s*)(?:"(?:\\.|[^"\\])*"|null|true|false|-?\d+(?:\.\d+)?)""",
     RegexOption.IGNORE_CASE,
 )
-private val GAID_QUERY_LOG_VALUE = Regex("""(^|[?&])((?:gaid|advertising_?id)=)[^&\s]*""", RegexOption.IGNORE_CASE)
+private val GAID_QUERY_LOG_VALUE = Regex("""(^|[?&])((?:$AD_FIELD)=)[^&\s]*""", RegexOption.IGNORE_CASE)
+private val GAID_HEADER_LOG_VALUE = Regex("""(^|\n)((?:x[_-]*)?(?:$AD_FIELD)\s*:\s*)[^\r\n]*""", RegexOption.IGNORE_CASE)
+private val UUID_LOG_VALUE = Regex("""(?i)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}""")
+private val ESCAPED_QUOTE = Regex("\\\\+\"")
 
 private fun sanitizeGaidLogMessage(message: String): String {
-    val body = GAID_JSON_LOG_VALUE.replace(message) { "${it.groupValues[1]}\"[REDACTED]\"" }
-    return GAID_QUERY_LOG_VALUE.replace(body) { "${it.groupValues[1]}${it.groupValues[2]}[REDACTED]" }
+    var body = message
+    val quotes = ESCAPED_QUOTE.findAll(message).map { it.value }.distinct().sortedByDescending(String::length)
+    for (escapedQuote in quotes) {
+        val quote = Regex.escape(escapedQuote)
+        val pattern = Regex("""((?<!\\)$quote(?:$AD_FIELD)$quote\s*:\s*)$quote.*?(?<!\\)$quote""", RegexOption.IGNORE_CASE)
+        body = pattern.replace(body) { "${it.groupValues[1]}\"[REDACTED]\"" }
+    }
+    body = GAID_JSON_LOG_VALUE.replace(body) { "${it.groupValues[1]}\"[REDACTED]\"" }
+    body = GAID_QUERY_LOG_VALUE.replace(body) { "${it.groupValues[1]}${it.groupValues[2]}[REDACTED]" }
+    body = GAID_HEADER_LOG_VALUE.replace(body) { "${it.groupValues[1]}${it.groupValues[2]}[REDACTED]" }
+    return UUID_LOG_VALUE.replace(body, "[REDACTED]")
 }
 
 internal fun sanitizeHttpLogMessage(message: String): String {
     val withoutSensitiveJson = SENSITIVE_JSON_LOG_VALUE.replace(message) { match ->
         "${match.groupValues[1]}\"[REDACTED]\""
     }
-    return SENSITIVE_QUERY_LOG_VALUE.replace(withoutSensitiveJson) { match ->
+    return sanitizeGaidLogMessage(SENSITIVE_QUERY_LOG_VALUE.replace(withoutSensitiveJson) { match ->
         "${match.groupValues[1]}${match.groupValues[2]}[REDACTED]"
-    }
+    })
 }

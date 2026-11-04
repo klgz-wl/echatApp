@@ -67,7 +67,22 @@ internal object AchatAnalyticsRuntime {
         val attributionRuntime = if (policy.appsFlyer) AchatAttributionRuntime.get(context) else null
         var thinkingDataAttributionSink: ThinkingDataAnalytics? = null
         var firebaseCampaignSink: FirebaseAnalyticsSink? = null
-        var backendAttributionSink: BackendHttpAnalyticsSink? = null
+        val eventHeaders = {
+            mapOf(
+                "X-Package-Name" to identity.packageName,
+                "X-App-Version" to identity.versionName,
+                "X-Version" to identity.versionName,
+                "X-Platform" to "android",
+                "X-App-Platform" to "android",
+            )
+        }
+        val eventApi = HttpEventApi(backendConfig.apiBaseUrl, eventHeaders)
+        val backendAttributionSink = if (policy.backend) CallbackBackendEventQueue(
+            api = eventApi,
+            identity = identity,
+            capacity = BuildConfig.ANALYTICS_QUEUE_CAPACITY,
+            advertisingIds = AdvertisingIdRuntime.get(context),
+        ) else null
         val sinks = buildList {
             if (consentGranted && (policy.firebase || BuildConfig.ENABLE_FIREBASE_CRASHLYTICS || BuildConfig.ENABLE_FIREBASE_MESSAGING)) {
                 add(
@@ -98,15 +113,7 @@ internal object AchatAnalyticsRuntime {
             if (policy.backend) add(
                 BackendHttpAnalyticsSink(
                     api = HttpEventApi(backendConfig.apiBaseUrl) {
-                        mapOf(
-                            "X-Package-Name" to identity.packageName,
-                            "X-App-Version" to identity.versionName,
-                            "X-Version" to identity.versionName,
-                            "X-Platform" to "android",
-                            "X-App-Platform" to "android",
-                            "X-Device-ID" to storage.deviceId(),
-                            "X-AF-UID" to AchatAttributionRuntime.get(context).currentId(),
-                        )
+                        eventHeaders() + ("X-AF-UID" to AchatAttributionRuntime.get(context).currentId())
                     },
                     identity = identity,
                     deviceId = storage::deviceId,
@@ -115,7 +122,7 @@ internal object AchatAnalyticsRuntime {
                         context.getSharedPreferences("${BuildConfig.ANALYTICS_STORAGE_NAME}_backend", Context.MODE_PRIVATE),
                     ),
                     advertisingIds = AdvertisingIdRuntime.get(context),
-                ).also { backendAttributionSink = it },
+                ),
             )
         }
         val eventPreferences = context.getSharedPreferences(BuildConfig.ANALYTICS_STORAGE_NAME, Context.MODE_PRIVATE)
@@ -177,7 +184,7 @@ internal class AppAnalyticsHub(
     private val attributionSnapshots: StateFlow<JsonObject?>? = null,
     private val campaignAttributionSink: FirebaseAnalyticsSink? = null,
     private val thinkingDataAttributionSink: ThinkingDataAnalytics? = null,
-    private val backendAttributionSink: BackendHttpAnalyticsSink? = null,
+    private val backendAttributionSink: CallbackBackendEventQueue? = null,
     private val purchaseSuccessEnabled: () -> Boolean = { false },
     private val deferInitializationFor: (AnalyticsSink) -> Boolean = { false },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
@@ -189,48 +196,49 @@ internal class AppAnalyticsHub(
 
     fun initialize() {
         if (!initialized.compareAndSet(false, true)) return
+        backendAttributionSink?.initialize()
         sinks.forEach { sink ->
             if (sink is AppsFlyerAnalytics && (thinkingDataAttributionSink != null || backendAttributionSink != null)) {
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     sink.conversionCallbacks.collect { callback ->
-                        val callbackUserId = activeUserId
+                        val owner = callback.owner ?: return@collect
+                        val callbackUserId = owner.userId
                         thinkingDataAttributionSink?.let { thinkingData ->
                             synchronized(sinkLocks.getValue(thinkingData)) {
                                 runCatching {
-                                    thinkingData.attributionResult(
-                                        ThinkingDataAttributionResult(
-                                            callbackId = callback.callbackId,
-                                            requestAttempt = callback.requestAttempt,
-                                            appVersion = BuildConfig.VERSION_NAME,
-                                            attributionStatus = callback.attributionStatus,
-                                            failureReason = callback.failureReason,
-                                        ),
-                                        callbackUserId,
-                                    )
+                                    try {
+                                        thinkingData.attributionResult(
+                                            ThinkingDataAttributionResult(
+                                                callbackId = callback.callbackId,
+                                                requestAttempt = callback.requestAttempt,
+                                                appVersion = BuildConfig.VERSION_NAME,
+                                                attributionStatus = callback.attributionStatus,
+                                                failureReason = callback.failureReason,
+                                            ),
+                                            callbackUserId,
+                                            eventTime = owner.eventTime,
+                                        )
+                                    } finally {
+                                        thinkingData.identify(activeUserId)
+                                    }
                                 }
                             }
                         }
                         backendAttributionSink?.let { backend ->
-                            synchronized(sinkLocks.getValue(backend)) {
-                                runCatching {
-                                    try {
-                                        backend.identify(callbackUserId)
-                                        val parameters = mutableMapOf<String, Any>(
-                                            "callback_id" to callback.callbackId,
-                                            "request_attempt" to callback.requestAttempt,
-                                            "app_version" to BuildConfig.VERSION_NAME,
-                                            "platform" to "android",
-                                        )
-                                        callback.attributionStatus?.let { parameters["attribution_status"] = it }
-                                        callback.failureReason?.let { parameters["failure_reason"] = it }
-                                        backend.event(
-                                            if (callback.attributionStatus != null) "attribution_success" else "attribution_failure",
-                                            parameters,
-                                        )
-                                    } finally {
-                                        backend.identify(activeUserId)
-                                    }
-                                }
+                            runCatching {
+                                val parameters = mutableMapOf<String, Any>(
+                                    "callback_id" to callback.callbackId,
+                                    "request_attempt" to callback.requestAttempt,
+                                    "app_version" to BuildConfig.VERSION_NAME,
+                                    "platform" to "android",
+                                )
+                                callback.attributionStatus?.let { parameters["attribution_status"] = it }
+                                callback.failureReason?.let { parameters["failure_reason"] = it }
+                                backend.enqueue(
+                                    if (callback.attributionStatus != null) "attribution_success" else "attribution_failure",
+                                    parameters,
+                                    owner,
+                                )
                             }
                         }
                     }
@@ -297,8 +305,14 @@ internal class AppAnalyticsHub(
             queue.suppress(frozenUser, onceKey)
             return
         }
+        val frozenParameters = try {
+            commonParameters() - "af_revenue"
+        } catch (_: Exception) {
+            // Installation storage failures belong to startup recovery, not telemetry.
+            return
+        }
         initialize()
-        queue.track(name, parameters + (commonParameters() - "af_revenue"), frozenUser, onceKey)
+        queue.track(name, parameters + frozenParameters, frozenUser, onceKey)
     }
 }
 
@@ -315,7 +329,10 @@ internal class BackendHttpAnalyticsSink(
     @Volatile private var activeUserId: String? = null
     private val maxPending = capacity
     private val pendingLock = Any()
-    private val pending = store.read().toMutableList()
+    private val pending = store.read().let { restored ->
+        restored.filterNot { it.eventType in setOf("z_attribution_success", "z_attribution_failure") }
+            .also { cleaned -> if (cleaned.size != restored.size) store.write(cleaned) }
+    }.toMutableList()
     private val signals = Channel<Unit>(Channel.CONFLATED)
     private val initialized = AtomicBoolean(false)
 
@@ -336,7 +353,7 @@ internal class BackendHttpAnalyticsSink(
 
     override fun event(name: String, parameters: Map<String, Any>) {
         val request = ReportEventRequest(
-            deviceId = deviceId(),
+            deviceId = parameters["device_id"]?.toString()?.takeIf(String::isNotBlank) ?: deviceId(),
             eventType = yumo.achat.core.analytics.AnalyticsPlatform.BACKEND.eventName(name),
             eventTime = (parameters["event_time"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             userId = activeUserId,
@@ -436,7 +453,13 @@ internal class HttpEventApi(
             connectTimeout = 15_000
             readTimeout = 20_000
             setRequestProperty("Content-Type", "application/json")
-            headers().forEach { (name, value) -> if (value.isNotBlank()) setRequestProperty(name, value) }
+            headers().forEach { (name, value) ->
+                if (!name.equals("X-Device-ID", ignoreCase = true) &&
+                    !name.equals("X-APP-USER-ID", ignoreCase = true) && value.isNotBlank()) {
+                    setRequestProperty(name, value)
+                }
+            }
+            setRequestProperty("X-Device-ID", request.deviceId)
             request.userId?.takeIf(String::isNotBlank)?.let { setRequestProperty("X-APP-USER-ID", it) }
             doOutput = true
         }

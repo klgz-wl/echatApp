@@ -4,6 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AppsFlyerConversionCallbackTest {
+    @Test fun `callback preserves entry owner and event time`() {
+        val owner = AppsFlyerCallbackOwner("device-before", "user-before", 1234)
+        val sequencer = AppsFlyerConversionCallbackSequencer()
+        assertEquals(owner, sequencer.success("Organic", 1, owner).owner)
+        assertEquals(owner, sequencer.failure(1, owner).owner)
+    }
     @Test fun `each real callback receives a new process sequence even for identical Organic data`() {
         val sequencer = AppsFlyerConversionCallbackSequencer()
         val first = sequencer.success("Organic", 4)

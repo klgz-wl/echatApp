@@ -6,6 +6,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
 @Serializable
@@ -24,11 +29,21 @@ data class LoginAttribution(
     val gaid: String? = null,
 ) { override fun toString() = "LoginAttribution(归因标识已隐藏)" }
 
-@Serializable
+@Serializable(with = AttributionSourceSerializer::class)
 enum class AttributionResultSource(val wireName: String) {
     APPSFLYER_SDK("appsflyer_sdk"),
     GCD_HTTP("gcd_http"),
     GOOGLE_INSTALL_REFERRER("google_install_referrer"),
+}
+
+object AttributionSourceSerializer : KSerializer<AttributionResultSource> {
+    override val descriptor = PrimitiveSerialDescriptor("AttributionResultSource", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: AttributionResultSource) = encoder.encodeString(value.wireName)
+    override fun deserialize(decoder: Decoder): AttributionResultSource {
+        val value = decoder.decodeString()
+        return AttributionResultSource.entries.firstOrNull { it.wireName == value || it.name == value }
+            ?: throw kotlinx.serialization.SerializationException("Unknown attribution source")
+    }
 }
 
 @Serializable
@@ -47,14 +62,16 @@ data class AttributionReportMetadata(
     val source: AttributionResultSource,
 )
 
-data class AttributionResult(val source: AttributionResultSource, val data: JsonObject)
+data class AttributionResult(val source: AttributionResultSource, val data: JsonObject) {
+    override fun toString() = "AttributionResult(source=$source, data=[REDACTED])"
+}
 
 sealed interface ConversionResult {
     data object Pending : ConversionResult
     data class Success(
         val data: JsonObject,
         val source: AttributionResultSource = AttributionResultSource.APPSFLYER_SDK,
-    ) : ConversionResult
+    ) : ConversionResult { override fun toString() = "ConversionResult.Success(source=$source, data=[REDACTED])" }
     data object Failed : ConversionResult
 }
 
@@ -70,6 +87,7 @@ interface ConversionSource {
     suspend fun awaitPreHomeConfirmation(): Boolean = false
     val preHomeConfirmation: StateFlow<Boolean>? get() = null
     suspend fun stopAttributionAcquisition(restored: AttributionResult? = null) = Unit
+    fun pauseAttributionAcquisition() = Unit
     suspend fun resumeAttributionAcquisition() = Unit
     fun attributionUid(): String
     fun advertisingId(): String?
@@ -97,11 +115,11 @@ fun attributionPayload(
     gaid: String? = null,
 ): LoginAttribution {
     fun value(vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
-        (data[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        (data[key] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.contentOrNull?.takeIf { it.isNotBlank() }
     }
     val mediaSource = value("media_source", "network")?.lowercase().orEmpty()
     val metaShaped = value("is_fb")?.equals("true", ignoreCase = true) == true ||
-        listOf("facebook", "instagram", "meta ads", "audience network").any(mediaSource::contains) ||
+        mediaSource == "facebook ads" ||
         value("adset", "adset_id") != null
     val loginSource = if (source == AttributionResultSource.GOOGLE_INSTALL_REFERRER) {
         "google_play_install_referrer"
@@ -110,12 +128,12 @@ fun attributionPayload(
     }
     return LoginAttribution(loginSource, deviceId, afUid.ifBlank { value("af_uid").orEmpty() },
         value("media_source", "network"), value("campaign"), value("campaign_id", "af_c_id"),
-        if (metaShaped) value("af_adset", "adset") else value("af_adset", "adgroup"),
-        if (metaShaped) value("af_adset_id", "adset_id") else value("af_adset_id", "adgroup_id"),
-        if (metaShaped) value("af_ad", "adgroup", "creative") else value("af_ad", "creative"),
-        if (metaShaped) value("af_ad_id", "adgroup_id", "creative_id") else value("af_ad_id", "creative_id"),
+        if (metaShaped) value("af_adset", "adset") else value("af_adset", "adset", "adgroup"),
+        if (metaShaped) value("af_adset_id", "adset_id") else value("af_adset_id", "adset_id", "adgroup_id"),
+        if (metaShaped) value("af_ad", "creative", "adgroup") else value("af_ad", "creative"),
+        if (metaShaped) value("af_ad_id", "creative_id", "adgroup_id") else value("af_ad_id", "creative_id"),
         value("af_channel", "channel"), value("country_code", "country"), "android",
-        identity.versionName, identity.packageName, data, gaid)
+        identity.versionName, identity.packageName, data.withoutAdvertisingIdentifiers(), gaid)
 }
 
 /** SDK 回调可以包含布尔、数值和嵌套对象，不全部转成字符串。 */

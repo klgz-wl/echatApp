@@ -1,39 +1,39 @@
 # Android 归因与首页加载
 
-本页记录 `echatApp` 当前真实运行链路。入口为 `MainActivity` → 地区准入 → `ImageToVideoScreen`，认证和接口由 `AchatRepository` / `AchatSessionManager` / `AchatBackendClient` 执行。
+本项目以[归因实施与校验规范 1.0.0](公共规范/归因/归因实施与校验规范.md)为归因合同；逐项验证及外部限制见[归因规范接入记录](归因规范接入记录.md)。公共规范保持原始摘要，项目事实不写入公共包。
 
-现行用户可见错误展示遵循[公共错误码接入规范](公共规范/错误码/错误码接入规范.md)，本项目入口、阶段证据、未覆盖场景和验证状态见[错误码接入记录](错误码接入记录.md)。地区使用检查器实际 R 码，启动恢复与主动认证分别核对 E-205、E-204；首页内容加载错误核对 E-501，明确业务会话失效核对 E-207。正文安全处理后只追加一次编号，不改变地区门禁、归因重试、会话恢复或通知时机。本轮本地检查与设备覆盖以接入记录为准，下文历史验收不作为本轮证据。
+## 实际入口
 
-## 地区准入
+MainActivity 负责地区门禁和 RESUMED Activity 交接，AppConfig 独立并行。AuthViewModel 管理会话恢复、主动认证和归因后 profile 刷新；页面通过其归因界面适配器读取当前目标。没有会话时停留登录选择；协议及输入校验通过后，匿名登录先准备设备身份，再执行 3 秒归因窗口、真实认证、独立 8 秒窗口及首次 profile。恢复会话不重复认证；profile.is_new=true 为 B，否则 A。
 
-prod Debug 与 Release 均启用 Splash 地区检查，受限名单固定为 `CN,HK,MO,TW`；中国大陆、香港、澳门、台湾之外的有效地区全部允许。dev 保持关闭。未知、无效或查询失败不能作为其他地区放行。地区通过前不创建或启动归因、统计和业务依赖。
+版本只从各 flavor 的 app.version.name 读取：dev 为 2.0.0，prod 为 1.0.3（versionCode=4）。APK 版本、请求头、登录、独立报告及 conversion 事件使用同一配置值。SDK 身份、业务地址和既有地区规则保持目标工程配置。
 
-## 统一归因链
+## 归因获取
 
-进程内采用 `AppsFlyer SDK → 前置单次 GCD → 必要时 Google Play Install Referrer`。SDK `Non-organic` 立即结束辅助确认；SDK `Organic` 独立保存后发起一次前置 GCD。GCD 的 Organic 和 Non-organic 均按 `gcd_http` 来源保存；仅 GCD 也明确 Organic 时读取同安装缓存或 Google Play Install Referrer，只有有效 `gclid`，或白名单付费 `utm_medium` 与有效 `utm_source` 同时存在，才生成 `google_install_referrer` 媒体补充结果。
+进程协调器管理 AppsFlyer SDK、Organic 后的一次前置 GCD、首次首页无媒体时的一次独立 GCD，以及仅在 GCD 明确 Organic 后的 Referrer。两次 GCD 串行、有限、不轮询；失败和未知不合成 Organic。SDK Organic 先可靠保存，再发前置请求；GCD Organic 先保存，再等待 Referrer。Referrer 原始成功读取绑定安装时间并 commit，只有严格点击或已确认付费 UTM 证据才升级媒体。
 
-前置和首页 GCD 各最多一次、串行执行、不轮询。首页基础界面完成首帧后，若仍无媒体结果，再使用独立的一次 GCD 机会；页面重进、刷新、分页和 Retry 不增加机会。失败、超时、无 UID、坏 JSON 或未知状态均有限结束，不伪造 Organic。
+所有 SDK debug 运行时强制关闭。真实 conversion 在入口冻结原账号、设备与时间，独立发送数数 s_ 和后台 z_ 事件；GCD、Referrer 和报告结果不冒充 SDK callback。
 
-## 持久化与补报
+## 持久化及迁移
 
-私有 SharedPreferences `achat_attribution.xml` 中，`install_attribution_ledger_v1` 保存来源化结果、稳定 resultId、安装内递增 index，以及按稳定 userId 建立的 reportId/outbox。写入使用同步 `commit`，先落盘再请求 `POST /api/v1/attribution/report`。旧键 `appsflyer_install_attribution` 仅用于登录兼容，不为其伪造来源或新报告。
+Core 的 InstallationPreferences 只为配置的 STORAGE_NAME 创建一个 DataStore。账本、兼容快照、device_id 和 auth_session 都在同一文件；来源结果、目标、当前账号报告及兼容快照同事务保存。schema=1 使用小写来源名；不新增完成状态持久键。
 
-同一来源与完整 JSON 重复时复用结果；不同来源独立保存。每个 userId + resultId 的 `report_id` 在重试、令牌刷新和重启后保持不变。只有 HTTP 与业务 `code == 0` 且成功状态再次落盘，才算补报成功。请求新增：`report_id`、`startup_elapsed_ms`、`attribution_result_index`、`attribution_stage`、`attribution_result_source`、`is_install_referrer_supplement`、`is_gcd_http_result`。
+安装升级原子导入旧 achat_attribution 和 achat_backend_session，保留稳定 resultId/reportId/index/owner/succeeded；旧缓存不伪造来源或报告。无会话的主动匿名登录才迁移历史 UUID，并在替换前同事务冻结全部历史报告缺失的 deviceId。退出不清安装证据。
 
-最终完成状态只接受现有媒体标准：当前结果必须是有效 `Non-organic`，独立补报已获得服务端明确业务成功，并在一次同步账本提交中同时保存报告成功和完成记录。完成记录包含稳定 userId、本地安装 UUID、包名、flavor、resultId、reportId、来源和完成时间；不设置有效期。Organic、SDK 初始化、普通回调、请求发出、超时、取消、失败或落盘失败均不标记完成。历史账本中符合相同条件的成功媒体报告会迁移为同范围完成记录。
+迁移区分宿主数据不存在与明确退出，以真实宿主会话为准；提交目标存储后可靠清理旧文件中的广告标识。异包/异环境凭据保留在账本审计集合，不参与当前目标、去重或补报；逻辑范围标记仅用于迁移隔离，不是新的归因完成标志。当前范围的真实新观察仍创建待报。同一 userId/resultId 的冲突 reportId 不擅自合并或双发，当前目标冲突作为可重试存储失败。
 
-## Splash 与首页
+GAID 只按需读取并在当前请求可用时发送；不替代业务设备 ID，不持久化、不参与结果比较。旧证据及新 JSON 递归清除广告标识键，保持其他数据类型和稳定报告不变。原始标识和载荷不进入诊断日志。
 
-Splash 保留认证前最多 3 秒、认证后最多 8 秒窗口。媒体结果立即完成；Organic 在前置 GCD/Referrer 链结束后可提前完成。没有有效结果时按阶段超时放行，不能推造自然归因。
+## 报告与首页
 
-首页基础页面先显示 loading，首帧后触发一次 home verification。若存在有效结果，首页数据等待当前稳定用户的最终结果真实补报成功，并共享成功后剩余 1000ms；跨进程已成功媒体记录不恢复旧单调时间，也不重新等待。补报耗尽显示可重试错误，待报记录继续保留。
+稳定 userId+resultId 对应固定 reportId，先存后报。HTTP 与业务码成功后，成功状态及时刻先落盘，再发布当前 epoch/resultId 的回执。每轮有限重试合并触发，账号变化取消旧请求。独立补报不发送顶层 af_uid/channel。conversion 自有事件使用独立有界内存队列，不持久化或自动重试。
 
-后续进程会在创建归因协调器、reporter 或调用任何 Splash/Home 归因钩子前读取完成记录。身份范围完全匹配时，认证前/后等待、GCD、Referrer、补报重试、首页门禁和成功后延迟全部旁路；离线也不会因归因阻塞页面。AppsFlyer 仍可为普通业务统计初始化，但恢复期间的 conversion/deep-link 回调不再进入归因账本或产生归因回调事件。新登录账号或安装 UUID、包名、flavor 不匹配时，恢复原有未完成归因流程。
+首页首帧后启动共享的有限辅助确认，profile 和业务都不能越过在途 Referrer。有最终有效目标时等待其当前账号回执及同一成功时刻起的剩余 1 秒；没有有效结果且确认结束则正常加载。本次新媒体成功不使用冷启动旁路，并继续接纳真实迟到的新媒体目标。
 
-完成态的匿名登录仍保留后端要求的非空 `attribution` 对象，但使用无 AF UID、渠道和原始数据的空归因形状，不重复携带历史安装结果。历史成功报告先作为已持久化事实直接旁路，显式完成记录在 IO 线程补写，避免升级后的首次启动因同步磁盘迁移阻塞；旧账号迟到成功只更新旧账号账本，不改变新账号的进程完成状态。
+只有当前安装最终媒体及当前用户对应的持久成功报告可以在冷启动恢复时旁路。此时不注册归因监听、不获取或补报、不等首页信号与额外 1 秒，但正常 SDK 统计、会话和首次 profile 继续。没有独立 TTL 或周期重归因。
 
-## 事件与验收
+存储未知不能当空结果放行；失败候选保留等待显式 Retry。profile 刷新耗尽提供独立重试，不再次认证或重发已成功报告。完整后端幂等、防回退及平台实收须单独验收。
 
-只有真实 AppsFlyer conversion 回调产生 `attribution_success` / `attribution_failure`。数数接收 `s_` 事件，自有后台接收 `z_` 事件；AppsFlyer、Firebase、GCD、Referrer 和页面超时不接收或伪造这两类手动回调事件。
+获取候选绑定代次，写盘事务内再次校验；恢复成功通过同一存储串行屏障停止旧候选。初次写盘失败保留候选 ID。3/8 秒阶段前不额外串行等待存储重试。普通前台恢复不重开耗尽的报告轮次，恢复回执的单调时刻在进程内固定，历史补报不替换当前最终目标回执。
 
-2026-10-20 已通过完整 Gradle `test`、`:app:assembleDevDebug`、`:app:generateProdDebugBuildConfig` 和 `:app:lintDevDebug`；Lint 为 0 Error，并保留项目现有 Warning。Google Play 实际来源、AppsFlyer/数数/后台实收、断网杀进程恢复以及服务端 `report_id` 幂等和旧结果防回退仍需真机与后台联调，构建通过不代表平台验收。
+授权状态与 RESUMED 宿主分别管理；conversion 入口立即取时间并读取单个内存身份快照。旧账号迟到 401 不借用新会话重试。首次资料自有超时转为 Splash Retry，外部取消保持取消；目标变化立即取消旧资料请求及其底层 HTTP/刷新请求。Referrer 的 Binder、缓存读取与同步 commit 都在 IO 执行，取消不等待阻塞工作退出，迟到结果不能继续发布；即使 canonical 缓存已在内存，也须确认 commit 成功才可使用。

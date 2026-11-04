@@ -27,6 +27,63 @@ import kotlinx.serialization.json.put
 import retrofit2.Response
 
 class AppAnalyticsHubTest {
+    @Test fun `failed frozen identity read skips event without inventing identity or consuming dedupe key`() {
+        var storageFailed = true
+        val sink = CountingSink()
+        val hub = AppAnalyticsHub(
+            queue = BusinessEventQueue(8),
+            sinks = listOf(sink),
+            commonParameters = {
+                if (storageFailed) error("installation storage migration failed")
+                mapOf("device_id" to "restored-install")
+            },
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        )
+
+        hub.track("page_view", userId = "user", onceKey = "same-event")
+        assertTrue(sink.names.isEmpty())
+        assertEquals(0, sink.initializeCount.get())
+
+        storageFailed = false
+        hub.track("page_view", userId = "user", onceKey = "same-event")
+        assertEquals(listOf("page_view"), sink.names)
+        assertEquals("restored-install", sink.parameters.single()["device_id"])
+    }
+
+    @Test fun `foreground launch and scheduled exit survive unavailable installation identity`() {
+        var storageFailed = true
+        var pendingExit: (() -> Unit)? = null
+        val sink = CountingSink()
+        val hub = AppAnalyticsHub(
+            queue = BusinessEventQueue(8),
+            sinks = listOf(sink),
+            commonParameters = {
+                if (storageFailed) throw java.io.IOException("installation storage unavailable")
+                mapOf("device_id" to "restored-install")
+            },
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        )
+        hub.foregroundAnalytics = ForegroundAnalytics(
+            events = hub,
+            backgroundTimeoutMs = 30_000,
+            nowElapsed = { 100L },
+            firstLaunch = { true },
+            newSession = hub::newSession,
+            schedule = { _, action -> pendingExit = action; {} },
+        )
+
+        hub.foreground(true)
+        hub.foreground(false)
+        requireNotNull(pendingExit).invoke()
+        assertTrue(sink.names.isEmpty())
+
+        storageFailed = false
+        hub.foreground(true)
+        assertEquals(listOf("app_launch"), sink.names)
+        assertEquals("restored-install", sink.parameters.single()["device_id"])
+        assertEquals("warm", sink.parameters.single()["launch_type"])
+    }
+
     @Test fun `purchase gate suppresses all sinks and reopening only reports new orders`() {
         val enabled = java.util.concurrent.atomic.AtomicBoolean(false)
         val store = RecordingDedupeStore()

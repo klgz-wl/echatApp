@@ -12,6 +12,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import yumo.achat.core.attribution.AttributionResultSource
 import yumo.achat.core.attribution.isMediaAttribution
+import yumo.achat.core.attribution.hasValidAttribution
+import yumo.achat.core.attribution.withoutAdvertisingIdentifiers
 
 /** Two finite process opportunities: one after SDK Organic and one after the first home frame. */
 internal class GcdRecheckCoordinator<H : Any>(
@@ -23,6 +25,7 @@ internal class GcdRecheckCoordinator<H : Any>(
     private val fetch: suspend (String) -> JsonObject?,
     private val referrer: suspend (String) -> JsonObject?,
     private val onResult: (AttributionResultSource, JsonObject) -> Unit,
+    private val persistResult: suspend (AttributionResultSource, JsonObject) -> Unit = { _, _ -> },
 ) {
     private var host = WeakReference<H>(null)
     private var allowed = false
@@ -31,6 +34,7 @@ internal class GcdRecheckCoordinator<H : Any>(
     private var preAttempted = false
     private var homeAttempted = false
     private var inFlight: Job? = null
+    private var identityGeneration = 0L
     private val mutablePreHomeComplete = MutableStateFlow(false)
     val preHomeComplete = mutablePreHomeComplete.asStateFlow()
 
@@ -68,13 +72,11 @@ internal class GcdRecheckCoordinator<H : Any>(
     }
 
     fun resetForNewIdentity() {
+        identityGeneration++
         inFlight?.cancel()
-        inFlight = null
         organicSeen = false
         mediaKnown = false
-        preAttempted = false
-        homeAttempted = false
-        mutablePreHomeComplete.value = false
+        mutablePreHomeComplete.value = preAttempted
     }
 
     private fun startPreHomeIfReady() {
@@ -86,27 +88,43 @@ internal class GcdRecheckCoordinator<H : Any>(
     }
 
     suspend fun verifyHome() {
-        inFlight?.join()
+        startPreHomeIfReady()
+        awaitInFlightChain()
         if (mediaKnown || homeAttempted) return
         homeAttempted = true
         if (!requestAllowed()) return
         val requestUid = uid().takeIf(String::isNotBlank) ?: return
-        val job = launch(Opportunity.HOME, requestUid)
-        job.join()
+        launch(Opportunity.HOME, requestUid)
+        awaitInFlightChain()
     }
 
-    private fun launch(opportunity: Opportunity, requestUid: String): Job = scope.launch {
+    private suspend fun awaitInFlightChain() {
+        // Completion can hand ownership to a pending pre-home confirmation.
+        while (true) {
+            val pending = inFlight ?: return
+            pending.join()
+        }
+    }
+
+    private fun launch(opportunity: Opportunity, requestUid: String): Job {
+        val generation = identityGeneration
+        return scope.launch {
         try {
             val result = withTimeoutOrNull(timeoutMillis) { fetch(requestUid) } ?: return@launch
-            if (!responseAllowed(requestUid)) return@launch
-            val bound = JsonObject(result + ("af_uid" to JsonPrimitive(requestUid)))
+            if (!result.hasValidAttribution() || !responseAllowed(requestUid, generation)) return@launch
+            val bound = JsonObject(result + ("af_uid" to JsonPrimitive(requestUid))).withoutAdvertisingIdentifiers()
+            persistResult(AttributionResultSource.GCD_HTTP, bound)
+            if (!responseAllowed(requestUid, generation)) return@launch
             onResult(AttributionResultSource.GCD_HTTP, bound)
             if (bound.isMediaAttribution()) {
                 mediaKnown = true
                 return@launch
             }
-            val supplement = withTimeoutOrNull(timeoutMillis) { referrer(requestUid) }
-            if (supplement != null && responseAllowed(requestUid)) {
+            if (!(bound["af_status"] as? JsonPrimitive)?.content.equals("Organic", ignoreCase = true)) return@launch
+            val supplement = withTimeoutOrNull(timeoutMillis) { referrer(requestUid) }?.withoutAdvertisingIdentifiers()
+            if (supplement?.isMediaAttribution() == true && responseAllowed(requestUid, generation)) {
+                persistResult(AttributionResultSource.GOOGLE_INSTALL_REFERRER, supplement)
+                if (!responseAllowed(requestUid, generation)) return@launch
                 onResult(AttributionResultSource.GOOGLE_INSTALL_REFERRER, supplement)
                 mediaKnown = supplement.isMediaAttribution()
             }
@@ -115,18 +133,24 @@ internal class GcdRecheckCoordinator<H : Any>(
         } catch (_: Exception) {
             // This opportunity is finite; preserve prior evidence and let the caller continue.
         } finally {
-            if (opportunity == Opportunity.PRE_HOME) mutablePreHomeComplete.value = true
+            if (opportunity == Opportunity.PRE_HOME && generation == identityGeneration) mutablePreHomeComplete.value = true
         }
     }.also { job ->
         inFlight = job
-        job.invokeOnCompletion { if (inFlight === job) inFlight = null }
+        job.invokeOnCompletion {
+            if (inFlight === job) {
+                inFlight = null
+                startPreHomeIfReady()
+            }
+        }
+    }
     }
 
     private fun requestAllowed(): Boolean =
         allowed && eligible() && host.get()?.takeIf(validHost) != null
 
-    private fun responseAllowed(requestUid: String): Boolean =
-        !mediaKnown && requestAllowed() && uid() == requestUid
+    private fun responseAllowed(requestUid: String, generation: Long): Boolean =
+        generation == identityGeneration && !mediaKnown && requestAllowed() && uid() == requestUid
 
     private enum class Opportunity { PRE_HOME, HOME }
 }

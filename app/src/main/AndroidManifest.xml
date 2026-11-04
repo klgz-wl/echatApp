@@ -8,13 +8,19 @@
     <application
         android:name=".AchatApplication"
         android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="${appLabel}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Achat"
-        tools:replace="android:allowBackup"
-        tools:remove="android:dataExtractionRules,android:fullBackupContent">
+        tools:replace="android:allowBackup,android:dataExtractionRules,android:fullBackupContent">
+        <meta-data
+            android:name="attribution.storage.name"
+            android:value="${attributionStorageName}" />
+        <meta-data android:name="attribution.environment" android:value="${attributionEnvironment}" />
+        <meta-data android:name="attribution.storage.timeout_ms" android:value="${attributionStorageTimeout}" />
         <provider
             android:name="com.google.firebase.provider.FirebaseInitProvider"
             tools:node="remove" />

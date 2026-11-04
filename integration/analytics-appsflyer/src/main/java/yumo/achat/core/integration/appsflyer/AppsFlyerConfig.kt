@@ -16,6 +16,9 @@ data class AppsFlyerConfig(
     val eventQueueCapacity: Int = 64,
     val minSessionIntervalSeconds: Int = 1,
     val requestTimeoutMillis: Long = 15_000,
+    val callbackOwner: () -> AppsFlyerCallbackOwner = { AppsFlyerCallbackOwner() },
+    /** Return only after the result transaction succeeds; failure must throw. */
+    val onAttributionResult: suspend (AttributionResult) -> Unit = {},
 ) {
     init {
         require(devKey.isNotBlank()) { "AppsFlyer dev key must not be blank" }

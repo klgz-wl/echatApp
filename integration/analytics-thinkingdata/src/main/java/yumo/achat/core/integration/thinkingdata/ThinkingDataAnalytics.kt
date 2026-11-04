@@ -7,12 +7,19 @@ import cn.thinkingdata.thirdparty.TDThirdPartyShareType
 import yumo.achat.core.analytics.AnalyticsSink
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONObject
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ThinkingDataAnalytics @Inject constructor(@ApplicationContext private val context: Context,
     private val config: ThinkingDataConfig, private val policy: yumo.achat.core.analytics.AnalyticsPolicy) : AnalyticsSink {
+    private val attributionDelivery = ThinkingDataAttributionDelivery(
+        identify = ::identify,
+        track = { event, time ->
+            TDAnalytics.track(event.name, JSONObject(event.parameters), time, TimeZone.getDefault())
+        },
+    )
     override fun initialize() {
         val sdkConfig = TDConfig.getInstance(context, config.appId, config.serverUrl)
         if (config.debugMode) sdkConfig.setMode(TDConfig.ModeEnum.DEBUG)
@@ -29,11 +36,9 @@ class ThinkingDataAnalytics @Inject constructor(@ApplicationContext private val 
     }
     override fun event(name: String, parameters: Map<String, Any>) { TDAnalytics.track(yumo.achat.core.analytics.AnalyticsPlatform.THINKING_DATA.eventName(name), JSONObject(parameters)) }
     /** Called directly for every real AppsFlyer conversion callback after SDK initialization. */
-    fun attributionResult(result: ThinkingDataAttributionResult, currentUserId: String?) {
+    fun attributionResult(result: ThinkingDataAttributionResult, frozenUserId: String?, eventTime: Long) {
         runCatching {
-            identify(currentUserId)
-            val event = result.toEvent()
-            TDAnalytics.track(event.name, JSONObject(event.parameters))
+            attributionDelivery.deliver(result, frozenUserId, eventTime)
         }
     }
     private fun shareIdentity() { if (policy.appsFlyer) TDAnalytics.enableThirdPartySharing(TDThirdPartyShareType.TD_APPS_FLYER) }

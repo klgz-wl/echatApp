@@ -31,7 +31,7 @@ class AttributionLedgerTest {
         }) { base }
         assertEquals(1, reads)
         assertEquals("12345678-1234-4234-8234-123456789abc", result.gaid)
-        assertEquals(result.gaid, result.deviceId)
+        assertEquals("install", result.deviceId)
         assertEquals(base.extraData, result.extraData)
     }
     private val scope = AttributionCompletionScope(
@@ -152,17 +152,17 @@ class AttributionLedgerTest {
         assertTrue(completed.reports.single().succeeded)
     }
 
-    @Test fun `completion cannot cross user install package or environment`() {
+    @Test fun `completion is derived for stable user inside installation scoped storage`() {
         val media = buildJsonObject { put("af_status", "Non-organic") }
         val completed = AttributionLedger.empty()
             .record(AttributionResultSource.APPSFLYER_SDK, media, "startup", id = { "result" }).ledger
-            .ensureReports(scope.userId, reportId = { "report" })
+            .ensureReports(scope.userId, reportId = { "report" }, deviceId = scope.installDeviceId)
             .markReportSucceeded("report", 1, scope)
 
         assertEquals(null, completed.completionFor(scope.copy(userId = "user-2")))
         assertEquals(null, completed.completionFor(scope.copy(installDeviceId = "install-2")))
-        assertEquals(null, completed.completionFor(scope.copy(packageName = "com.zorv.app")))
-        assertEquals(null, completed.completionFor(scope.copy(environment = "prod")))
+        assertEquals("report", completed.completionFor(scope.copy(packageName = "com.zorv.app"))?.reportId)
+        assertEquals("report", completed.completionFor(scope.copy(environment = "prod"))?.reportId)
     }
 
     @Test fun `historical succeeded media report migrates to explicit completion`() {

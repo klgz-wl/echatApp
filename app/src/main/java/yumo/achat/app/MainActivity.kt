@@ -49,8 +49,17 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var sessionCoordinatorProvider: Lazy<SessionCoordinator>
     @Inject lateinit var rechargeNotificationsProvider: Lazy<RechargeNotifications>
     private var businessStarted = false
-    private var attributionStarted = false
+    private val acquisitionAuthorization = AcquisitionAuthorization()
     private var regionAllowed = false
+
+    private fun attachAttributionActivity() {
+        if (BuildConfig.ENABLE_APPSFLYER && businessStarted && acquisitionAuthorization.canAttach(
+                resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED),
+                accessAllowed = regionAllowed,
+            )) {
+            AchatAttributionRuntime.get(this).onActivityResumed(this)
+        }
+    }
 
     private fun beginBusinessStartup() {
         if (businessStarted) return
@@ -90,8 +99,9 @@ class MainActivity : ComponentActivity() {
                     regionAllowed = state.allowed
                     if (state.allowed) {
                         beginBusinessStartup()
-                    } else if (attributionStarted) {
+                    } else if (acquisitionAuthorization.authorized) {
                         AchatAttributionRuntime.get(this@MainActivity).onAccessRevoked()
+                        acquisitionAuthorization.revoke()
                     }
                 }
                 BackHandler(enabled = !state.allowed) { finishAndRemoveTask() }
@@ -103,17 +113,24 @@ class MainActivity : ComponentActivity() {
                     )
                     else -> ImageToVideoScreen(
                         onAuthFlowStart = {
-                            if (!attributionStarted && AnalyticsConsent.granted(this@MainActivity) &&
-                                lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                                AchatAttributionRuntime.get(this@MainActivity).onActivityResumed(this@MainActivity)
-                                attributionStarted = true
-                            }
+                            acquisitionAuthorization.authorize(
+                                validConsent = AnalyticsConsent.granted(this@MainActivity),
+                                accessAllowed = regionAllowed,
+                            )
+                            attachAttributionActivity()
+                        },
+                        onSessionRestored = {
+                            acquisitionAuthorization.authorize(
+                                validConsent = AnalyticsConsent.granted(this@MainActivity),
+                                accessAllowed = regionAllowed,
+                            )
+                            attachAttributionActivity()
                         },
                         onSignedOut = {
-                            if (attributionStarted) {
+                            if (acquisitionAuthorization.authorized) {
                                 AchatAttributionRuntime.get(this@MainActivity).onActivityPaused(this@MainActivity)
-                                attributionStarted = false
                             }
+                            acquisitionAuthorization.revoke()
                             lifecycleScope.launch { sessionCoordinatorProvider.get().synchronize() }
                         },
                     )
@@ -125,9 +142,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (businessStarted) lifecycleScope.launch(Dispatchers.IO) { AppConfigRuntime.get(applicationContext).refresh() }
-        if (businessStarted && regionAllowed && attributionStarted && AnalyticsConsent.granted(this)) {
-            AchatAttributionRuntime.get(this).onActivityResumed(this)
-        }
+        attachAttributionActivity()
     }
 
     override fun onStart() {
@@ -155,12 +170,25 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        if (attributionStarted) {
+        if (acquisitionAuthorization.authorized) {
             AchatAttributionRuntime.get(this).onActivityPaused(this)
         }
         super.onPause()
     }
 
+}
+
+internal class AcquisitionAuthorization {
+    var authorized: Boolean = false
+        private set
+
+    fun authorize(validConsent: Boolean, accessAllowed: Boolean) {
+        authorized = validConsent && accessAllowed
+    }
+
+    fun canAttach(resumed: Boolean, accessAllowed: Boolean): Boolean = authorized && resumed && accessAllowed
+
+    fun revoke() { authorized = false }
 }
 
 @Composable

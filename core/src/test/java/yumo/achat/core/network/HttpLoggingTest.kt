@@ -12,6 +12,23 @@ import timber.log.Timber
 import java.io.IOException
 
 class HttpLoggingTest {
+    @Test fun `advertising aliases escaped JSON headers query and UUID echoes are always redacted`() = capture { messages ->
+        val uuid = "ABCDEF12-1234-4234-8234-123456789ABC"
+        val body = """{"google_advertising-id":"private-ad","nested":"{\"gps_adid\":\"private-escaped\"}","echo":"$uuid","label":"visible"}"""
+        val client = OkHttpClient.Builder().addInterceptor(createHttpLoggingInterceptor(true, redact = false))
+            .addInterceptor { chain -> Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(200).message("OK").header("X-Google-Advertising-ID", "private-response")
+                .body(body.toResponseBody()).build() }.build()
+        client.newCall(Request.Builder().url("https://example.test/?gps-ad_id=private-query&google%5Fadvertising%5Fid=private-encoded")
+            .header("X-GPS-ADID", "private-header")
+            .post(body.toRequestBody("application/json".toMediaType())).build()).execute().close()
+        val output = messages.joinToString("\n")
+        assertFalse(output.contains("private-"))
+        assertFalse(output.contains(uuid))
+        assertTrue(output.contains("visible"))
+        assertEquals("echo [REDACTED]", sanitizeHttpLogMessage("echo $uuid"))
+        assertFalse(sanitizeHttpLogMessage("""{"gps_ad_id":"private-ad","g_a-i_d":"private-other"}""").contains("private-"))
+    }
     @Test fun `GAID is redacted even when general debug redaction is disabled`() = capture { messages ->
         val gaid = "12345678-1234-4234-8234-123456789abc"
         val client = OkHttpClient.Builder().addInterceptor(createHttpLoggingInterceptor(true, redact = false))

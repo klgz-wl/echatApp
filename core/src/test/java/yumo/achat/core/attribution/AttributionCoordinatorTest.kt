@@ -9,6 +9,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AttributionCoordinatorTest {
+    @Test fun `new explicit authentication gets a fresh pre auth deadline`() = runBlocking {
+        val repo = coordinator(Source(), timeout = 100)
+        repo.awaitInitial()
+        repo.beginAuthentication()
+        val second = async(start = CoroutineStart.UNDISPATCHED) { repo.awaitInitial() }
+        assertFalse(second.isCompleted)
+        second.cancelAndJoin()
+    }
+
     @Test fun `login reads fresh GAID independently of cached SDK identifier`() = runBlocking {
         val source = Source().apply { gaid = "stale-sdk-value" }
         var reads = 0
@@ -21,7 +30,7 @@ class AttributionCoordinatorTest {
         val first = repo.forLogin()
         val second = repo.forLogin()
         assertEquals("12345678-1234-4234-8234-123456789abc", first.gaid)
-        assertEquals(first.gaid, first.deviceId)
+        assertEquals("test-device", first.deviceId)
         assertNull(second.gaid)
         assertEquals("test-device", second.deviceId)
         assertEquals(2, reads)
@@ -198,8 +207,8 @@ class AttributionCoordinatorTest {
         assertEquals(JsonPrimitive("device"), payload["device_id"])
         assertEquals(JsonPrimitive("12345678-1234-4234-8234-123456789abc"), payload["gaid"])
         assertEquals(JsonPrimitive("user"), payload["user_id"])
-        assertEquals(JsonPrimitive("af-uid"), payload["af_uid"])
-        assertEquals(JsonPrimitive("paid-social"), payload["channel"])
+        assertFalse(payload.containsKey("af_uid"))
+        assertFalse(payload.containsKey("channel"))
         val extra = payload["extra_data"] as JsonObject
         assertEquals(JsonPrimitive("af-uid"), extra["af_uid"])
         assertEquals(JsonPrimitive("user"), extra["app_user_id"])

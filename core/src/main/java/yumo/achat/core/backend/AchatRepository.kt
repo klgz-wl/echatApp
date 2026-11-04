@@ -44,8 +44,18 @@ class AchatRepository(
         sessionManager.startupSession()
     }
 
+    suspend fun savedSession(): AuthSession? = withContext(Dispatchers.IO) { sessionManager.session() }
+
     suspend fun loginAnonymously(): AuthSession = withContext(Dispatchers.IO) {
         sessionManager.loginAnonymouslyExplicit()
+    }
+
+    suspend fun prepareAnonymousDeviceIdentity(): Unit = withContext(Dispatchers.IO) {
+        sessionManager.prepareAnonymousDeviceIdentity()
+    }
+
+    suspend fun prepareAccountDeviceIdentity(): Unit = withContext(Dispatchers.IO) {
+        sessionManager.prepareAccountDeviceIdentity()
     }
 
     suspend fun register(username: String, password: String): AuthSession = withContext(Dispatchers.IO) {
@@ -212,7 +222,7 @@ class AchatRepository(
     }
 
     suspend fun userProfileSnapshot(): UserProfile = withContext(Dispatchers.IO) {
-        sessionManager.authenticated(client::userProfile).also {
+        sessionManager.authenticatedCancellable(client::userProfileCancellable).also {
             check(it.isNew != null) { "Profile is missing is_new" }
         }
     }
