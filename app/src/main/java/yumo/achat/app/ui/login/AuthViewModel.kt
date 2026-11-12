@@ -146,8 +146,8 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
         runtime?.onSignedOut()
     }
 
-    suspend fun logout(delete: Boolean) {
-        if (delete) repository.deleteAccount() else repository.logout()
+    suspend fun logout(delete: Boolean, onDeleted: () -> Unit = {}) {
+        if (delete) completeAccountDeletion(repository::deleteAccount, onDeleted) else repository.logout()
         onSignedOut()
     }
 

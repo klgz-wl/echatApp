@@ -177,20 +177,34 @@ internal fun tasksForLocalSnapshot(tasks: List<TrackedGenerationTask>, limit: In
     tasks.filter { it.taskId.isNotBlank() }
         .take(limit.coerceAtLeast(1))
 
-internal class LocalGenerationTaskStore(context: Context) {
-    private val preferences = context.getSharedPreferences("achat_generation_tasks", Context.MODE_PRIVATE)
-
-    fun read(): List<TrackedGenerationTask> =
-        decodeTrackedGenerationTasks(preferences.getString(KEY_TASKS, null))
-
-    fun write(tasks: List<TrackedGenerationTask>) {
-        preferences.edit()
-            .putString(KEY_TASKS, encodeTrackedGenerationTasks(tasksForLocalSnapshot(tasks)))
-            .apply()
+/** Account-bound snapshots. The old global tracked_tasks key has no ownership proof and is never adopted. */
+internal class LocalGenerationTaskStore(
+    userId: String,
+    private val readValue: (String) -> String?,
+    private val writeValue: (String, String) -> Unit,
+    private val removeValue: (String) -> Unit = { key -> writeValue(key, "[]") },
+) {
+    private val accountKey: String
+    private var invalidated = false
+    init {
+        require(userId.isNotBlank()) { "Task cache requires an account" }
+        accountKey = "tracked_tasks_user:${userId.length}:$userId"
     }
+    constructor(context: Context, userId: String) : this(userId,
+        { key -> context.getSharedPreferences("achat_generation_tasks", Context.MODE_PRIVATE).getString(key, null) },
+        { key, value -> context.getSharedPreferences("achat_generation_tasks", Context.MODE_PRIVATE)
+            .edit().putString(key, value).apply() },
+        { key -> context.getSharedPreferences("achat_generation_tasks", Context.MODE_PRIVATE)
+            .edit().remove(key).apply() })
 
-    private companion object {
-        const val KEY_TASKS = "tracked_tasks"
+    @Synchronized fun read(): List<TrackedGenerationTask> =
+        if (invalidated) emptyList() else decodeTrackedGenerationTasks(readValue(accountKey))
+    @Synchronized fun write(tasks: List<TrackedGenerationTask>) {
+        if (!invalidated) writeValue(accountKey, encodeTrackedGenerationTasks(tasksForLocalSnapshot(tasks)))
+    }
+    @Synchronized fun clear() {
+        invalidated = true
+        removeValue(accountKey)
     }
 }
 
