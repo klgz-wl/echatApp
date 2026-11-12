@@ -35,6 +35,11 @@ class BusinessPaymentOrderFactory @Inject constructor(
     private val wallet: WalletRepository,
 ) : PaymentOrderFactory {
     override val creationSource: String = "business"
+    override suspend fun productKind(productId: String, session: Session): PaymentProductKind = when (wallet.paymentProductType(productId, session)) {
+        "membership" -> PaymentProductKind.Membership
+        "diamond" -> PaymentProductKind.Recharge
+        else -> PaymentProductKind.Unknown
+    }
     override suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder =
         legacy.createOrder(productId, requestId, session)
     override suspend fun createBusiness(productId: String, requestId: String, trigger: String, session: Session): PaymentBusinessOrder =

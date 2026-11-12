@@ -23,9 +23,12 @@ data class PaymentBusinessOrder(
     val obfuscatedProfileId: String? = null,
     val status: String = "pending",
 )
+enum class PaymentProductKind { Recharge, Membership, Unknown }
+
 fun interface PaymentOrderFactory {
     suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder
     val creationSource: String get() = "payment_service"
+    suspend fun productKind(productId: String, session: Session): PaymentProductKind = PaymentProductKind.Recharge
     suspend fun createBusiness(productId: String, requestId: String, trigger: String, session: Session): PaymentBusinessOrder =
         create(productId, requestId, session)
 }
@@ -99,12 +102,51 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         val stage = if (record.expired(clock.now())) PaymentStage.TIMED_OUT else dismissals[record.key] ?: return record
         return record.copy(stage = stage, error = if (stage == PaymentStage.TIMED_OUT) "timeout" else record.error)
     }
-    private fun current(key: String, session: Session) = records.firstOrNull { it.key == key && it.userId == session.userId }
+    private fun current(key: String, session: Session) = records.firstOrNull { it.key == key && it.userId == session.userId && it.productType == "diamond" }
     private fun event(record: PaymentRecord, name: String, error: String? = null, details: PaymentClientEventDetails? = null) =
         events.record(record, name, clock.now(), error, details)
+    private suspend fun ensureRechargeScope(session: Session): Boolean {
+        val kinds = mutableMapOf<String, PaymentProductKind>()
+        var unknown = false
+        val updated = records.map { record ->
+            if (record.userId != session.userId || record.productType != null ||
+                (record.orderId == null && !record.unresolved && !(record.stage == PaymentStage.SUCCESS && !record.successAcknowledged))) return@map record
+            val kind = kinds[record.productId] ?: try { orders.productKind(record.productId, session) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (superseded: ServiceFailure.Superseded) { throw superseded }
+            catch (_: Exception) { PaymentProductKind.Unknown }
+            owner(session)
+            kinds[record.productId] = kind
+            when (kind) {
+                PaymentProductKind.Membership -> record.copy(productType = "membership")
+                PaymentProductKind.Recharge -> record.copy(productType = "diamond")
+                PaymentProductKind.Unknown -> {
+                    if (record.unresolved || (record.stage == PaymentStage.SUCCESS && !record.successAcknowledged)) unknown = true
+                    record
+                }
+            }
+        }
+        if (updated != records) {
+            storage.write(updated)
+            records = updated
+            owner(session)
+            if (mutable.value.record?.key in updated.filter { it.productType == "membership" }.map { it.key }) {
+                mutable.value = PaymentViewState(epoch = session.epoch)
+            }
+        }
+        return !unknown
+    }
+
     private suspend fun guarded(action: suspend (Session) -> Unit) = lock.withLock {
         val session = sessions.current ?: return@withLock
-        try { load(); action(session) }
+        try {
+            load()
+            if (!ensureRechargeScope(session)) {
+                mutable.value = PaymentViewState(epoch = session.epoch, recoveryLookupFailed = true, recoveryLookupError = "recovery_lookup_failed")
+                return@withLock
+            }
+            action(session)
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: ServiceFailure.Superseded) { mutable.value = PaymentViewState() }
         catch (_: Exception) {
@@ -116,7 +158,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         // 账号变化立即清空显示；等待旧请求退出后才读取所属账号记录。
         mutable.value = PaymentViewState()
         guarded { session ->
-            val saved = records.lastOrNull { it.userId == session.userId && ((it.stage == PaymentStage.SUCCESS && !it.successAcknowledged) || it.unresolved) }
+            val saved = records.lastOrNull { it.userId == session.userId && (it.productType != "membership" && ((it.stage == PaymentStage.SUCCESS && !it.successAcknowledged) || it.unresolved)) }
             if (saved != null) {
                 val restored = when (saved.stage) {
                     PaymentStage.CREATING -> saved.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown")
@@ -143,6 +185,15 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         mutable.value = PaymentViewState(session.epoch, busy = true)
         val recovered = try {
             repository.recover(productId, session)?.validate(session.userId).also { owner(session) }
+                ?.let { remote ->
+                    val kind = orders.productKind(remote.productId, session)
+                    owner(session)
+                    when (kind) {
+                        PaymentProductKind.Membership -> null
+                        PaymentProductKind.Recharge -> remote
+                        PaymentProductKind.Unknown -> throw PaymentFailure.InvalidResponse
+                    }
+                }
                 ?.takeUnless { remote -> remote.status == "pending" && records.any { it.userId == session.userId && it.orderId == remote.orderId && it.locallyReleased } }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
@@ -168,14 +219,22 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 quotePrice = recovered.amount, quoteCurrency = recovered.currency, quoteSource = "server_snapshot",
                 obfuscatedAccountId = recovered.obfuscatedAccountId, obfuscatedProfileId = recovered.obfuscatedProfileId,
                 officialFallbackProductId = recovered.providerProductId,
-                recoveryRequired = true, recoveredPaymentMethod = recovered.paymentMethod, recoveredTrigger = recovered.trigger)
+                recoveryRequired = true, recoveredPaymentMethod = recovered.paymentMethod, recoveredTrigger = recovered.trigger, productType = "diamond")
             save(record, session, false)
+            return@guarded
+        }
+        val selectedKind = try { orders.productKind(productId, session) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { PaymentProductKind.Unknown }
+        owner(session)
+        if (selectedKind != PaymentProductKind.Recharge) {
+            mutable.value = PaymentViewState(epoch = session.epoch, recoveryLookupFailed = true, recoveryLookupError = "recovery_lookup_failed")
             return@guarded
         }
         val record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,
             officialFallbackProductId = product?.googleProductId?.takeIf { it.isNotBlank() },
-            orderCreationSource = orders.creationSource, orderCreationTrigger = source)
+            orderCreationSource = orders.creationSource, orderCreationTrigger = source, productType = "diamond")
         save(record, session, false)
         create(record, session)
     }
@@ -329,6 +388,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         ) query(record, session, closing = false)
     }
     private suspend fun query(record: PaymentRecord, session: Session, closing: Boolean, publish: Boolean = true): PaymentRecord {
+        if (record.productType != "diamond") return record
         val visible = publish && mutable.value.checkoutVisible
         if (publish) mutable.value = PaymentViewState(session.epoch, record, visible, busy = closing)
         var next = record
@@ -429,7 +489,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
     }
     private suspend fun presentWaitingSuccess(session: Session) {
         if (mutable.value.checkoutVisible || mutable.value.record?.stage == PaymentStage.SUCCESS || mutable.value.record?.unresolved == true) return
-        records.firstOrNull { it.userId == session.userId && it.stage == PaymentStage.SUCCESS && !it.successAcknowledged }?.let {
+        records.firstOrNull { it.userId == session.userId && it.productType != "membership" && it.stage == PaymentStage.SUCCESS && !it.successAcknowledged }?.let {
             // 延迟通知只补展示结果，不重放旧订单的来源导航。
             save(it.copy(source = "restored"), session, false)
         }
@@ -453,6 +513,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         var fulfilled = false
         guarded { session ->
             val record = current(key, session) ?: return@guarded
+            if (record.productType == "membership") return@guarded
             if (record.stage == PaymentStage.SUCCESS) {
                 fulfilled = true
                 return@guarded
@@ -512,6 +573,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             val matching = records.lastOrNull { it.userId == session.userId && it.orderId == orderId && orderId != null }
             if (matching != null) {
                 handled = true
+                if (matching.productType != "diamond") return@guarded
                 if (matching.stage == PaymentStage.SUCCESS) return@guarded
                 val present = mutable.value.record == null || mutable.value.record?.key == matching.key
                 if (matching.initialized != null || matching.stage == PaymentStage.AWAITING_FULFILLMENT) query(matching, session, false, present)
@@ -539,7 +601,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             val wasCurrent = mutable.value.record?.key == key
             save(record.copy(successAcknowledged = true), session, publish = false)
             if (!wasCurrent) return@guarded
-            val next = records.firstOrNull { it.userId == session.userId && it.stage == PaymentStage.SUCCESS && !it.successAcknowledged }
+            val next = records.firstOrNull { it.userId == session.userId && it.productType != "membership" && it.stage == PaymentStage.SUCCESS && !it.successAcknowledged }
             next?.let {
                 mutable.value = PaymentViewState(session.epoch, it.copy(source = "restored"))
             } ?: run { mutable.value = PaymentViewState(session.epoch) }

@@ -323,7 +323,7 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
         return TopUpPurchaseState.Error("", "", R.string.top_up_payment_storage_unavailable)
     }
     if (recoveryLookupFailed) return TopUpPurchaseState.Error("", "", paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
-    val value = record ?: return TopUpPurchaseState.Idle
+    val value = record?.takeUnless { it.productType == "membership" } ?: return TopUpPurchaseState.Idle
     if (value.recoveryRequired) return TopUpPurchaseState.Error(value.productId, "", R.string.top_up_recovered_order)
     return when {
         value.stage in setOf(PaymentStage.CREATING, PaymentStage.INITIALIZING) && value.error == null ->
@@ -349,7 +349,7 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
 internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState): TopUpCheckoutState {
     if (recoveryLookupFailed) return TopUpCheckoutState.Failed("", recoverable = true,
         messageRes = paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
-    val value = record ?: return TopUpCheckoutState.Idle
+    val value = record?.takeUnless { it.productType == "membership" } ?: return TopUpCheckoutState.Idle
     if (value.stage == PaymentStage.SUCCESS) return TopUpCheckoutState.Succeeded(value.orderId.orEmpty())
     if (value.locallyReleased) return TopUpCheckoutState.UserCancelled
     if (value.recoveryRequired) return TopUpCheckoutState.Failed("", recoverable = true,

@@ -47,7 +47,7 @@ internal data class CorePaymentPresentation(
 )
 
 internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresentation {
-    val record = state.record
+    val record = state.record?.takeUnless { it.productType == "membership" }
     val stage = record?.stage
     val hasVisibleError = record?.error != null
     val active = record != null && (record.unresolved || stage in setOf(

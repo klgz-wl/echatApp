@@ -27,4 +27,5 @@
     <string name="subscription_check_existing">Your previous payment is still being checked. Check its status before starting another purchase.</string>
     <string name="subscription_purchase_retry_error">Checkout could not be opened. Please try again.</string>
     <string name="subscription_order_creation_unknown">The order result is not confirmed yet. No payment has been opened. Please check again later or contact support.</string>
+    <string name="subscription_play_plan_unavailable">This plan is not available in Google Play. Please choose another plan.</string>
 </resources>

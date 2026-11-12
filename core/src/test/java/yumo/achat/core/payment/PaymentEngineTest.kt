@@ -498,7 +498,7 @@ class PaymentEngineTest {
         var engine = f.engine(); engine.restore()
         assertEquals(0, f.orders)
         assertTrue(f.api.initialized.isEmpty())
-        assertEquals(old.copy(stage = PaymentStage.ACCESS_DENIED), f.store.records.single())
+        assertEquals(old.copy(stage = PaymentStage.ACCESS_DENIED, productType = "diamond"), f.store.records.single())
         assertNull(engine.state.value.record)
         engine.buy("coins", "main")
         assertEquals(listOf("order-1"), f.api.initialized)

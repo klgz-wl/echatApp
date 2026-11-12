@@ -1,6 +1,7 @@
 package yumo.achat.app.ui.imagevideo
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -29,7 +30,6 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
     var products by remember { mutableStateOf<List<StoreProduct>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    var playCatalogLoaded by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     BackHandler(onBack = onBack)
     DisposableEffect(lifecycle, viewModel) {
@@ -41,7 +41,6 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
     }
     LaunchedEffect(repository, revision) {
         loading = true
-        playCatalogLoaded = false
         error = null
         try {
             products = subscriptionProducts(repository.membershipCatalog().products)
@@ -49,7 +48,6 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
             if (products.isNotEmpty()) {
                 try {
                     viewModel.purchases.queryProducts(products.map { it.officialProductId })
-                    playCatalogLoaded = true
                 }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { /* Keep authoritative API prices visible when Play is unavailable. */ }
@@ -61,12 +59,7 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
     }
     val busy = payment.stage in setOf(SubscriptionPurchaseStage.Loading, SubscriptionPurchaseStage.Purchasing,
         SubscriptionPurchaseStage.Pending, SubscriptionPurchaseStage.AwaitingFulfillment, SubscriptionPurchaseStage.Closing)
-    val availableProducts = if (playCatalogLoaded) products.filter { product ->
-        payment.products.firstOrNull { it.id == product.officialProductId }?.let {
-            subscriptionOfferForProduct(it, product.value)
-        } != null
-    } else products
-    val plans = availableProducts.map { product ->
+    val plans = products.map { product ->
         val playProduct = payment.products.firstOrNull { it.id == product.officialProductId }
         val quote = playProduct?.let { subscriptionOfferForProduct(it, product.value)?.pricingPhases?.singleOrNull() }
         val period = quote?.billingPeriod ?: subscriptionBillingPeriod(product.value)
@@ -104,13 +97,17 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
         else -> null
     }
     fun purchasePlan(id: String) {
-        val product = availableProducts.firstOrNull { it.id == id }
+        val product = products.firstOrNull { it.id == id }
         val playProduct = product?.let { p -> payment.products.firstOrNull { it.id == p.officialProductId } }
         val offer = if (product != null && playProduct != null) subscriptionOfferForProduct(playProduct, product.value) else null
         val activity = context as? Activity
         if (product != null && offer != null && activity != null) {
             viewModel.buy(activity, product.id, product.officialProductId, offer.pricingPhases.single().billingPeriod, trigger, isVip)
-        } else error = resources.getString(R.string.subscription_plan_unavailable)
+        } else {
+            val messageRes = if (product == null || offer == null) R.string.subscription_play_plan_unavailable
+                else R.string.subscription_purchase_retry_error
+            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+        }
     }
     SubscriptionScreen(plans, loading, error, onRetry = { revision++ }, onBack = onBack,
         purchaseBusy = busy,

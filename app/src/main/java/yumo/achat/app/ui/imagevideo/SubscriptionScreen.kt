@@ -146,11 +146,13 @@ internal fun SubscriptionScreen(
         Spacer(Modifier.height(28.dp))
         if (!templateEntry) purchaseMessage?.let { Text(it, color = SubscriptionCyan, fontSize = 12.sp, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)) }
         if (!templateEntry) purchaseAction()
-        Spacer(Modifier.height(12.dp))
-        Text(stringResource(R.string.subscription_renewal), color = Color(0xFF94A3B8), fontSize = 11.sp, textAlign = TextAlign.Center)
-        Text(stringResource(R.string.subscription_terms), Modifier.clickable {
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.TERMS_OF_SERVICE_URL))) }
-        }.padding(8.dp), color = SubscriptionCyan, fontSize = 11.sp)
+        if (!templateEntry) {
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.subscription_renewal), color = Color(0xFF94A3B8), fontSize = 11.sp, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.subscription_terms), Modifier.clickable {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.TERMS_OF_SERVICE_URL))) }
+            }.padding(8.dp), color = SubscriptionCyan, fontSize = 11.sp)
+        }
     }
     if (templateEntry) {
         val shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)

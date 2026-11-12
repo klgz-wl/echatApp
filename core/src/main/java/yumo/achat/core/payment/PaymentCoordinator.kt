@@ -106,7 +106,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
 }
 
 internal fun shouldAutoPollPayment(record: PaymentRecord?): Boolean {
-    if (record == null) return false
+    if (record == null || record.productType == "membership") return false
     if (record.stage == PaymentStage.AWAITING_FULFILLMENT) return true
     if (record.thirdParty) return record.initialized?.openMode != "external_browser"
     return record.stage in setOf(
