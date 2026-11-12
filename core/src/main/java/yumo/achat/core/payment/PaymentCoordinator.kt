@@ -10,7 +10,8 @@ import javax.inject.Singleton
 /** 生命周期只控制查询调度，交易记录独立于 Activity 与页面。 */
 @Singleton
 class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private val sessions: SessionCoordinator,
-    private val wallet: WalletRepository, val configuration: PaymentConfiguration) {
+    private val wallet: WalletRepository, val configuration: PaymentConfiguration,
+    private val billing: yumo.achat.core.billing.BillingManager) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val state = engine.state
     private val foreground = MutableStateFlow(false)
@@ -22,6 +23,32 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
                 if (deadline == null) return@collectLatest
                 delay((deadline - System.currentTimeMillis()).coerceAtLeast(0))
                 if (sessions.current?.epoch == epoch) engine.expireCheckout(key)
+            }
+        }
+        scope.launch {
+            combine(foreground, state) { active, snapshot ->
+                snapshot.takeIf { active && it.record?.stage == PaymentStage.CLOSED &&
+                    it.record.initialized?.channelType == "official" && !it.record.locallyReleased }
+                    ?.let { Triple(it.epoch, it.record!!.key, it.record.initialized?.sdkParams?.productId) }
+            }.distinctUntilChanged().collectLatest { candidate ->
+                val (epoch, key, sku) = candidate ?: return@collectLatest
+                if (sku.isNullOrBlank()) return@collectLatest
+                repeat(3) { attempt ->
+                    if (sessions.current?.epoch != epoch) return@collectLatest
+                    val queried = try {
+                        if (!billing.connect().isSuccess) null else billing.queryPurchases(
+                            yumo.achat.core.billing.BillingProductType.IN_APP, emitRecoveryEvents = false)
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { null }
+                    if (sessions.current?.epoch != epoch) return@collectLatest
+                    if (queried?.isSuccess == true) {
+                        val owned = queried.data.orEmpty().any { it.productId == sku && it.purchaseState in setOf(
+                            yumo.achat.core.billing.PurchaseState.PENDING, yumo.achat.core.billing.PurchaseState.PURCHASED) }
+                        engine.releaseClosedOfficial(key, owned, true)
+                        return@collectLatest
+                    }
+                    if (attempt < 2) delay(1500L * (attempt + 1))
+                }
             }
         }
         scope.launch { sessions.state.map { it?.epoch }.distinctUntilChanged().collectLatest { engine.restore() } }
@@ -79,7 +106,7 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
 }
 
 internal fun shouldAutoPollPayment(record: PaymentRecord?): Boolean {
-    if (record == null) return false
+    if (record == null || record.productType == "membership") return false
     if (record.stage == PaymentStage.AWAITING_FULFILLMENT) return true
     if (record.thirdParty) return record.initialized?.openMode != "external_browser"
     return record.stage in setOf(

@@ -30,6 +30,20 @@ class ApiTemplateRepositoryTest {
         sessions.saveLogin(AuthResponse("token", "refresh", "user"))
         return Triple(ApiTemplateRepository(api, sessions, CatalogConfiguration(MediaKind.VIDEO, 2)), api, sessions)
     }
+    @Test fun `VIP attribute survives both modality catalogs and saved serialization`() = runBlocking {
+        val (repository, api) = fixture()
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        api.response = { kind, page -> VisualPage(listOf(json.decodeFromString<VisualTemplate>(
+            """{"id":"vip","name":"premium","vip":true,"file_url":"https://example.test/a","mime_type":"$kind/test","width":10,"height":10}""")), page, 2, 1) }
+        for (channel in listOf(CatalogChannel.VIDEO, CatalogChannel.IMAGE)) {
+            val template = repository.load(channel).templates.single()
+            assertTrue(template.vip)
+            assertTrue(json.decodeFromString<Template>(json.encodeToString(Template.serializer(), template)).vip)
+        }
+        val route = VisualGenerationApi::class.java.methods.single { it.name == "templates" }
+            .getAnnotation(retrofit2.http.GET::class.java).value
+        assertTrue(route.contains("is_vip=1"))
+    }
     @Test fun `首页与视频分类分页刷新重试均保持热门排序`() = runBlocking {
         val (repository, api) = fixture()
         for (channel in listOf(CatalogChannel.HOME, CatalogChannel.VIDEO)) {

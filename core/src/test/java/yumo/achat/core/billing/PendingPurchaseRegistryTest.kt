@@ -2,11 +2,33 @@ package yumo.achat.core.billing
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
 import yumo.achat.core.analytics.RecordingTracker
 import org.junit.Test
 
 class PendingPurchaseRegistryTest {
+    @Test fun `cancel matches Play account identity when business owner differs`() {
+        val registry = PendingPurchaseRegistry()
+        registry.register(PendingPurchaseRecord("month", "order", BillingProductType.SUBS, null,
+            userId = "obfuscated-account", ownerUserId = "business-owner"))
+        registry.removeCancelledRequest(PurchaseRequest("month", BillingProductType.SUBS, "order", "obfuscated-account"))
+        assertTrue(registry.snapshot().isEmpty())
+    }
+    @Test fun `cancel removes only exact tokenless owner order placeholder`() {
+        val registry = PendingPurchaseRegistry()
+        val current = PendingPurchaseRecord("month", "current", BillingProductType.SUBS, null, userId = "user")
+        val old = current.copy(orderId = "old", purchaseToken = "confirmed-token")
+        registry.restore(listOf(current, old))
+        registry.removeCancelledRequest(PurchaseRequest("month", BillingProductType.SUBS, "missing", "user"))
+        assertEquals(2, registry.snapshot().size)
+        registry.removeCancelledRequest(PurchaseRequest("month", BillingProductType.SUBS, "current", "another-user"))
+        assertEquals(2, registry.snapshot().size)
+        registry.removeCancelledRequest(PurchaseRequest("month", BillingProductType.SUBS, "current", "user"))
+        assertEquals(listOf(old), registry.snapshot())
+        registry.removeCancelledRequest(PurchaseRequest("month", BillingProductType.SUBS, "old", "user"))
+        assertEquals(listOf(old), registry.snapshot())
+    }
     @Test fun `recovered purchase uses original Play amount and currency with original success identity`() = kotlinx.coroutines.runBlocking {
         val saved = PendingPurchaseRecord("sku", "order", BillingProductType.IN_APP, "token",
             ownerUserId = "user", businessOrderId = "order", priceAmountMicros = 2990000,

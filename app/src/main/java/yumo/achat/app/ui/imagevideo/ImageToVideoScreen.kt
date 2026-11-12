@@ -187,6 +187,7 @@ internal enum class ImageToVideoDestination {
     MyTasks,
     Feedback,
     EditName,
+    Subscription,
 }
 
 internal data class BottomNavigationRoute(
@@ -281,6 +282,7 @@ internal data class AchatBackendUiState(
     val profileId: String = "",
     val profileAvatarUrl: String? = null,
     val isNewProfile: Boolean? = null,
+    val isVip: Boolean? = null,
     val diamondBalance: Int = 0,
     val videoTemplates: List<VisualTemplate> = emptyList(),
     val imageTemplates: List<VisualTemplate> = emptyList(),
@@ -449,6 +451,7 @@ private data class SelectedGenerationTemplate(
     val categoryId: String,
     val source: String,
     val quotedDiamondCost: Int,
+    val vip: Boolean = false,
 )
 
 private fun SelectedGenerationTemplate.analyticsContext() = GenerationAnalyticsContext(
@@ -739,8 +742,15 @@ private fun ImageToVideoHomeScreen(
     var destination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     var pendingTopUpReturnNavigation by rememberSaveable { mutableIntStateOf(-1) }
     var pendingTopUpReturnDestination by rememberSaveable { mutableStateOf<String?>(null) }
+    var subscriptionEntrySource by rememberSaveable { mutableStateOf("profile_page") }
+    val subscriptionViewModel: SubscriptionViewModel = hiltViewModel()
+    val subscriptionPayment by subscriptionViewModel.purchases.state.collectAsState()
+    var refreshedSubscriptionOrder by rememberSaveable { mutableStateOf<String?>(null) }
+    var subscriptionRefreshRevision by remember { mutableIntStateOf(0) }
     var topUpEntrySource by rememberSaveable { mutableStateOf("main") }
     var selectedGenerationTemplate by remember { mutableStateOf<SelectedGenerationTemplate?>(null) }
+    var showTemplateSubscription by remember { mutableStateOf(false) }
+    var vipRequestSerial by remember { mutableStateOf(0L) }
     var sessionTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var serverHistoryTasks by remember { mutableStateOf<List<TrackedGenerationTask>>(emptyList()) }
     var localTaskStoreLoaded by remember { mutableStateOf(false) }
@@ -780,6 +790,57 @@ private fun ImageToVideoHomeScreen(
             profileAvatarUrl = profile.largeAvatarUrl ?: profile.avatarUrl,
             isNewProfile = profile.isNew,
         )
+    }
+
+    suspend fun refreshVipMembership(): Boolean? {
+        val serial = ++vipRequestSerial
+        if (repository.savedSession()?.epoch != startupSession.epoch) return null
+        try {
+            val membership = repository.vipInfo().isVip
+            if (repository.savedSession()?.epoch != startupSession.epoch || serial != vipRequestSerial) return null
+            backendState = backendState.copy(isVip = membership)
+            return membership
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) {
+            if (repository.savedSession()?.epoch == startupSession.epoch && serial == vipRequestSerial) {
+                backendState = backendState.copy(isVip = null)
+            }
+            throw error
+        }
+    }
+
+    // Completion is observed by the host so restoration also refreshes membership outside the paywall.
+    LaunchedEffect(subscriptionPayment.fulfilledOrderId, startupSession.epoch, subscriptionRefreshRevision) {
+        val order = subscriptionPayment.fulfilledOrderId ?: return@LaunchedEffect
+        if (refreshedSubscriptionOrder == order || subscriptionPayment.ownerUserId != startupSession.userId) return@LaunchedEffect
+        suspend fun ownsSession() = repository.savedSession()?.epoch == startupSession.epoch
+        if (!ownsSession()) return@LaunchedEffect
+        var refreshComplete = true
+        try {
+            val membership = refreshVipMembership()
+            if (membership != true) refreshComplete = false
+            if (membership == true && ownsSession() && showTemplateSubscription) {
+                showTemplateSubscription = false
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { refreshComplete = false }
+        try {
+            val profile = repository.userProfileSnapshot()
+            if (ownsSession()) applyProfile(profile)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { refreshComplete = false }
+        try {
+            val currency = repository.userCurrencySnapshot()
+            if (ownsSession()) backendState = backendState.copy(diamondBalance = currency.diamondBalance)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { refreshComplete = false }
+        if (ownsSession()) {
+            if (refreshComplete) refreshedSubscriptionOrder = order
+            if (destination == ImageToVideoDestination.Subscription &&
+                subscriptionPayment.stage == yumo.achat.core.billing.SubscriptionPurchaseStage.Success) {
+                destination = ImageToVideoDestination.Templates
+            }
+        }
     }
 
     LaunchedEffect(localTaskStore) {
@@ -1214,6 +1275,36 @@ private fun ImageToVideoHomeScreen(
         destination = route.destination
     }
 
+    fun openTemplateSubscription(template: SelectedGenerationTemplate) {
+        subscriptionEntrySource = if (template.modality == "image") "image_template_vip" else "video_template_vip"
+        showTemplateSubscription = true
+        isPlaying = false
+    }
+
+    fun useTemplate(template: SelectedGenerationTemplate?) {
+        if (template == null) return
+        analytics.track("click_upload_img", mapOf("template_id" to template.templateId,
+            "category_id" to template.categoryId, "modality" to template.modality, "source" to template.source),
+            backendState.profileId)
+        selectedGenerationTemplate = template
+        destination = ImageToVideoDestination.UploadPhoto
+    }
+
+    fun navigateFromVipBadge() {
+        when (vipBadgeTarget(backendState.isVip)) {
+            VipBadgeTarget.Subscription -> {
+                subscriptionEntrySource = when (selectedNavigation) {
+                    0 -> "video_templates"
+                    1 -> "image_templates"
+                    2 -> "top_up"
+                    else -> "profile_page"
+                }
+                destination = ImageToVideoDestination.Subscription
+            }
+            null -> Unit
+        }
+    }
+
     fun navigateToTopUpForInsufficientBalance() {
         topUpEntrySource = insufficientBalanceTopUpEntrySource()
         setPendingTopUpReturnRoute(
@@ -1391,6 +1482,17 @@ private fun ImageToVideoHomeScreen(
         }
     }
 
+    LaunchedEffect(destination, selectedNavigation, subscriptionRefreshRevision, startupSession.epoch) {
+        if (destination != ImageToVideoDestination.Templates) return@LaunchedEffect
+        try {
+            refreshVipMembership()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // Unknown membership must not be presented as non-VIP.
+        }
+    }
+
     LaunchedEffect(destination, selectedNavigation, topUpRefreshSerial) {
         if (destination != ImageToVideoDestination.Templates || selectedNavigation != 2) return@LaunchedEffect
         val refreshSerial = topUpRefreshSerial
@@ -1529,18 +1631,23 @@ private fun ImageToVideoHomeScreen(
     DisposableEffect(lifecycleOwner, topUpPaymentController) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE) topUpPaymentController.onHostPaused()
-            if (event == Lifecycle.Event.ON_RESUME) topUpPaymentController.onHostResumed()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                topUpPaymentController.onHostResumed()
+                subscriptionRefreshRevision++
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     TrackAnalyticsPage(
-        pageName = analyticsPageName(destination, selectedNavigation, selectedResultTask != null),
+        pageName = if (showTemplateSubscription) "subscription" else analyticsPageName(destination, selectedNavigation, selectedResultTask != null),
         tracker = analytics,
         userId = backendState.profileId.takeIf(String::isNotBlank),
-        parameters = if (analyticsPageName(destination, selectedNavigation, selectedResultTask != null) == "purchase") {
+        parameters = if (!showTemplateSubscription && analyticsPageName(destination, selectedNavigation, selectedResultTask != null) == "purchase") {
             mapOf("entry_source" to topUpEntrySource)
+        } else if (showTemplateSubscription || destination == ImageToVideoDestination.Subscription) {
+            mapOf("trigger" to subscriptionEntrySource, "entry_source" to subscriptionEntrySource)
         } else emptyMap(),
     )
 
@@ -1559,7 +1666,7 @@ private fun ImageToVideoHomeScreen(
                 TemplateBrowserScreen(
                     selectedTab = selectedTab,
                     currentTemplate = currentTemplate,
-                    isPlaying = isPlaying,
+                    isPlaying = isPlaying && !showTemplateSubscription,
                     selectedNavigation = selectedNavigation,
                     homeTaskBadges = homeTaskBadges,
                     onTabSelect = {
@@ -1599,24 +1706,10 @@ private fun ImageToVideoHomeScreen(
                             userId = backendState.profileId,
                         )
                     },
-                    onUseTemplate = { template ->
-                        if (template != null) {
-                            analytics.track(
-                                name = "click_upload_img",
-                                parameters = mapOf(
-                                    "template_id" to template.templateId,
-                                    "category_id" to template.categoryId,
-                                    "modality" to template.modality,
-                                    "source" to template.source,
-                                ),
-                                userId = backendState.profileId,
-                            )
-                        }
-                        selectedGenerationTemplate = template
-                        destination = ImageToVideoDestination.UploadPhoto
-                    },
+                    onUseTemplate = ::useTemplate,
                     onConversationLog = ::openMyTasks,
                     onFeedback = { destination = ImageToVideoDestination.Feedback },
+                    onSubscription = ::navigateFromVipBadge,
                     onLogout = { performAccountAction(false) },
                     onDeleteAccount = { deleteDialogOpen = true; accountActionError = null },
                     accountActionBusy = accountActionBusy,
@@ -1652,6 +1745,10 @@ private fun ImageToVideoHomeScreen(
                 )
             }
 
+            ImageToVideoDestination.Subscription -> {
+                SubscriptionRoute(repository = repository, trigger = subscriptionEntrySource, isVip = backendState.isVip, onBack = { destination = ImageToVideoDestination.Templates })
+            }
+
             ImageToVideoDestination.UploadPhoto -> {
                 UploadPhotoScreen(
                     selectedNavigation = selectedNavigation,
@@ -1660,6 +1757,16 @@ private fun ImageToVideoHomeScreen(
                     onInsufficientBalanceTopUp = ::navigateToTopUpForInsufficientBalance,
                     diamondBalance = backendState.diamondBalance,
                     selectedTemplate = selectedGenerationTemplate,
+                    previewActive = !showTemplateSubscription,
+                    checkVipMembership = ::refreshVipMembership,
+                    onVipRequired = {
+                        selectedGenerationTemplate?.let { openTemplateSubscription(it) }
+                        screenScope.launch {
+                            try { refreshVipMembership() }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (_: Exception) { /* Keep unknown entitlement and the retryable paywall. */ }
+                        }
+                    },
                     trackedTasks = sessionTasks,
                     onTaskCreated = ::handleGenerationTaskCreated,
                     onBalanceClick = ::navigateFromBalanceBadge,
@@ -1714,6 +1821,7 @@ private fun ImageToVideoHomeScreen(
                             selectedNavigation = 3,
                             onConversationLog = ::openMyTasks,
                             onFeedback = { destination = ImageToVideoDestination.Feedback },
+                            onSubscription = ::navigateFromVipBadge,
                             onLogout = {},
                             onDeleteAccount = {},
                             accountActionBusy = true,
@@ -1721,6 +1829,7 @@ private fun ImageToVideoHomeScreen(
                             onEditName = {},
                             onEditAvatar = ::openAvatarPicker,
                             isAvatarSaving = profileEditingController.avatarSaving,
+                            isVip = backendState.isVip,
                             profileName = backendState.profileName,
                             profileId = backendState.profileId,
                             profileAvatarUrl = backendState.profileAvatarUrl,
@@ -1788,6 +1897,12 @@ private fun ImageToVideoHomeScreen(
                     ?.takeIf { it.recoverable }?.actionRes,
             )
         }
+        if (showTemplateSubscription) {
+            androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+                SubscriptionRoute(repository, subscriptionEntrySource, backendState.isVip,
+                    onBack = { showTemplateSubscription = false }, templateEntry = true)
+            }
+        }
         if (deleteDialogOpen) {
             DeleteAccountDialog(
                 busy = accountActionBusy,
@@ -1820,6 +1935,7 @@ private fun TemplateBrowserScreen(
     onUseTemplate: (SelectedGenerationTemplate?) -> Unit,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onSubscription: () -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     accountActionBusy: Boolean,
@@ -1847,6 +1963,8 @@ private fun TemplateBrowserScreen(
             selectedProductId = selectedProductId,
             productSelectionEnabled = productSelectionEnabled,
             state = topUpState,
+            isVip = backendState.isVip,
+            onSubscription = onSubscription,
             diamondBalance = topUpHeaderDiamondBalance(
                 backendState = backendState,
                 topUpState = topUpState,
@@ -1867,6 +1985,7 @@ private fun TemplateBrowserScreen(
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
+            onSubscription = onSubscription,
             onLogout = onLogout,
             onDeleteAccount = onDeleteAccount,
             accountActionBusy = accountActionBusy,
@@ -1874,6 +1993,7 @@ private fun TemplateBrowserScreen(
             onEditName = onEditName,
             onEditAvatar = onEditAvatar,
             isAvatarSaving = isAvatarSaving,
+            isVip = backendState.isVip,
             profileName = backendState.profileName,
             profileId = backendState.profileId,
             profileAvatarUrl = backendState.profileAvatarUrl,
@@ -1928,9 +2048,9 @@ private fun TemplateBrowserScreen(
             categoryId = template.categoryId.orEmpty(),
             source = if (section == TemplateSection.Image) "image" else "video",
             quotedDiamondCost = template.displayPrice ?: 0,
+            vip = template.vip,
         )
     }
-    val visiblePrice = selectedGenerationTemplate?.quotedDiamondCost
     val exposureLifecycle = LocalLifecycleOwner.current.lifecycle
     val exposedTemplates = remember(selectedNavigation, selectedTab) { mutableSetOf<String>() }
     DisposableEffect(exposureLifecycle, selectedNavigation, selectedTab) {
@@ -1973,7 +2093,7 @@ private fun TemplateBrowserScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick)
+        Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick, isVip = backendState.isVip, onSubscription = onSubscription)
         AttributionProfileRetry(attributionProfileRetryRequired, onAttributionProfileRetry)
         Spacer(Modifier.height(8.dp))
         if (shouldShowTemplateTabs(section)) {
@@ -2024,7 +2144,6 @@ private fun TemplateBrowserScreen(
             )
         }
         TemplateButton(
-            price = visiblePrice,
             enabled = selectedGenerationTemplate != null,
             onClick = { onUseTemplate(selectedGenerationTemplate) },
         )
@@ -2104,6 +2223,7 @@ private fun TemplateFeedPager(
                 totalPages = templates.size,
                 durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
                 previewMedia = template.toPreviewMedia(),
+                vip = template.vip,
                 isPlaying = shouldPlayTemplatePage(
                     page = page,
                     currentPage = pagerState.currentPage,
@@ -2310,6 +2430,7 @@ private fun MeScreen(
     selectedNavigation: Int,
     onConversationLog: () -> Unit,
     onFeedback: () -> Unit,
+    onSubscription: () -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     accountActionBusy: Boolean,
@@ -2317,6 +2438,7 @@ private fun MeScreen(
     onEditName: () -> Unit,
     onEditAvatar: () -> Unit,
     isAvatarSaving: Boolean,
+    isVip: Boolean?,
     profileName: String,
     profileId: String,
     profileAvatarUrl: String?,
@@ -2338,7 +2460,7 @@ private fun MeScreen(
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        MeHeader(diamondBalance = diamondBalance, onBalanceClick = onBalanceClick)
+        MeHeader(diamondBalance = diamondBalance, onBalanceClick = onBalanceClick, isVip = isVip, onSubscription = onSubscription)
         Spacer(Modifier.height(28.dp))
         ProfileCard(
             profileName = profileName,
@@ -2440,35 +2562,15 @@ internal fun meSystemModulePresentations(): List<MeSystemModulePresentation> = l
 )
 
 @Composable
-private fun MeHeader(diamondBalance: Int, onBalanceClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
+private fun MeHeader(diamondBalance: Int, onBalanceClick: () -> Unit, isVip: Boolean?, onSubscription: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = stringResource(R.string.me_title),
             color = AchatCyan,
             style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
         )
-        Row(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
-                .background(Color(0xB20A111C))
-                .clickable(onClick = onBalanceClick)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DiamondIcon(12.dp)
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = diamondBalance.toString(),
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
+        VipBalanceActions(isVip, diamondBalance, onSubscription, onBalanceClick)
     }
 }
 
@@ -4025,6 +4127,8 @@ internal fun TopUpScreen(
     productSelectionEnabled: Boolean = true,
     state: TopUpUiState,
     diamondBalance: Int = state.diamondBalance,
+    isVip: Boolean? = null,
+    onSubscription: () -> Unit = {},
     purchaseState: TopUpPurchaseState,
     checkoutState: TopUpCheckoutState = TopUpCheckoutState.Idle,
     isReconciling: Boolean = false,
@@ -4045,7 +4149,7 @@ internal fun TopUpScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        TopUpHeader(diamondBalance = diamondBalance)
+        TopUpHeader(diamondBalance = diamondBalance, isVip = isVip, onSubscription = onSubscription)
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             DiamondIcon(8.dp)
@@ -4472,13 +4576,13 @@ private fun TopUpErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun TopUpHeader(diamondBalance: Int) {
+private fun TopUpHeader(diamondBalance: Int, isVip: Boolean?, onSubscription: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(
                 text = stringResource(R.string.system_credits),
                 color = AchatPink,
@@ -4493,19 +4597,7 @@ private fun TopUpHeader(diamondBalance: Int) {
                 fontWeight = FontWeight.Bold,
             )
         }
-        Row(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
-                .background(Color(0xB20A111C))
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DiamondIcon(12.dp)
-            Spacer(Modifier.width(6.dp))
-            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
+        VipBalanceActions(isVip, diamondBalance, onSubscription)
     }
 }
 
@@ -4729,6 +4821,9 @@ private fun UploadPhotoScreen(
     onInsufficientBalanceTopUp: () -> Unit,
     diamondBalance: Int,
     selectedTemplate: SelectedGenerationTemplate?,
+    previewActive: Boolean = true,
+    checkVipMembership: suspend () -> Boolean?,
+    onVipRequired: () -> Unit,
     trackedTasks: List<TrackedGenerationTask>,
     onTaskCreated: (VisualGenerationTask, TrackedGenerationTask) -> Unit,
     onBalanceClick: () -> Unit,
@@ -4881,7 +4976,7 @@ private fun UploadPhotoScreen(
             TemplatePreviewPanel(
                 media = selectedTemplate?.previewMedia ?: TemplatePreviewMedia.LocalPlaceholder,
                 durationSeconds = selectedTemplate?.durationSeconds ?: 5,
-                isPlaying = selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
+                isPlaying = previewActive && selectedTemplate?.previewMedia is TemplatePreviewMedia.RemoteVideo,
                 modifier = Modifier.fillMaxSize(),
             )
             selectedTemplate?.let { template ->
@@ -4917,6 +5012,7 @@ private fun UploadPhotoScreen(
             canContinue = uploadedResourceId != null,
             onChoosePhoto = ::launchPhotoPicker,
             onContinue = {
+                if (uploadInProgress) return@UploadActions
                 val resourceId = uploadedResourceId
                 if (resourceId == null) {
                     showUploadMessage(chooseFirstMessage, TransientMessageTone.Error)
@@ -4936,9 +5032,23 @@ private fun UploadPhotoScreen(
                     resourceId = resourceId,
                 )
                 generationSubmissionKey = submissionKey
-                generationAnalytics.clickGenerate(template.analyticsContext(), submissionKey.idempotencyKey)
                 scope.launch {
+                    var submitted = false
                     try {
+                        when (yumo.achat.core.backend.checkTemplateContinueAccess(template.vip, checkVipMembership)) {
+                            yumo.achat.core.backend.TemplateVipAccess.SubscriptionRequired -> {
+                                showUploadMessage(context.getString(R.string.template_vip_required), TransientMessageTone.Error)
+                                onVipRequired()
+                                return@launch
+                            }
+                            yumo.achat.core.backend.TemplateVipAccess.CheckRequired -> {
+                                showUploadMessage(context.getString(R.string.template_vip_check_failed), TransientMessageTone.Error)
+                                return@launch
+                            }
+                            yumo.achat.core.backend.TemplateVipAccess.Allowed -> Unit
+                        }
+                        generationAnalytics.clickGenerate(template.analyticsContext(), submissionKey.idempotencyKey)
+                        submitted = true
                         val task = repository.createVisualGenerationTask(
                             modality = template.modality,
                             templateId = template.templateId,
@@ -4965,14 +5075,19 @@ private fun UploadPhotoScreen(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
-                        generationAnalytics.submitResult(
+                        if (submitted) generationAnalytics.submitResult(
                             template.analyticsContext(), submissionKey.idempotencyKey, null, error,
                         )
+                        if (yumo.achat.core.backend.isTemplateVipRejection(error)) {
+                            showUploadMessage(context.getString(R.string.template_vip_required), TransientMessageTone.Error)
+                            onVipRequired()
+                            return@launch
+                        }
                         showUploadMessage(
                             text = context.diagnosticMessage(operationUserMessage(error, uploadFailedMessage), generationSubmissionDiagnostic(error)),
                             tone = TransientMessageTone.Error,
                         )
-                        val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message)
+                        val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message, vipTemplate = template.vip)
                         if (topUpRouteDelayMillis != null) {
                             delay(topUpRouteDelayMillis)
                             onInsufficientBalanceTopUp()
@@ -5074,7 +5189,7 @@ private fun BackgroundGlow() {
 }
 
 @Composable
-private fun Header(section: TemplateSection, diamondBalance: Int, onBalanceClick: () -> Unit) {
+private fun Header(section: TemplateSection, diamondBalance: Int, onBalanceClick: () -> Unit, isVip: Boolean?, onSubscription: () -> Unit) {
     val title = stringResource(
         if (section == TemplateSection.Image) R.string.image_to_image_title else R.string.image_to_video_title,
     )
@@ -5085,24 +5200,12 @@ private fun Header(section: TemplateSection, diamondBalance: Int, onBalanceClick
     ) {
         Text(
             text = title,
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
             color = Color.White,
             fontSize = if (section == TemplateSection.Image) 20.sp else 24.sp,
             fontWeight = FontWeight.Bold,
         )
-        Row(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, AchatCyan.copy(alpha = 0.34f), RoundedCornerShape(12.dp))
-                .background(Color(0xB20A111C))
-                .clickable(onClick = onBalanceClick)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DiamondIcon(12.dp)
-            Spacer(Modifier.width(6.dp))
-            Text(diamondBalance.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
+        VipBalanceActions(isVip, diamondBalance, onSubscription, onBalanceClick)
     }
 }
 

@@ -26,12 +26,18 @@ import javax.inject.Singleton
     val recoveryRequired: Boolean = false,
     val recoveredPaymentMethod: String? = null,
     val recoveredTrigger: String? = null,
+    val orderCreationSource: String? = null,
+    val orderCreateStarted: Boolean = false,
+    val orderCreationTrigger: String? = null,
+    val officialCheckoutReleased: Boolean = false,
+    val productType: String? = null,
 ) {
     val thirdParty get() = initialized?.channelType == "third_party"
     val orderCreationUnknown get() = stage == PaymentStage.UNCERTAIN && orderId == null
     val initializationFailed get() = stage == PaymentStage.INITIALIZING && initialized == null && error != null
     // ACCESS_DENIED 只表示本客户端不得继续使用该订单，不代表服务器取消、退款或已完成。
-    val unresolved get() = stage !in setOf(
+    val locallyReleased get() = officialCheckoutReleased && initialized?.channelType == "official" && stage == PaymentStage.CLOSED
+    val unresolved get() = productType != "membership" && !locallyReleased && stage !in setOf(
         PaymentStage.SUCCESS,
         PaymentStage.FAILED,
         PaymentStage.OFFICIAL_CONSUMED,

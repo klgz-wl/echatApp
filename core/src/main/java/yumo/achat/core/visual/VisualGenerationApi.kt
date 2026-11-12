@@ -17,7 +17,7 @@ import retrofit2.http.*
     @SerialName("hot_score") val hotScore: Int = 0, @SerialName("created_at") val createdAt: String = "",
     val prices: yumo.achat.core.catalog.TemplatePrices? = null,
     @SerialName("preview_url") val previewUrl: String? = null, val tags: List<String> = emptyList(),
-    @SerialName("is_home_featured") val isHomeFeatured: Boolean = false)
+    @SerialName("is_home_featured") val isHomeFeatured: Boolean = false, val vip: Boolean = false)
 @Serializable data class VisualResult(val id: String, val url: String, @SerialName("mime_type") val mimeType: String,
     val width: Int, val height: Int, val duration: Double = 0.0)
 @Serializable data class VisualTask(@SerialName("task_id") val taskId: String, val status: String, val modality: String,
@@ -37,7 +37,7 @@ import retrofit2.http.*
 /** modality 只能由客户端枚举选择 image 或 video，不接受外部 URL 作为路径。 */
 interface VisualGenerationApi {
     @GET("visual-generation/{modality}/categories") suspend fun categories(@Path("modality") modality: String, @Tag session: Session): ApiResponse<List<VisualCategory>>
-    @GET("visual-generation/{modality}/templates") suspend fun templates(@Path("modality") modality: String,
+    @GET("visual-generation/{modality}/templates?is_vip=1") suspend fun templates(@Path("modality") modality: String,
         @Query("page") page: Int, @Query("page_size") pageSize: Int, @Query("category_id") categoryId: String?,
         @Query("sort_by") sortBy: String, @Tag session: Session): ApiResponse<VisualPage<VisualTemplate>>
     @Multipart @POST("visual-generation/{modality}/tasks") suspend fun createTask(@Path("modality") modality: String,

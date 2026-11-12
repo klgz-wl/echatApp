@@ -1,0 +1,6 @@
+<resources>
+    <string name="template_vip_only">VIP-only template</string>
+    <string name="template_vip_checking">Checking your VIP membership…</string>
+    <string name="template_vip_check_failed">Your VIP membership could not be checked. Please try again.</string>
+    <string name="template_vip_required">An active VIP subscription is required to use this template.</string>
+</resources>

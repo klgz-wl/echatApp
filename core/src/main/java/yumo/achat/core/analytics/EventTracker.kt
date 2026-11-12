@@ -63,7 +63,7 @@ fun businessRevenueParameters(name: String, values: Map<String, Any>): Map<Strin
     val price = (values["af_price"] as? Number)?.toDouble()
     val currency = values["af_currency"] as? String
     val play = values["pay_method"] == "google_play" && values["price_source"] == "google_play" &&
-        values["stage"] in setOf("play_consumed", "fulfilled") && currency?.matches(Regex("[A-Z]{3}")) == true
+        values["stage"] in setOf("play_consumed", "fulfilled", "play_purchased") && currency?.matches(Regex("[A-Z]{3}")) == true
     val thirdParty = values["pay_method"] != "google_play" && values["price_source"] == "catalog_quote" &&
         values["stage"] == "fulfilled" && currency == "USD"
     return if (values["status"] == "success" && (play || thirdParty) && revenue != null &&

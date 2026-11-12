@@ -62,6 +62,15 @@ internal class PendingPurchaseRegistry {
         records.removeAll { it.identityKey() == record.identityKey() }
     }
 
+    /** Cancellation is not permission to erase an older same-SKU or token-bound purchase. */
+    fun removeCancelledRequest(request: PurchaseRequest) = synchronized(lock) {
+        records.removeAll { record ->
+            record.productId == request.productId && record.productType == request.productType &&
+                record.orderId == request.orderId && record.userId == request.userId &&
+                record.purchaseToken.isNullOrBlank()
+        }
+    }
+
     fun snapshot(): List<PendingPurchaseRecord> = synchronized(lock) { records.toList() }
 
     private fun PendingPurchaseRecord.identityKey(): String = orderId ?: "$productType:$productId"

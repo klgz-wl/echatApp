@@ -12,6 +12,14 @@ import org.junit.Test
 
 class PurchaseRequestCoordinatorTest {
 
+    @Test fun `cancel cleanup failure still completes captured request and allows next purchase`() = runBlocking {
+        val coordinator = PurchaseRequestCoordinator()
+        val first = coordinator.start("month", BillingProductType.SUBS, "order-1", "user")
+        try { coordinator.cancelActive { error("disk failure") } } catch (_: IllegalStateException) { }
+        assertEquals(BillingResponseCode.CANCELLED, first.await().responseCode)
+        val next = coordinator.start("week", BillingProductType.SUBS, "order-2", "user")
+        assertTrue(coordinator.isActive(next))
+    }
     @Test
     fun `active purchase remains correlated until terminal callback`() = runBlocking {
         val coordinator = PurchaseRequestCoordinator()

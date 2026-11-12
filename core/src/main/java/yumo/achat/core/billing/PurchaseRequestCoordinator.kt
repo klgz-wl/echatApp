@@ -67,6 +67,13 @@ internal class PurchaseRequestCoordinator {
         return shouldComplete && request.complete(result)
     }
 
+    /** Complete the captured request even if local placeholder cleanup fails. */
+    fun cancelActive(clearPending: (PurchaseRequest) -> Unit) {
+        val request = synchronized(lock) { activeRequest } ?: return
+        try { clearPending(request) }
+        finally { complete(request, BillingResult.error(BillingResponseCode.CANCELLED, "Purchase cancelled by user")) }
+    }
+
     fun completeActive(result: BillingResult<BillingPurchase>): Boolean {
         val request = synchronized(lock) { activeRequest } ?: return false
         return complete(request, result)

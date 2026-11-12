@@ -38,6 +38,15 @@ class WalletRepositoryTest {
         sessions.saveLogin(AuthResponse("token", "refresh", "user"))
         return Triple(WalletRepository(api, sessions, WalletConfiguration("diamond", "store", 2)), api, sessions)
     }
+    @Test fun `payment product classification uses backend type not names or SKU`() = runBlocking {
+        val (repository, api, sessions) = fixture()
+        api.products = listOf(
+            CoinProduct("coins-looking", "membership", "Coins label", 4.99, subscription = true),
+            CoinProduct("vip-looking", "diamond", "VIP label", 3.99, coins = 100L))
+        assertEquals("membership", repository.paymentProductType("coins-looking", sessions.current!!))
+        assertEquals("diamond", repository.paymentProductType("vip-looking", sessions.current!!))
+        assertNull(repository.paymentProductType("missing", sessions.current!!))
+    }
     @Test fun `金币余额和商品保持原始数值且只查询消耗型商品`() = runBlocking {
         val (repository, api) = fixture()
         assertEquals(42L, repository.refreshBalance())

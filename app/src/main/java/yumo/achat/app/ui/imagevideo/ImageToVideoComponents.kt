@@ -106,6 +106,7 @@ internal fun HeroCard(
     enableSwipeGestures: Boolean = true,
     edgeHint: TransientMessage? = null,
     onEdgeHintDismiss: (Long) -> Unit = {},
+    vip: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val portraitDescription = stringResource(R.string.template_portrait_description)
@@ -175,6 +176,7 @@ internal fun HeroCard(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9060710)))),
         )
         FrameCorners()
+        TemplateVipBadge(vip, Modifier.align(Alignment.TopEnd).padding(8.dp))
         AnimatedVisibility(
             visible = showPlaybackControls,
             enter = fadeIn(),
@@ -872,7 +874,7 @@ private fun RoundArrow(up: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun TemplateButton(price: Int?, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun TemplateButton(enabled: Boolean = true, onClick: () -> Unit) {
     val gradientColors = if (enabled) {
         listOf(Color(0xFF21D9F2), Color(0xFF7952E8), AchatPink)
     } else {
@@ -896,17 +898,7 @@ internal fun TemplateButton(price: Int?, enabled: Boolean = true, onClick: () ->
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
         )
-        if (price != null) {
-            Spacer(Modifier.width(12.dp))
-            DiamondIcon(11.dp)
-            Spacer(Modifier.width(5.dp))
-            Text(
-                price.toString(),
-                color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
+
     }
 }
 

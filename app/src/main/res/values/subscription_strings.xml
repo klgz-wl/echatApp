@@ -1,0 +1,24 @@
+<resources>
+    <string name="subscription_back">Back to Me</string>
+    <string name="subscription_title">Premium</string>
+    <string name="subscription_unlock">Unlock VIP</string>
+    <string name="subscription_tagline">Unlock all premium features · No ads, no waiting</string>
+    <string name="subscription_retry">Retry</string>
+    <string name="subscription_empty">Subscriptions are currently unavailable.</string>
+    <string name="subscription_action">SUBSCRIBE</string>
+    <string name="subscription_processing">PROCESSING…</string>
+    <string name="subscription_renewal">By tapping Subscribe, you will be charged. Your subscription will automatically renew for the same price and duration unless canceled. You can cancel anytime in your Google Play settings. By continuing, you agree to our Terms.</string>
+    <string name="subscription_terms">Terms</string>
+    <string name="subscription_comparison">FEATURE COMPARISON</string>
+    <string name="subscription_free">Free</string>
+    <string name="subscription_unavailable">✕</string>
+    <string name="subscription_feature_templates">VIP Templates</string>
+    <string name="subscription_feature_ads">Ad-Free Experience</string>
+    <string name="subscription_feature_speed">Faster Speed</string>
+    <string name="subscription_feature_video">Generate 15s Videos</string>
+    <string name="subscription_feature_chat">Unlimited AI Chat</string>
+    <string name="template_subscription_close">Close subscription</string>
+    <string name="template_subscription_long_videos">Generate Long Videos</string>
+    <string name="template_subscription_selected">Selected</string>
+    <string name="template_subscription_standard">Standard</string>
+</resources>

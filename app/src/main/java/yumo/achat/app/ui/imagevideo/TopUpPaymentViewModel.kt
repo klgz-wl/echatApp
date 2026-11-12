@@ -150,6 +150,7 @@ internal class CoreTopUpPaymentController(
         scope.launch {
             payments.state.collect { next ->
                 if (requestsThirdPartyLaunch(coreState, next)) thirdPartyLaunchSerial += 1
+                val previousKey = coreState.record?.key
                 coreState = next
                 checkoutVisible = next.checkoutVisible
                 fulfilledBillingPurchaseEpoch(next, purchaseState)?.let { epoch ->
@@ -158,7 +159,9 @@ internal class CoreTopUpPaymentController(
                 }
                 productSelectionLocked = corePaymentPresentation(next).locksProductSelection ||
                     blocksTopUpPurchase(purchaseState, next, sessions.current?.userId)
-                next.record?.productId?.let { selectedProductId = it }
+                if (shouldAdoptPaymentProduct(previousKey, next, productSelectionLocked)) {
+                    next.record?.productId?.let { selectedProductId = it }
+                }
                 state = next.toTopUpPurchaseState()
                 checkoutState = next.toTopUpCheckoutState(purchaseState)
                 val successKey = next.record?.takeIf { it.stage == PaymentStage.SUCCESS }?.key
@@ -320,7 +323,7 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
         return TopUpPurchaseState.Error("", "", R.string.top_up_payment_storage_unavailable)
     }
     if (recoveryLookupFailed) return TopUpPurchaseState.Error("", "", paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
-    val value = record ?: return TopUpPurchaseState.Idle
+    val value = record?.takeUnless { it.productType == "membership" } ?: return TopUpPurchaseState.Idle
     if (value.recoveryRequired) return TopUpPurchaseState.Error(value.productId, "", R.string.top_up_recovered_order)
     return when {
         value.stage in setOf(PaymentStage.CREATING, PaymentStage.INITIALIZING) && value.error == null ->
@@ -346,8 +349,9 @@ private fun PaymentViewState.toTopUpPurchaseState(): TopUpPurchaseState {
 internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState): TopUpCheckoutState {
     if (recoveryLookupFailed) return TopUpCheckoutState.Failed("", recoverable = true,
         messageRes = paymentIssueMessageRes(recoveryLookupError ?: "recovery_lookup_failed"))
-    val value = record ?: return TopUpCheckoutState.Idle
+    val value = record?.takeUnless { it.productType == "membership" } ?: return TopUpCheckoutState.Idle
     if (value.stage == PaymentStage.SUCCESS) return TopUpCheckoutState.Succeeded(value.orderId.orEmpty())
+    if (value.locallyReleased) return TopUpCheckoutState.UserCancelled
     if (value.recoveryRequired) return TopUpCheckoutState.Failed("", recoverable = true,
         messageRes = R.string.top_up_recovered_order,
         recoverySummary = "${value.productId}: ${value.quoteCurrency.orEmpty()} ${value.quotePrice?.toString().orEmpty()}")
@@ -394,3 +398,6 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
         else -> TopUpCheckoutState.Idle
     }
 }
+
+internal fun shouldAdoptPaymentProduct(previousKey: String?, next: PaymentViewState, locked: Boolean): Boolean =
+    locked || (previousKey != next.record?.key && next.record?.unresolved == true)

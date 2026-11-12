@@ -50,6 +50,17 @@ class WalletRepository @Inject constructor(private val api: WalletApi,
             throw ServiceFailure.InvalidResponse
         publish(session) { it.copy(products = result.distinctBy(CoinProduct::id)) }
     }
+    suspend fun paymentProductType(productId: String, session: Session): String? {
+        if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
+        val memberships = api.products("membership", "android", config.location).requireData().products
+        if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
+        val diamonds = api.products("diamond", "android", config.location).requireData().products
+        if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
+        val membership = memberships.any { it.id == productId && it.type == "membership" }
+        val diamond = diamonds.any { it.id == productId && it.type == "diamond" && !it.subscription }
+        return when { membership && !diamond -> "membership"; diamond && !membership -> "diamond"; else -> null }
+    }
+
     suspend fun createOrder(productId: String, trigger: String, session: Session): CreatedOrder {
         if (sessions.current?.epoch != session.epoch) throw ServiceFailure.Superseded
         // 平台参与支付订单归属校验，使用必填字段保证默认序列化配置也会发送。

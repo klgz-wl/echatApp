@@ -34,8 +34,8 @@ class FormalProdConfigurationTest {
         assertEquals("com.zorv.app", prod.getProperty("applicationId"))
         assertEquals("zorv", prod.getProperty("app.display.name"))
         assertEquals("2.0.0", dev.getProperty("app.version.name"))
-        assertEquals("1.0.3", prod.getProperty("app.version.name"))
-        assertEquals("4", prod.getProperty("app.version.code"))
+        assertEquals("1.0.4", prod.getProperty("app.version.name"))
+        assertEquals("5", prod.getProperty("app.version.code"))
         assertEquals("info@frostandbites.site", prod.getProperty("build.string.CONTACT_EMAIL"))
         assertEquals(
             2,
@@ -96,7 +96,7 @@ class FormalProdConfigurationTest {
         val gradle = rootDir.resolve("app/build.gradle.kts").readText()
 
         assertEquals("2.0.0", dev.getProperty("app.version.name"))
-        assertEquals("1.0.3", prod.getProperty("app.version.name"))
+        assertEquals("1.0.4", prod.getProperty("app.version.name"))
         assertNull(dev.getProperty("build.string.ACHAT_CLIENT_VERSION"))
         assertNull(prod.getProperty("build.string.ACHAT_CLIENT_VERSION"))
         assertTrue(gradle.contains("setProperty(\"build.string.ACHAT_CLIENT_VERSION\", getProperty(\"app.version.name\"))"))

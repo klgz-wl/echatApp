@@ -180,4 +180,6 @@
     <string name="top_up_recovered_order">A previous payment was recovered. Review the original product and amount below, then retry to continue that order. (E-602)</string>
     <string name="top_up_recovery_lookup_failed">Unable to check for a previous payment. Please check your connection and retry before starting a new payment. (E-602)</string>
     <string name="top_up_payment_review_required">A previous payment needs review. Please contact support before making another payment. Retry to check its status again. (E-602)</string>
+    <string name="me_vip_label">VIP</string>
+    <string name="me_vip_crown" translatable="false">👑</string>
 </resources>

@@ -152,6 +152,8 @@ data class PaymentOrderStatus(
     val thirdPartyPayment: ThirdPartyPaymentStatus?,
 )
 
+data class VipInfo(val isVip: Boolean)
+
 data class VisualTemplate(
     val id: String,
     val categoryId: String?,
@@ -166,6 +168,7 @@ data class VisualTemplate(
     val hotScore: Int,
     val fastPrice: Int?,
     val qualityPrice: Int?,
+    val vip: Boolean = false,
 ) {
     val displayPrice: Int?
         get() = fastPrice ?: qualityPrice

@@ -237,6 +237,13 @@ class AchatBackendClient(
             get("/api/v1/products?product_type=diamond&platform=android&location=store", token),
         )
 
+    fun vipInfo(token: String): VipInfo = AchatBackendParsers.parseVipInfo(get("/api/v1/vip/info", token))
+
+    fun membershipCatalog(token: String): StoreCatalog =
+        AchatBackendParsers.parseStoreCatalog(
+            get("/api/v1/products?product_type=membership&platform=android&location=store", token),
+        )
+
     fun createStoreOrder(token: String, productId: String): StoreOrder {
         val body = JSONObject()
             .put("product_id", productId)
@@ -317,6 +324,7 @@ class AchatBackendClient(
             add("page=$page")
             add("page_size=$pageSize")
             add("sort_by=$sortBy")
+            add("is_vip=1")
             categoryId?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 add("category_id=${URLEncoder.encode(it, StandardCharsets.UTF_8.name())}")
             }

@@ -23,6 +23,7 @@ internal fun analyticsPageName(
     ImageToVideoDestination.UploadPhoto -> "generation"
     ImageToVideoDestination.MyTasks -> if (hasSelectedResult) "media" else "records"
     ImageToVideoDestination.EditName -> "settings"
+    ImageToVideoDestination.Subscription -> "subscription"
     ImageToVideoDestination.Feedback -> null
 }
 
@@ -38,6 +39,12 @@ internal fun TrackAnalyticsPage(
         val page = pageName ?: return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             tracker.track("page_view", parameters + mapOf("page_name" to page), userId)
+            if (page == "subscription") {
+                tracker.track("purchase_show", parameters + buildMap {
+                    put("type", "subscription")
+                    userId?.let { put("self_user_id", it) }
+                }, userId)
+            }
             if (page == "purchase") {
                 tracker.track(
                     "view_store",

@@ -180,6 +180,13 @@ object AchatBackendParsers {
         )
     }
 
+    fun parseVipInfo(json: String): VipInfo {
+        val root = JSONObject(json)
+        check(root.opt("code") == 0 && root.optString("type", "").isBlank()) { "Invalid VIP response" }
+        val data = root.optJSONObject("data") ?: error("Missing VIP data")
+        return VipInfo(data.opt("is_vip") as? Boolean ?: error("Missing or invalid VIP status"))
+    }
+
     fun parseTemplatePage(json: String): PagedResult<VisualTemplate> {
         val data = dataObject(json)
         val items = data.opt("items") as? org.json.JSONArray ?: error("Missing or invalid template items")
@@ -202,6 +209,7 @@ object AchatBackendParsers {
                         hotScore = item.optDouble("hot_score", 0.0).toInt(),
                         fastPrice = prices?.optNullableInt("fast"),
                         qualityPrice = prices?.optNullableInt("quality"),
+                        vip = if (!item.has("vip")) false else item.opt("vip") as? Boolean ?: error("Invalid template VIP flag"),
                     ),
                 )
             }

@@ -1,0 +1,31 @@
+<resources>
+    <string name="subscription_catalog_error">Subscription plans could not be loaded. Please try again.</string>
+    <string name="subscription_purchase_error">Payment could not be confirmed. Try again to check your existing order.</string>
+    <string name="subscription_plan_unavailable">This subscription plan is unavailable.</string>
+    <string name="subscription_weekly">WEEKLY</string>
+    <string name="subscription_monthly">MONTHLY</string>
+    <string name="subscription_yearly">YEARLY</string>
+    <string name="subscription_days">%1$d DAYS</string>
+    <string name="subscription_duration">Renews every %1$d days</string>
+    <string name="subscription_purchase_success">Your subscription is active.</string>
+    <string name="subscription_purchase_pending">Payment is pending in Google Play.</string>
+    <string name="subscription_purchase_verifying">Confirming your subscription. Please wait.</string>
+    <string name="subscription_purchase_cancelled">Purchase cancelled. You can subscribe again.</string>
+    <string name="subscription_subscribed">SUBSCRIBED</string>
+    <string name="subscription_renews_weekly">Renews weekly</string>
+    <string name="subscription_renews_monthly">Renews monthly</string>
+    <string name="subscription_renews_quarterly">Renews every 3 months</string>
+    <string name="subscription_renews_half_yearly">Renews every 6 months</string>
+    <string name="subscription_renews_yearly">Renews yearly</string>
+    <string name="subscription_previous_checkout_unconfirmed">An earlier checkout has no confirmed payment. Resume it in Google Play to complete or cancel it before purchasing a different plan.</string>
+    <string name="subscription_account_product_unavailable">This plan is currently unavailable. Please choose another plan or try again later.</string>
+    <string name="subscription_check_status">CHECK STATUS</string>
+    <string name="subscription_resume_checkout">RESUME PREVIOUS CHECKOUT</string>
+    <string name="subscription_plan_unavailable_action">PLAN UNAVAILABLE</string>
+    <string name="subscription_already_owned_action">ALREADY SUBSCRIBED</string>
+    <string name="subscription_already_owned">Google Play shows an existing subscription for this plan. Check your membership or manage it in Google Play.</string>
+    <string name="subscription_check_existing">Your previous payment is still being checked. Check its status before starting another purchase.</string>
+    <string name="subscription_purchase_retry_error">Checkout could not be opened. Please try again.</string>
+    <string name="subscription_order_creation_unknown">The order result is not confirmed yet. No payment has been opened. Please check again later or contact support.</string>
+    <string name="subscription_play_plan_unavailable">This plan is not available in Google Play. Please choose another plan.</string>
+</resources>

@@ -5,6 +5,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class UploadUserMessageTest {
+    @Test fun `only ordinary templates keep the diamond top up route`() {
+        val error = """{"code":400101,"message":"Insufficient diamond balance"}"""
+        assertEquals(null, generationTopUpRouteDelayMillis(error, vipTemplate = true))
+        assertEquals(1200L, generationTopUpRouteDelayMillis(error, vipTemplate = false))
+    }
     @Test
     fun `typed technical failures use localized fallback instead of raw messages`() {
         val fallback = "Upload failed"

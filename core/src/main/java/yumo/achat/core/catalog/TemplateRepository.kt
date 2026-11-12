@@ -39,7 +39,7 @@ enum class CatalogChannel { HOME, VIDEO, IMAGE }
     val mediaKind: MediaKind, val preview: TemplateMedia, val widePreview: TemplateMedia? = null,
     val alternatePreview: TemplateMedia? = null, val durationSeconds: Int? = null, val hasVoice: Boolean = false, val isNew: Boolean = false, val textIsResource: Boolean = true,
     val prices: TemplatePrices? = null,
-    val cover: TemplateMedia? = null, val tags: List<String> = emptyList(), val isHomeFeatured: Boolean = false,
+    val cover: TemplateMedia? = null, val tags: List<String> = emptyList(), val isHomeFeatured: Boolean = false, val vip: Boolean = false,
 )
 @Serializable data class TemplateCatalog(val categories: List<TemplateCategory>, val templates: List<Template>, val remote: Boolean = false, val page: Int = 1, val hasMore: Boolean = false) {
     fun filtered(categoryId: String?): List<Template> = if (remote || categoryId == null) templates else templates.filter { categoryId in it.categories }
