@@ -26,6 +26,28 @@ class TopUpCardTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    @Test fun cancelledPlayCheckoutAllowsSelectingAnotherAmountAndContinuingWithIt() {
+        var record by mutableStateOf(paymentRecord("pack-200", "cancelled-order", true).copy(stage = PaymentStage.OFFICIAL_LAUNCHED))
+        var selected by mutableStateOf<String?>("pack-200")
+        var requested: String? = null
+        composeRule.setContent {
+            val payment = yumo.achat.core.payment.PaymentViewState("epoch", record)
+            val purchase = yumo.achat.core.billing.CoinPurchaseState(epoch = "epoch", status = yumo.achat.core.billing.CoinPurchaseStatus.CANCELLED)
+            AchatTheme {
+                TopUpScreen(2, selected, !corePaymentPresentation(payment).locksProductSelection,
+                    TopUpUiState(catalog = catalog()), purchaseState = TopUpPurchaseState.OfficialReady(record),
+                    checkoutState = payment.toTopUpCheckoutState(purchase), onProductSelect = { selected = it },
+                    onPreparePayment = { requested = selected }, onRetry = {}, onNavigationSelect = {})
+            }
+        }
+        composeRule.onNodeWithText("100").performClick()
+        composeRule.runOnIdle { assertEquals("pack-200", selected) }
+        composeRule.runOnIdle { record = record.copy(stage = PaymentStage.CLOSED, officialCheckoutReleased = true) }
+        composeRule.onNodeWithText("100").performClick()
+        composeRule.runOnIdle { assertEquals("pack-100", selected) }
+        composeRule.onNodeWithText("TRY AGAIN").performClick()
+        composeRule.runOnIdle { assertEquals("pack-100", requested) }
+    }
     @Test
     fun fulfilledOfficialPurchaseClearsPendingAndUnlocksSelection() {
         var checkout by mutableStateOf<TopUpCheckoutState>(TopUpCheckoutState.AwaitingPayment(true))

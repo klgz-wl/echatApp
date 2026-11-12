@@ -88,6 +88,18 @@ class PaymentRepositoryTest {
         api.createProduct = "coins"; api.createUser = "other"
         try { repo.createOrder("coins", key, session); fail() } catch (_: PaymentFailure.InvalidResponse) { }
     }
+    @Test fun `subscription uses frozen entry trigger rather than global default`() = runBlocking {
+        val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
+        val api = Api()
+        val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)
+        val repo = ApiPaymentRepository(api, config, sessions, Json,
+            yumo.achat.core.billing.BillingConfiguration("billing", "manual"))
+        val request = java.util.UUID.randomUUID().toString()
+        repo.createOrderWithTrigger("coins", request, "video_templates", sessions.current!!)
+        assertEquals("video_templates", api.createBody!!.trigger)
+        repo.createOrderWithTrigger("coins", request, null, sessions.current!!)
+        assertEquals("manual", api.createBody!!.trigger)
+    }
     @Test fun `service trigger is bounded at repository boundary`() = runBlocking {
         val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
         val api = Api(); val config = PaymentConfiguration("https://test.example/payment-api/v1/", "test", 10, 600, 3000, 100, 3, 5000)

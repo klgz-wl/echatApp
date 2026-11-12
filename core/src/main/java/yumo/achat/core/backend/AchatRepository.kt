@@ -217,6 +217,12 @@ class AchatRepository(
         sessionManager.authenticated(client::storeCatalog)
     }
 
+    suspend fun vipInfo(): VipInfo = withContext(Dispatchers.IO) { sessionManager.authenticated(client::vipInfo) }
+
+    suspend fun membershipCatalog(): StoreCatalog = withContext(Dispatchers.IO) {
+        sessionManager.authenticated(client::membershipCatalog)
+    }
+
     suspend fun userCurrencySnapshot(): UserCurrency = withContext(Dispatchers.IO) {
         sessionManager.authenticated(client::userCurrency)
     }

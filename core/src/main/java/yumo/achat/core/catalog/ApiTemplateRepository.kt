@@ -38,7 +38,7 @@ class ApiTemplateRepository @Inject constructor(private val api: VisualGeneratio
                     durationSeconds = value.duration.takeIf { kind == MediaKind.VIDEO && it > 0 }?.toInt(), textIsResource = false, prices = value.prices,
                     cover = value.previewUrl?.takeIf { it.isNotBlank() }?.let { TemplateMedia(it, value.width, value.height, remote = true,
                         mimeType = previewMediaType(it, value.fileUrl, value.mimeType)) },
-                    tags = value.tags, isHomeFeatured = value.isHomeFeatured)
+                    tags = value.tags, isHomeFeatured = value.isHomeFeatured, vip = value.vip)
             }, remote = true, page = page, hasMore = result.items.isNotEmpty() && page.toLong() * result.pageSize < result.total)
     }
 }

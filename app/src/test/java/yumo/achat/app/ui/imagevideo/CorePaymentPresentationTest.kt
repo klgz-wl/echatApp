@@ -8,6 +8,25 @@ import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class CorePaymentPresentationTest {
+    @Test fun `cancelled order refresh cannot overwrite manually selected amount`() {
+        val record = PaymentRecord("old", "user", "coins100", "main", orderId = "old-order",
+            stage = PaymentStage.CLOSED, officialCheckoutReleased = true,
+            initialized = yumo.achat.core.payment.InitializedPayment("old-order", "official", "google_play", "sdk",
+                yumo.achat.core.payment.PaymentSdkParams("sku")))
+        assertFalse(shouldAdoptPaymentProduct("old", PaymentViewState("epoch", record), locked = false))
+        val next = record.copy(key = "new", stage = PaymentStage.CREATING, officialCheckoutReleased = false)
+        assertTrue(shouldAdoptPaymentProduct("old", PaymentViewState("epoch", next), locked = true))
+    }
+    @Test fun `explicitly cancelled official checkout releases selection and allows new purchase`() {
+        val record = PaymentRecord("key", "user", "coins", "main", orderId = "order",
+            stage = PaymentStage.CLOSED, officialCheckoutReleased = true,
+            initialized = yumo.achat.core.payment.InitializedPayment("order", "official", "google_play", "sdk",
+                yumo.achat.core.payment.PaymentSdkParams("sku")))
+        val presentation = corePaymentPresentation(PaymentViewState("epoch", record))
+        assertFalse(presentation.locksProductSelection)
+        assertTrue(presentation.canStartPurchase)
+        assertFalse(presentation.canRetry)
+    }
     @Test
     fun `active core payment locks product selection`() {
         val activeStages = listOf(

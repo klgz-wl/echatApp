@@ -63,7 +63,7 @@ internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresen
     )) && stage !in setOf(PaymentStage.SUCCESS, PaymentStage.FAILED, PaymentStage.ACCESS_DENIED)
     return CorePaymentPresentation(
         locksProductSelection = active,
-        canStartPurchase = !state.busy && !state.storageFailed && !active && (record == null || stage in setOf(
+        canStartPurchase = !state.busy && !state.storageFailed && !active && (record == null || record.locallyReleased || stage in setOf(
             PaymentStage.FAILED,
             PaymentStage.ACCESS_DENIED,
             PaymentStage.SUCCESS,

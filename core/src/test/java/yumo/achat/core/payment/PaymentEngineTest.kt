@@ -8,6 +8,31 @@ import org.junit.Test
 import yumo.achat.core.wallet.CoinProduct
 
 class PaymentEngineTest {
+    @Test fun `unknown business create is not automatically repeated on retry or restart`() = runBlocking {
+        val f = Fixture(); f.login()
+        var creates = 0
+        val factory = object : PaymentOrderFactory {
+            override val creationSource = "business"
+            override suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder = error("legacy create called")
+            override suspend fun createBusiness(productId: String, requestId: String, trigger: String, session: Session): PaymentBusinessOrder {
+                creates++
+                assertEquals("business", f.store.records.single().orderCreationSource)
+                assertTrue(f.store.records.single().orderCreateStarted)
+                throw java.io.IOException("response lost")
+            }
+        }
+        fun engine() = PaymentEngine(f.store, f.api, factory, f.sessions,
+            PaymentEventSink { _, _, _, _, _ -> }, PaymentClock { f.now }, f.config)
+        var engine = engine()
+        engine.buy("coins", "profile")
+        val key = engine.state.value.record!!.key
+        assertEquals(PaymentStage.UNCERTAIN, engine.state.value.record!!.stage)
+        engine.retry(key)
+        engine = engine(); engine.restore(); engine.retry(key)
+        assertEquals(1, creates)
+        assertNull(engine.state.value.record!!.orderId)
+        assertEquals(PaymentStage.UNCERTAIN, engine.state.value.record!!.stage)
+    }
     @Test fun `lost create response restores durable intent and retries original product`() = runBlocking {
         val f = Fixture(); f.login(); f.createFailure = true
         var engine = f.engine(); engine.buy("coins", "main")

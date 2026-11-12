@@ -23,7 +23,12 @@ data class PaymentBusinessOrder(
     val obfuscatedProfileId: String? = null,
     val status: String = "pending",
 )
-fun interface PaymentOrderFactory { suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder }
+fun interface PaymentOrderFactory {
+    suspend fun create(productId: String, requestId: String, session: Session): PaymentBusinessOrder
+    val creationSource: String get() = "payment_service"
+    suspend fun createBusiness(productId: String, requestId: String, trigger: String, session: Session): PaymentBusinessOrder =
+        create(productId, requestId, session)
+}
 data class PaymentClientEventDetails(
     val page: String = "recharge_paywall",
     val url: String? = null,
@@ -138,6 +143,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         mutable.value = PaymentViewState(session.epoch, busy = true)
         val recovered = try {
             repository.recover(productId, session)?.validate(session.userId).also { owner(session) }
+                ?.takeUnless { remote -> remote.status == "pending" && records.any { it.userId == session.userId && it.orderId == remote.orderId && it.locallyReleased } }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
@@ -168,7 +174,8 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         val record = PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source,
             quotePrice = product?.displayPrice, quoteCurrency = product?.currency,
-            officialFallbackProductId = product?.googleProductId?.takeIf { it.isNotBlank() })
+            officialFallbackProductId = product?.googleProductId?.takeIf { it.isNotBlank() },
+            orderCreationSource = orders.creationSource, orderCreationTrigger = source)
         save(record, session, false)
         create(record, session)
     }
@@ -176,7 +183,19 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         var record = intent
         mutable.value = mutable.value.copy(busy = true)
         try {
-            val order = orders.create(record.productId, record.key, session)
+            if (!canReplayOrderCreation(record.orderCreationSource, record.orderCreateStarted)) {
+                save(record.copy(stage = PaymentStage.UNCERTAIN, error = "order_unknown"), session, false)
+                notifyFailure(session)
+                return
+            }
+            val source = orderCreationSource(record.orderCreationSource) ?: throw PaymentFailure.InvalidResponse
+            if (source == OrderCreationSource.Business) {
+                record = record.copy(orderCreateStarted = true)
+                save(record, session, false)
+            }
+            val order = if (source == OrderCreationSource.Business) {
+                orders.createBusiness(record.productId, record.key, record.orderCreationTrigger ?: record.source, session)
+            } else orders.create(record.productId, record.key, session)
             if (order.orderId.isBlank()) throw PaymentFailure.InvalidResponse
             record = record.copy(
                 orderId = order.orderId,
@@ -319,6 +338,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             if (response.orderId != record.orderId) throw PaymentFailure.InvalidResponse
             next = when {
                 response.successful -> record.copy(stage = PaymentStage.SUCCESS, error = null)
+                record.locallyReleased && response.status != "paid" -> record
                 record.stage == PaymentStage.AWAITING_FULFILLMENT -> record.copy(error = null, retryAction = null)
                 response.terminalFailure -> record.copy(stage = PaymentStage.FAILED,
                     error = response.safeFailureReason ?: if (response.status == "expired") "timeout" else "payment_failed", retryAction = response.safeRetryAction)
@@ -333,7 +353,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
             owner(session)
-            next = if (record.stage == PaymentStage.AWAITING_FULFILLMENT) record
+            next = if (record.locallyReleased || record.stage == PaymentStage.AWAITING_FULFILLMENT) record
             else if ((failure as? PaymentFailure.Http)?.status == 403)
                 record.copy(stage = PaymentStage.ACCESS_DENIED, error = "payment_order_forbidden")
             else record.copy(stage = if (record.thirdParty) record.stage else PaymentStage.UNCERTAIN,
@@ -408,7 +428,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
     }
     private suspend fun presentWaitingSuccess(session: Session) {
-        if (mutable.value.checkoutVisible || mutable.value.record?.stage == PaymentStage.SUCCESS) return
+        if (mutable.value.checkoutVisible || mutable.value.record?.stage == PaymentStage.SUCCESS || mutable.value.record?.unresolved == true) return
         records.firstOrNull { it.userId == session.userId && it.stage == PaymentStage.SUCCESS && !it.successAcknowledged }?.let {
             // 延迟通知只补展示结果，不重放旧订单的来源导航。
             save(it.copy(source = "restored"), session, false)
@@ -429,7 +449,7 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         return result
     }
-    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false): Boolean {
+    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false, userCancelled: Boolean = false): Boolean {
         var fulfilled = false
         guarded { session ->
             val record = current(key, session) ?: return@guarded
@@ -441,26 +461,44 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                 fulfilled = query(record, session, closing = false).stage == PaymentStage.SUCCESS
                 return@guarded
             }
+            val present = mutable.value.record == null || mutable.value.record?.key == key
+            // Only an explicit Play cancellation releases this order's amount selection.
             // 不把 consume 完成当作已发币，继续等真实充值通知。
             val now = clock.now()
             save(record.copy(
                 stage = when {
-                    cancelledOrUnavailable -> PaymentStage.CLOSED
+                    userCancelled || cancelledOrUnavailable -> PaymentStage.CLOSED
                     failed -> PaymentStage.FAILED
                     consumed -> PaymentStage.OFFICIAL_CONSUMED
                     else -> PaymentStage.OFFICIAL_LAUNCHED
                 },
-                openedAt = if (!cancelledOrUnavailable && !consumed) record.openedAt ?: now else record.openedAt,
-                deadline = if (!cancelledOrUnavailable && !consumed) record.deadline ?: now + config.maxSeconds * 1000L else record.deadline,
-            ), session, false)
-            if (!cancelledOrUnavailable && !consumed && !failed) {
-                current(key, session)?.let { fulfilled = query(it, session, closing = false).stage == PaymentStage.SUCCESS }
+                officialCheckoutReleased = userCancelled || record.officialCheckoutReleased,
+                openedAt = if (!cancelledOrUnavailable && !consumed && !userCancelled) record.openedAt ?: now else record.openedAt,
+                deadline = if (!cancelledOrUnavailable && !consumed && !userCancelled) record.deadline ?: now + config.maxSeconds * 1000L else record.deadline,
+            ), session, false, publish = present)
+            if (!cancelledOrUnavailable && !userCancelled && !consumed && !failed) {
+                current(key, session)?.let { fulfilled = query(it, session, closing = false, publish = present).stage == PaymentStage.SUCCESS }
             }
             if (failed) notifyFailure(session)
             if (cancelledOrUnavailable || consumed) presentWaitingSuccess(session)
         }
         return fulfilled
     }
+    /** Legacy CLOSED alone is ambiguous; require fresh Play-empty and backend-pending evidence. */
+    suspend fun releaseClosedOfficial(key: String, hasStorePurchase: Boolean, querySucceeded: Boolean) = guarded { session ->
+        val record = current(key, session) ?: return@guarded
+        if (record.stage != PaymentStage.CLOSED || record.initialized?.channelType != "official" ||
+            record.locallyReleased || !querySucceeded || hasStorePurchase || record.orderId == null) return@guarded
+        val status = try { repository.status(record.orderId, session) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { return@guarded }
+        owner(session)
+        if (status.orderId != record.orderId) return@guarded
+        val present = mutable.value.record == null || mutable.value.record?.key == key
+        if (status.status == "pending") save(record.copy(officialCheckoutReleased = true, error = null), session, false, present)
+        else if (status.status == "paid") query(record, session, false, present)
+    }
+
     suspend fun officialQuote(key: String, price: Double?, currency: String?) = guarded { session ->
         val record = current(key, session) ?: return@guarded
         val validPrice = price?.takeIf { it.isFinite() && it >= 0 } ?: return@guarded

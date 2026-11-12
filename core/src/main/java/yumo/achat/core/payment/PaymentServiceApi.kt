@@ -21,6 +21,8 @@ interface PaymentServiceApi {
 interface PaymentRepository {
     suspend fun recover(productId: String, session: Session): RecoveredPaymentOrder?
     suspend fun createOrder(productId: String, requestId: String, session: Session): PaymentBusinessOrder
+    suspend fun createOrderWithTrigger(productId: String, requestId: String, trigger: String?, session: Session): PaymentBusinessOrder =
+        createOrder(productId, requestId, session)
     suspend fun close(orderId: String, session: Session): PaymentOrderStatus
     suspend fun initialize(orderId: String, session: Session): InitializedPayment
     suspend fun status(orderId: String, session: Session): PaymentOrderStatus
@@ -66,12 +68,15 @@ class ApiPaymentRepository @Inject constructor(private val api: PaymentServiceAp
         owner(session)
         return read(api.initialize(url("initialize"), InitializePaymentRequest(orderId), session), session).validate(orderId)
     }
-    override suspend fun createOrder(productId: String, requestId: String, session: Session): PaymentBusinessOrder {
+    override suspend fun createOrder(productId: String, requestId: String, session: Session): PaymentBusinessOrder =
+        createOrderWithTrigger(productId, requestId, null, session)
+
+    override suspend fun createOrderWithTrigger(productId: String, requestId: String, trigger: String?, session: Session): PaymentBusinessOrder {
         owner(session)
         if (runCatching { java.util.UUID.fromString(requestId).toString() == requestId }.getOrDefault(false).not())
             throw PaymentFailure.InvalidResponse
         val order = read(api.createOrder(url("orders"), CreatePaymentOrderRequest(productId, requestId,
-            billingConfiguration.defaultTrigger.trim().take(64).ifBlank { "manual" }), session), session)
+            (trigger ?: billingConfiguration.defaultTrigger).trim().take(64).ifBlank { "manual" }), session), session)
         if (order.orderId.isBlank() || order.productId != productId || order.status !in setOf("pending", "paid", "failed", "cancelled", "expired") ||
             order.obfuscatedAccountId != session.userId || order.obfuscatedProfileId != order.orderId)
             throw PaymentFailure.InvalidResponse

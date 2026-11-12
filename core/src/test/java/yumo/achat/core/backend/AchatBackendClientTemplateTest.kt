@@ -18,6 +18,7 @@ class AchatBackendClientTemplateTest {
         )
 
         assertTrue(query.get().contains("sort_by=hot"))
+        assertTrue(query.get().contains("is_vip=1"))
         assertFalse(query.get().contains("category_id"))
     }
 
@@ -31,6 +32,7 @@ class AchatBackendClientTemplateTest {
         )
 
         assertTrue(query.get().contains("sort_by=latest"))
+        assertTrue(query.get().contains("is_vip=1"))
         assertTrue(query.get().contains("category_id=portrait"))
     }
 

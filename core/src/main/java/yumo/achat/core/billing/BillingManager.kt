@@ -375,7 +375,7 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
         }
 
 
-    suspend fun queryPurchases(productType: BillingProductType): BillingResult<List<BillingPurchase>> =
+    suspend fun queryPurchases(productType: BillingProductType, emitRecoveryEvents: Boolean = true): BillingResult<List<BillingPurchase>> =
         suspendCancellableCoroutine { continuation ->
             val client = billingClient
             if (client == null) {
@@ -395,7 +395,7 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
             client.queryPurchasesAsync(params) { billingResult, purchaseList ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val purchases = purchaseList.map { it.toDomainModel(productType) }
-                    purchaseList.forEach { purchase ->
+                    if (emitRecoveryEvents) purchaseList.forEach { purchase ->
                         emitRecoveredPurchaseIfTracked(purchase, productType)
                     }
                     Timber.d("Query purchases successful: ${purchases.size} purchases found")
@@ -526,13 +526,14 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                 }
             }
         } else if (responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            removeActivePendingPurchase()
-            purchaseRequestCoordinator.completeActive(
-                BillingResult.error(
-                    BillingResponseCode.CANCELLED,
-                    "Purchase cancelled by user"
-                )
-            )
+            runCatching {
+                purchaseRequestCoordinator.cancelActive { request ->
+                    synchronized(pendingPurchasePersistenceLock) {
+                        pendingPurchaseRegistry.removeCancelledRequest(request)
+                        persistPendingPurchasesLocked()
+                    }
+                }
+            }.onFailure { Timber.w("[Billing] Cancelled request completed; local cleanup needs retry") }
             Timber.d("[Billing] Purchase cancelled by user")
         } else {
             removeActivePendingPurchase()

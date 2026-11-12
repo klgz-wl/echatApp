@@ -30,8 +30,8 @@ internal fun shouldRouteGenerationErrorToTopUp(rawMessage: String?): Boolean {
         message.contains("balance")
 }
 
-internal fun generationTopUpRouteDelayMillis(rawMessage: String?): Long? =
-    if (shouldRouteGenerationErrorToTopUp(rawMessage)) 1_200L else null
+internal fun generationTopUpRouteDelayMillis(rawMessage: String?, vipTemplate: Boolean = false): Long? =
+    if (!vipTemplate && shouldRouteGenerationErrorToTopUp(rawMessage)) 1_200L else null
 
 internal fun apiEnvelopeUserMessage(rawMessage: String?, fallback: String): String {
     val message = rawMessage?.trim().orEmpty()

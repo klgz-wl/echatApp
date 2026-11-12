@@ -43,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject lateinit var subscriptionProvider: Lazy<yumo.achat.core.billing.SubscriptionPurchaseController>
     @Inject lateinit var billingProvider: Lazy<BillingRepository>
     @Inject lateinit var paymentCoordinatorProvider: Lazy<PaymentCoordinator>
     @Inject lateinit var purchaseRouterProvider: Lazy<PurchaseRouter>
@@ -76,6 +77,7 @@ class MainActivity : ComponentActivity() {
             rechargeNotificationsProvider.get().setForeground(true)
             sessionCoordinatorProvider.get().synchronize()
             billingProvider.get().onForeground()
+            subscriptionProvider.get().onForeground()
             paymentCoordinatorProvider.get().foreground(true)
         }
     }
@@ -142,6 +144,10 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (businessStarted) lifecycleScope.launch(Dispatchers.IO) { AppConfigRuntime.get(applicationContext).refresh() }
+        if (businessStarted) lifecycleScope.launch {
+            sessionCoordinatorProvider.get().synchronize()
+            subscriptionProvider.get().onForeground()
+        }
         attachAttributionActivity()
     }
 

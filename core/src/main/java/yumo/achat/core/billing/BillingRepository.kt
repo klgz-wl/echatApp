@@ -56,6 +56,7 @@ class BillingRepository @Inject constructor(private val manager: BillingManager,
         return BillingResult.success(Unit)
     }
     private suspend fun fulfillRecovered(purchase: BillingPurchase) {
+        if (purchase.productType == BillingProductType.SUBS) return
         val tracked = manager.trackedPurchaseRecord(purchase.purchaseToken) ?: return
         val owner = tracked.ownerUserId ?: tracked.userId
         if (config.backendOwnedFulfillment) {

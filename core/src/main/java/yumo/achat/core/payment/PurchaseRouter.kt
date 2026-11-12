@@ -17,6 +17,7 @@ enum class RechargeNotificationRoute { LegacyFirst, Handled, Unknown }
 /** A visible error on the current official order releases a stale Play pending UI lock. */
 fun blocksTopUpPurchase(purchase: CoinPurchaseState, payment: PaymentViewState, userId: String?): Boolean {
     if (purchase.status == CoinPurchaseStatus.BUSY) return true
+    if (payment.record?.locallyReleased == true && purchase.epoch == payment.epoch && payment.record.userId == userId) return false
     if (purchase.status == CoinPurchaseStatus.AWAITING_FULFILLMENT) {
         val record = payment.record
         val backendFailed = purchase.epoch != null && purchase.epoch == payment.epoch &&
