@@ -35,8 +35,14 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
     DisposableEffect(Unit) { onDispose { planToast?.cancel() } }
     BackHandler(onBack = onBack)
     DisposableEffect(lifecycle, viewModel) {
+        var paused = false
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.restore()
+            if (event == Lifecycle.Event.ON_PAUSE) paused = true
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (paused) viewModel.purchases.onCheckoutReturned()
+                paused = false
+                viewModel.restore()
+            }
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }

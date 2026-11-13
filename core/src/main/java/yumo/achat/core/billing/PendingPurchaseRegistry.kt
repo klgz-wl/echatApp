@@ -48,6 +48,19 @@ internal class PendingPurchaseRegistry {
         }
     }
 
+    /** Query recovery needs exact store order/profile identity; never guess from SKU alone. */
+    fun attachSubscriptionQueryToken(productIds: Collection<String>, orderId: String?, purchaseToken: String): PendingPurchaseRecord? = synchronized(lock) {
+        val record = records.singleOrNull {
+            it.productType == BillingProductType.SUBS && it.productId in productIds &&
+                (it.purchaseToken == purchaseToken || (!orderId.isNullOrBlank() && it.orderId == orderId))
+        } ?: return@synchronized null
+        if (record.purchaseToken != null && record.purchaseToken != purchaseToken) return@synchronized null
+        record.copy(purchaseToken = purchaseToken).also { updated ->
+            records.remove(record)
+            records += updated
+        }
+    }
+
     private fun findMatchingLocked(
         productIds: Collection<String>,
         orderId: String?,

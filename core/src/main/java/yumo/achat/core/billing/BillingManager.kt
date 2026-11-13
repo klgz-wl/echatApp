@@ -299,9 +299,17 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
 
 
     internal suspend fun waitForPurchaseResult(request: PurchaseRequest): BillingResult<BillingPurchase> {
-        return request.await()
+        return if (request.productType == BillingProductType.SUBS)
+            purchaseRequestCoordinator.awaitSubscriptionResult(request, 120_000)
+        else request.await()
     }
 
+    internal fun hasActiveSubscriptionCheckout(): Boolean =
+        purchaseRequestCoordinator.activeRequest()?.productType == BillingProductType.SUBS
+
+    internal fun interruptSubscriptionCheckout(request: PurchaseRequest) {
+        purchaseRequestCoordinator.interruptSubscription(request)
+    }
 
     suspend fun acknowledgePurchase(purchaseToken: String): BillingResult<Unit> =
         suspendCancellableCoroutine { continuation ->
@@ -395,8 +403,20 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
             client.queryPurchasesAsync(params) { billingResult, purchaseList ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val purchases = purchaseList.map { it.toDomainModel(productType) }
-                    if (emitRecoveryEvents) purchaseList.forEach { purchase ->
-                        emitRecoveredPurchaseIfTracked(purchase, productType)
+                    purchaseList.forEach { purchase ->
+                        if (productType == BillingProductType.SUBS) {
+                            synchronized(pendingPurchasePersistenceLock) {
+                                pendingPurchaseRegistry.attachSubscriptionQueryToken(purchase.products,
+                                    purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
+                                    ?.also {
+                                        persistPendingPurchasesLocked()
+                                        purchaseRequestCoordinator.completeQueriedSubscription(
+                                            purchase.toDomainModel(productType),
+                                            purchase.accountIdentifiers?.obfuscatedProfileId)
+                                    }
+                            }
+                        }
+                        if (emitRecoveryEvents) emitRecoveredPurchaseIfTracked(purchase, productType)
                     }
                     Timber.d("Query purchases successful: ${purchases.size} purchases found")
                     if (continuation.isActive) continuation.resume(BillingResult.success(purchases))
@@ -604,11 +624,12 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
     private fun emitRecoveredPurchaseIfTracked(purchase: Purchase, queriedProductType: BillingProductType) {
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
         val tracked = synchronized(pendingPurchasePersistenceLock) {
-            pendingPurchaseRegistry.attachPurchaseToken(
-                productIds = purchase.products,
-                orderId = purchase.accountIdentifiers?.obfuscatedProfileId,
-                purchaseToken = purchase.purchaseToken,
-            )?.also { persistPendingPurchasesLocked() }
+            val record = if (queriedProductType == BillingProductType.SUBS)
+                pendingPurchaseRegistry.attachSubscriptionQueryToken(purchase.products,
+                    purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
+            else pendingPurchaseRegistry.attachPurchaseToken(purchase.products,
+                purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
+            record?.also { persistPendingPurchasesLocked() }
         } ?: return
         _recoveredPurchases.tryEmit(
             purchase.toDomainModel(queriedProductType).copy(

@@ -5105,7 +5105,7 @@ private fun UploadPhotoScreen(
                             text = context.diagnosticMessage(operationUserMessage(error, uploadFailedMessage), generationSubmissionDiagnostic(error)),
                             tone = TransientMessageTone.Error,
                         )
-                        val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message, vipTemplate = template.vip)
+                        val topUpRouteDelayMillis = generationTopUpRouteDelayMillis(error.message)
                         if (topUpRouteDelayMillis != null) {
                             delay(topUpRouteDelayMillis)
                             onInsufficientBalanceTopUp()

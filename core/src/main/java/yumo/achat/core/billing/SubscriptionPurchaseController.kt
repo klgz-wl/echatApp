@@ -120,7 +120,17 @@ class SubscriptionPurchaseController @Inject constructor(
     private val ledger = SubscriptionPurchaseLedger(json, { prefs.getString(it, null) }, { key, value ->
         check(prefs.edit().putString(key, value).commit())
     })
+    @Volatile private var activePlayRequest: PurchaseRequest? = null
     fun onForeground() { recovery.request() }
+
+    /** Do not take lock: buy owns it while awaiting Play. Keep the captured request identity. */
+    fun onCheckoutReturned() {
+        val request = activePlayRequest ?: return
+        scope.launch {
+            delay(1500) // Give the normal Play callback first opportunity to complete.
+            manager.interruptSubscriptionCheckout(request)
+        }
+    }
 
     init {
         manager.initialize(context)
@@ -323,7 +333,32 @@ class SubscriptionPurchaseController @Inject constructor(
                     priceCurrencyCode = product.currencyCode)
             }
             operation = "await_play_result"
-            val result = withContext(NonCancellable) { manager.waitForPurchaseResult(request) }
+            activePlayRequest = request
+            val result = try {
+                withContext(NonCancellable) { manager.waitForPurchaseResult(request) }
+            } finally { activePlayRequest = null }
+            if (result.isInterruptedSubscriptionCheckout()) {
+                android.util.Log.i("SubscriptionCheckout", "checkout_result_unknown reconciling=true")
+                // A timeout/return is never proof of cancellation. Keep the exact order and token mapping.
+                scope.launch {
+                    val late = request.await()
+                    if (late.responseCode == BillingResponseCode.CANCELLED) lock.withLock {
+                        if (read(order.owner)?.requestId == order.requestId) {
+                            clearCancelledOrder(order)
+                            if (sessions.current?.epoch == session.epoch) {
+                                lease?.close(); lease = null
+                                publish(session, SubscriptionPurchaseStage.Cancelled, order.productId,
+                                    canRetrySamePlan = true, canChangePlan = true)
+                            }
+                        }
+                    }
+                    onForeground()
+                }
+                val reconciled = withTimeoutOrNull(45_000) { reconcile(session, order); true } ?: false
+                if (!reconciled) publish(session, SubscriptionPurchaseStage.Error, productId,
+                    "subscription_verification_pending")
+                return@withLock
+            }
             // Finish Play obligations using the frozen owner even if the current account changed.
             if (result.isSuccess) result.data?.let { processPurchased(order, it) }
             if (result.responseCode == BillingResponseCode.CANCELLED) {
@@ -522,7 +557,10 @@ class SubscriptionPurchaseController @Inject constructor(
                 return
             }
             if (decision == SubscriptionRetryDecision.SamePlanOnly) {
-                publish(session, SubscriptionPurchaseStage.Error, order.productId, "subscription_retry_same_plan", canRetrySamePlan = true)
+                val checkoutActive = manager.hasActiveSubscriptionCheckout()
+                publish(session, SubscriptionPurchaseStage.Error, order.productId,
+                    if (checkoutActive) "subscription_verification_pending" else "subscription_retry_same_plan",
+                    canRetrySamePlan = !checkoutActive)
                 lease?.close(); lease = null
                 return
             }
