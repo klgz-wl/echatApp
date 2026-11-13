@@ -30,17 +30,24 @@ data class SubscriptionPurchaseUiState(
     val canChangePlan: Boolean = false,
     val fulfilledOrderId: String? = null, val ownerUserId: String? = null,
     val hasUnresolvedOrder: Boolean = false,
-    val unavailableProductIds: Set<String> = emptySet(), val ownedProductIds: Set<String> = emptySet(),
+    val unavailableProductIds: Set<String> = emptySet(),
 )
 
-enum class SubscriptionCheckoutAction { Buy, Resume, Check, Unavailable, Owned }
+enum class SubscriptionCheckoutAction { Buy, Resume, Check, Unavailable }
 
 fun subscriptionCheckoutAction(state: SubscriptionPurchaseUiState, selectedProduct: String?): SubscriptionCheckoutAction = when {
     state.hasUnresolvedOrder && state.stage == SubscriptionPurchaseStage.Error && !state.canRetrySamePlan -> SubscriptionCheckoutAction.Check
     state.hasUnresolvedOrder && state.canRetrySamePlan && !state.canChangePlan -> SubscriptionCheckoutAction.Resume
     selectedProduct in state.unavailableProductIds -> SubscriptionCheckoutAction.Unavailable
-    selectedProduct in state.ownedProductIds -> SubscriptionCheckoutAction.Owned
     else -> SubscriptionCheckoutAction.Buy
+}
+
+/** Evaluate only the current successful Play query; no ownership result is retained across requests. */
+internal fun activeSubscriptionOwnership(products: Map<String, String>, purchases: List<BillingPurchase>): Map<String, String> {
+    check(purchases.none { it.productType == BillingProductType.SUBS && it.productId in products.values &&
+        it.purchaseState == PurchaseState.UNSPECIFIED }) { "Subscription purchase state is unknown" }
+    return products.filterValues { sku -> purchases.any { it.productType == BillingProductType.SUBS && it.productId == sku &&
+        it.purchaseState in setOf(PurchaseState.PENDING, PurchaseState.PURCHASED) } }
 }
 
 /** Only a full-price, indefinitely recurring base plan matching the actual requested period is admissible. */
@@ -207,10 +214,6 @@ class SubscriptionPurchaseController @Inject constructor(
                 publish(session, SubscriptionPurchaseStage.Error, productId, "subscription_product_unavailable", canChangePlan = true)
                 return@withLock
             }
-            if (productId in mutable.value.ownedProductIds) {
-                publish(session, SubscriptionPurchaseStage.Error, productId, "subscription_already_owned", canChangePlan = true)
-                return@withLock
-            }
             if (lease == null) lease = admission.tryAcquire() ?: error("billing_busy")
             publish(session, SubscriptionPurchaseStage.Purchasing, productId)
             var existing = read(session.userId)
@@ -230,6 +233,10 @@ class SubscriptionPurchaseController @Inject constructor(
             val beforeOrder = manager.queryPurchases(BillingProductType.SUBS, emitRecoveryEvents = false)
             check(beforeOrder.isSuccess)
             requireOwner(session)
+            val currentPlayStates = beforeOrder.data.orEmpty().filter { it.productId == sku }
+                .map { it.purchaseState.name }.distinct().joinToString(",").ifBlank { "NONE" }
+            android.util.Log.i("SubscriptionCheckout", "fresh_ownership_query response=${beforeOrder.responseCode} states=$currentPlayStates")
+            val activeStoreOwnership = activeSubscriptionOwnership(mapOf(productId to sku), beforeOrder.data.orEmpty())
             if (existing != null) {
                 val previous = existing
                 val status = previous.orderId?.let { payments.status(it, session) }
@@ -256,10 +263,7 @@ class SubscriptionPurchaseController @Inject constructor(
                     return@withLock
                 }
             }
-            if (existing == null && beforeOrder.data.orEmpty().any {
-                    it.productId == sku && it.purchaseState in setOf(PurchaseState.PENDING, PurchaseState.PURCHASED)
-                }) {
-                mutable.value = mutable.value.copy(ownedProductIds = mutable.value.ownedProductIds + productId)
+            if (existing == null && activeStoreOwnership.isNotEmpty()) {
                 publish(session, SubscriptionPurchaseStage.Error, productId, "subscription_already_owned", canChangePlan = true)
                 return@withLock
             }

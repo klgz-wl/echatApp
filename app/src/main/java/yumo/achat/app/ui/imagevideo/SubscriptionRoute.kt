@@ -31,6 +31,8 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var revision by remember { mutableIntStateOf(0) }
+    var planToast by remember { mutableStateOf<Toast?>(null) }
+    DisposableEffect(Unit) { onDispose { planToast?.cancel() } }
     BackHandler(onBack = onBack)
     DisposableEffect(lifecycle, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -106,17 +108,17 @@ internal fun SubscriptionRoute(repository: AchatRepository, trigger: String, isV
         } else {
             val messageRes = if (product == null || offer == null) R.string.subscription_play_plan_unavailable
                 else R.string.subscription_purchase_retry_error
-            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+            planToast?.cancel()
+            planToast = Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).also { it.show() }
         }
     }
     SubscriptionScreen(plans, loading, error, onRetry = { revision++ }, onBack = onBack,
         purchaseBusy = busy,
-        purchaseComplete = payment.stage == SubscriptionPurchaseStage.Success,
-        completedProductId = payment.productId,
         planSelectionEnabled = payment.stage != SubscriptionPurchaseStage.Purchasing,
         purchaseMessage = message,
         checkoutState = payment,
         templateEntry = templateEntry,
+        onPlanSelected = { planToast?.cancel(); planToast = null },
         onCheckPurchase = viewModel::restore,
         onResumePurchase = { payment.productId?.let(::purchasePlan) },
         onSubscribe = ::purchasePlan)

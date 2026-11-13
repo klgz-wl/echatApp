@@ -629,20 +629,22 @@ fun ImageToVideoScreen(
         }
         return
     }
-    ImageToVideoHomeScreen(
-        repository = repository,
-        authViewModel = authViewModel,
-        startupSession = ready.first,
-        startupProfile = ready.second,
-        onSignedOut = {
-            startup = null
-            authViewModel.pauseForLoginChoice()
-            loginRequired = true
-            loginError = null
-            onSignedOut()
-        },
-        modifier = modifier,
-    )
+    key(ready.first.userId, ready.first.epoch) {
+        ImageToVideoHomeScreen(
+            repository = repository,
+            authViewModel = authViewModel,
+            startupSession = ready.first,
+            startupProfile = ready.second,
+            onSignedOut = {
+                startup = null
+                authViewModel.pauseForLoginChoice()
+                loginRequired = true
+                loginError = null
+                onSignedOut()
+            },
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
@@ -685,7 +687,7 @@ private fun ImageToVideoHomeScreen(
 ) {
     val localContext = LocalContext.current
     val context = localContext.applicationContext
-    val localTaskStore = remember(context) { LocalGenerationTaskStore(context) }
+    val localTaskStore = remember(context, startupSession.userId) { LocalGenerationTaskStore(context, startupSession.userId) }
     val analytics = remember(context) { AchatAnalyticsRuntime.get(context) }
     val attributionRuntime = authViewModel.attribution
     val homeGateRevision by attributionRuntime?.homeGateRevision?.collectAsState()
@@ -700,7 +702,7 @@ private fun ImageToVideoHomeScreen(
         accountActionError = null
         screenScope.launch {
             try {
-                authViewModel.logout(delete)
+                authViewModel.logout(delete, onDeleted = localTaskStore::clear)
                 analytics.identify(null)
                 onSignedOut()
             } catch (cancelled: CancellationException) {
@@ -792,6 +794,10 @@ private fun ImageToVideoHomeScreen(
         )
     }
 
+    suspend fun ownsTaskSession(): Boolean = repository.savedSession()?.let {
+        it.userId == startupSession.userId && it.epoch == startupSession.epoch
+    } == true
+
     suspend fun refreshVipMembership(): Boolean? {
         val serial = ++vipRequestSerial
         if (repository.savedSession()?.epoch != startupSession.epoch) return null
@@ -843,13 +849,14 @@ private fun ImageToVideoHomeScreen(
         }
     }
 
-    LaunchedEffect(localTaskStore) {
+    LaunchedEffect(localTaskStore, startupSession.epoch) {
+        if (!ownsTaskSession()) return@LaunchedEffect
         sessionTasks = mergeTrackedGenerationTasks(sessionTasks, localTaskStore.read())
         localTaskStoreLoaded = true
     }
 
-    LaunchedEffect(localTaskStoreLoaded, sessionTasks) {
-        if (localTaskStoreLoaded) {
+    LaunchedEffect(localTaskStore, localTaskStoreLoaded, sessionTasks, startupSession.epoch) {
+        if (localTaskStoreLoaded && ownsTaskSession()) {
             localTaskStore.write(sessionTasks)
         }
     }
@@ -1018,7 +1025,9 @@ private fun ImageToVideoHomeScreen(
         val refreshSerialAtStart = taskHistoryRefreshSerial
         screenScope.launch {
             try {
+                if (!ownsTaskSession()) return@launch
                 val page = repository.generatedResources(page = taskHistoryPage + 1)
+                if (!ownsTaskSession()) return@launch
                 if (refreshSerialAtStart != taskHistoryRefreshSerial || destination != ImageToVideoDestination.MyTasks) {
                     return@launch
                 }
@@ -1447,16 +1456,20 @@ private fun ImageToVideoHomeScreen(
         val shouldPollUnfinished = shouldRefreshUnfinishedTaskStatus
         shouldRefreshUnfinishedTaskStatus = false
         try {
+            if (!ownsTaskSession()) return@LaunchedEffect
             if (shouldPollUnfinished) {
                 sessionTasks.filterNot { it.isFinished }.forEach { trackedTask ->
-                    runCatching {
-                        repository.getVisualGenerationTask(trackedTask.taskId)
-                    }.getOrNull()
-                        ?.toTrackedGenerationTask(trackedTask.title, previous = trackedTask)
+                    if (!ownsTaskSession()) return@LaunchedEffect
+                    val response = try { repository.getVisualGenerationTask(trackedTask.taskId) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { null }
+                    if (!ownsTaskSession()) return@LaunchedEffect
+                    response?.toTrackedGenerationTask(trackedTask.title, previous = trackedTask)
                         ?.let(::applyTrackedGenerationTaskUpdate)
                 }
             }
             val resources = repository.generatedResources()
+            if (!ownsTaskSession()) return@LaunchedEffect
             val historyTasks = resources.items.map { resource ->
                 resource.toTrackedGenerationTask(defaultTaskTitle)
             }
@@ -1595,7 +1608,12 @@ private fun ImageToVideoHomeScreen(
                 pollGenerationTaskUntilFinished(
                     initialTask = trackedTask,
                     waitForNextPoll = { intervalSeconds -> delay(intervalSeconds * 1_000L) },
-                    fetch = repository::getVisualGenerationTask,
+                    fetch = { taskId ->
+                        if (!ownsTaskSession()) throw CancellationException("Task account changed")
+                        val response = repository.getVisualGenerationTask(taskId)
+                        if (!ownsTaskSession()) throw CancellationException("Task account changed")
+                        response
+                    },
                     onUpdate = { updatedTask ->
                         applyTrackedGenerationTaskUpdate(updatedTask)
                     },

@@ -25,10 +25,15 @@ class SubscriptionCheckoutActionTest {
             productId = "monthly", hasUnresolvedOrder = true, canRetrySamePlan = true)
         assertEquals(SubscriptionCheckoutAction.Resume, subscriptionCheckoutAction(state, "weekly"))
     }
-    @Test fun unavailableAndOwnedPlansStayBlockedAfterSelectingAnotherPlan() {
-        val state = SubscriptionPurchaseUiState(unavailableProductIds = setOf("monthly"), ownedProductIds = setOf("weekly"))
+    @Test fun playOwnershipFeedbackDoesNotPermanentlyDisableRetry() {
+        val state = SubscriptionPurchaseUiState(stage = SubscriptionPurchaseStage.Error,
+            error = "subscription_already_owned", productId = "monthly")
+        assertEquals(SubscriptionCheckoutAction.Buy, subscriptionCheckoutAction(state, "monthly"))
+        assertEquals(SubscriptionCheckoutAction.Buy, subscriptionCheckoutAction(state, "weekly"))
+    }
+    @Test fun serverRejectedProductsKeepTheirExistingGuard() {
+        val state = SubscriptionPurchaseUiState(unavailableProductIds = setOf("monthly"))
         assertEquals(SubscriptionCheckoutAction.Unavailable, subscriptionCheckoutAction(state, "monthly"))
-        assertEquals(SubscriptionCheckoutAction.Owned, subscriptionCheckoutAction(state, "weekly"))
-        assertEquals(SubscriptionCheckoutAction.Buy, subscriptionCheckoutAction(state, "yearly"))
+        assertEquals(SubscriptionCheckoutAction.Buy, subscriptionCheckoutAction(state, "weekly"))
     }
 }
