@@ -55,6 +55,15 @@ internal class PurchaseRequestCoordinator {
         return complete(request, BillingResult.success(purchase))
     }
 
+    fun completeQueriedRecharge(purchase: BillingPurchase, profileId: String?): Boolean {
+        if (purchase.productType != BillingProductType.IN_APP || profileId.isNullOrBlank() ||
+            purchase.purchaseState !in setOf(PurchaseState.PURCHASED, PurchaseState.PENDING)) return false
+        val request = synchronized(lock) { activeRequest?.takeIf {
+            it.productType == BillingProductType.IN_APP && it.productId == purchase.productId && it.orderId == profileId
+        } } ?: return false
+        return complete(request, BillingResult.success(purchase))
+    }
+
     fun findMatching(
         productIds: List<String>,
         orderId: String?,

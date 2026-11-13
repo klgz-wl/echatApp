@@ -46,6 +46,15 @@ internal data class CorePaymentPresentation(
     val canRetry: Boolean,
 )
 
+internal fun allowsUnconfirmedTopUpSelection(state: PaymentViewState): Boolean =
+    state.record?.let { it.productType == "diamond" && it.initialized?.channelType == "official" &&
+        it.stage == PaymentStage.UNCERTAIN && it.officialResultUnconfirmed && !it.officialPurchasePending } == true
+
+internal fun locksTopUpProductSelection(state: PaymentViewState,
+    purchase: yumo.achat.core.billing.CoinPurchaseState, userId: String?): Boolean =
+    !allowsUnconfirmedTopUpSelection(state) && (corePaymentPresentation(state).locksProductSelection ||
+        yumo.achat.core.payment.blocksTopUpPurchase(purchase, state, userId))
+
 internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresentation {
     val record = state.record?.takeUnless { it.productType == "membership" }
     val stage = record?.stage
@@ -62,7 +71,7 @@ internal fun corePaymentPresentation(state: PaymentViewState): CorePaymentPresen
         PaymentStage.OFFICIAL_CONSUMED,
     )) && stage !in setOf(PaymentStage.SUCCESS, PaymentStage.FAILED, PaymentStage.ACCESS_DENIED)
     return CorePaymentPresentation(
-        locksProductSelection = active,
+        locksProductSelection = active && !allowsUnconfirmedTopUpSelection(state),
         canStartPurchase = !state.busy && !state.storageFailed && !active && (record == null || record.locallyReleased || stage in setOf(
             PaymentStage.FAILED,
             PaymentStage.ACCESS_DENIED,
@@ -126,11 +135,13 @@ internal fun paymentIssueMessageRes(reason: String?): Int = when (reason) {
     "card_invalid" -> R.string.top_up_card_invalid
     "insufficient_funds" -> R.string.top_up_card_insufficient_funds
     "payment_expired", "expired_link", "timeout" -> R.string.top_up_payment_timeout
+    "payment_unconfirmed" -> R.string.top_up_previous_payment_unconfirmed
     "order_unknown", "verification_failed", "initialize_failed" -> R.string.top_up_payment_unconfirmed
     else -> R.string.top_up_payment_failed
 }
 
 internal fun paymentRetryActionRes(reason: String?, action: String?): Int =
-    if (action == "change_card" && reason in setOf("card_declined", "card_expired", "card_invalid", "insufficient_funds")) {
+    if (reason == "payment_unconfirmed") R.string.top_up_check_payment_status
+    else if (action == "change_card" && reason in setOf("card_declined", "card_expired", "card_invalid", "insufficient_funds")) {
         R.string.top_up_use_another_card
     } else R.string.top_up_try_again

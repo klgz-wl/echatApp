@@ -416,6 +416,17 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
                                     }
                             }
                         }
+                        if (productType == BillingProductType.IN_APP) {
+                            synchronized(pendingPurchasePersistenceLock) {
+                                pendingPurchaseRegistry.attachRechargeQueryToken(purchase.products,
+                                    purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
+                                    ?.also {
+                                        persistPendingPurchasesLocked()
+                                        purchaseRequestCoordinator.completeQueriedRecharge(purchase.toDomainModel(productType),
+                                            purchase.accountIdentifiers?.obfuscatedProfileId)
+                                    }
+                            }
+                        }
                         if (emitRecoveryEvents) emitRecoveredPurchaseIfTracked(purchase, productType)
                     }
                     Timber.d("Query purchases successful: ${purchases.size} purchases found")
@@ -627,7 +638,7 @@ class BillingManager @Inject constructor(private val config: BillingConfiguratio
             val record = if (queriedProductType == BillingProductType.SUBS)
                 pendingPurchaseRegistry.attachSubscriptionQueryToken(purchase.products,
                     purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
-            else pendingPurchaseRegistry.attachPurchaseToken(purchase.products,
+            else pendingPurchaseRegistry.attachRechargeQueryToken(purchase.products,
                 purchase.accountIdentifiers?.obfuscatedProfileId, purchase.purchaseToken)
             record?.also { persistPendingPurchasesLocked() }
         } ?: return

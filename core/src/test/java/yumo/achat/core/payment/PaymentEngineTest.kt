@@ -8,6 +8,48 @@ import org.junit.Test
 import yumo.achat.core.wallet.CoinProduct
 
 class PaymentEngineTest {
+    @Test fun `real Play pending is not reclassified as a missing callback`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        var engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        engine.officialResult(key, cancelledOrUnavailable = false, pendingStorePurchase = true)
+        engine.officialResultUnconfirmed(key)
+        assertTrue(engine.state.value.record!!.officialPurchasePending)
+        assertFalse(engine.state.value.record!!.officialResultUnconfirmed)
+        assertNull(engine.state.value.record!!.error)
+        engine = f.engine(); engine.restore(); engine.officialResultUnconfirmed(key)
+        assertTrue(engine.state.value.record!!.officialPurchasePending)
+        assertFalse(engine.state.value.record!!.officialResultUnconfirmed)
+    }
+    @Test fun `unknown official callback stays checkable across pending polls and restart`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        var engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        engine.officialResultUnconfirmed(key)
+        engine.poll(key)
+        assertEquals(PaymentStage.UNCERTAIN, engine.state.value.record?.stage)
+        assertEquals("payment_unconfirmed", engine.state.value.record?.error)
+        assertTrue(engine.state.value.record!!.unresolved)
+        engine = f.engine(); engine.restore(); engine.poll(key)
+        assertEquals("payment_unconfirmed", engine.state.value.record?.error)
+        assertEquals(1, f.orders)
+        engine.officialResult(key, cancelledOrUnavailable = true, userCancelled = true)
+        assertTrue(engine.state.value.record!!.locallyReleased)
+    }
+    @Test fun `unknown result never downgrades fulfillment`() = runBlocking {
+        val f = Fixture(); f.login(); f.api.official = true
+        val engine = f.engine(); engine.buy("coins", "main")
+        val key = engine.state.value.record!!.key
+        engine.claimOfficial(key)
+        f.api.status = "paid"; engine.poll(key)
+        engine.officialResultUnconfirmed(key)
+        assertEquals(PaymentStage.AWAITING_FULFILLMENT, engine.state.value.record?.stage)
+        f.api.fulfillment = "fulfilled"; engine.poll(key)
+        engine.officialResultUnconfirmed(key)
+        assertEquals(PaymentStage.SUCCESS, engine.state.value.record?.stage)
+    }
     @Test fun `unknown business create is not automatically repeated on retry or restart`() = runBlocking {
         val f = Fixture(); f.login()
         var creates = 0
