@@ -276,6 +276,8 @@ backend fulfillment evidence, success ledger identity/dedupe state
 - 默认采用唯一、全价、自动续订 base plan；没有明确促销选择策略时，不猜 introductory offer、另一周期或多个候选中的某一个。
 - 展示和购买使用同一个 offer；收入快照使用它的实际 pricing phase。
 - 本地缺 SKU／offer 或 Activity 不可用时，在建单前提示，不能进入半套购买流程。
+- 不缓存“已拥有”结果来长期禁用 Subscribe，上一次成功回执也不能永久禁用套餐。每次点击重新查询 Play SUBS 购买状态；失败保留保护，成功查询为空才允许新购。App 的缓存清理不能清除 Google 自身的订阅。
+- 加白测试账号的短周期通常是续订周期，不是最终过期时间。例如月订阅测试周期通常为 5 分钟，还可能自动续期；不要用本地计时器强制判过期，应以当次 Play 查询为准。
 - PURCHASED、PENDING、USER_CANCELED、未知／失败分别处理。
 - SUBS 使用 acknowledge，**绝不能 consume 订阅**。
 - ACK 暂时失败保留恢复记录并有界重试；不能删除独立统计账本，也不能把已确认付款说成付款失败。

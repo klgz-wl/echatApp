@@ -24,18 +24,40 @@ class SubscriptionScreenTest {
         SubscriptionPlan("week", "WEEKLY", "$3.00"),
     )
 
-    @Test fun completionAllowsAnotherAmountAndOnlyDisablesCompletedProduct() {
+    @Test fun switchingPlanClearsPreviousResultAndIgnoresLateOldPlanMessage() {
+        var message by mutableStateOf("Monthly is already owned")
+        var resultProduct by mutableStateOf("month")
+        composeRule.setContent {
+            AchatTheme { SubscriptionScreen(plans, false, null, {}, {}, { product ->
+                resultProduct = product
+                message = "New result for $product"
+            }, purchaseMessage = message, checkoutState = yumo.achat.core.billing.SubscriptionPurchaseUiState(
+                stage = yumo.achat.core.billing.SubscriptionPurchaseStage.Error, productId = resultProduct)) }
+        }
+        composeRule.onNodeWithText("Monthly is already owned").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("WEEKLY").performScrollTo().performClick()
+        composeRule.onNodeWithText("Monthly is already owned").assertDoesNotExist()
+        composeRule.runOnIdle { message = "Late result for monthly" }
+        composeRule.onNodeWithText("Late result for monthly").assertDoesNotExist()
+        composeRule.onNodeWithText("SUBSCRIBE").performScrollTo().performClick()
+        composeRule.onNodeWithText("New result for week").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun previousSuccessDoesNotPermanentlyBlockFreshOwnershipCheck() {
         var requested: String? = null
         composeRule.setContent {
             AchatTheme { SubscriptionScreen(plans, false, null, {}, {}, { requested = it },
-                purchaseComplete = true, completedProductId = "month") }
+                checkoutState = yumo.achat.core.billing.SubscriptionPurchaseUiState(
+                    stage = yumo.achat.core.billing.SubscriptionPurchaseStage.Success, productId = "month")) }
         }
-        composeRule.onNodeWithText("SUBSCRIBED").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("SUBSCRIBE").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals("month", requested) }
         composeRule.onNodeWithText("WEEKLY").performScrollTo().performClick().assertIsSelected()
         composeRule.onNodeWithText("SUBSCRIBE").performScrollTo().performClick()
         composeRule.runOnIdle { assertEquals("week", requested) }
         composeRule.onNodeWithText("MONTHLY").performScrollTo().performClick()
-        composeRule.onNodeWithText("SUBSCRIBED").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("SUBSCRIBE").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals("month", requested) }
     }
 
     @Test fun cancelledPurchaseAllowsSelectingDuringCloseAndBuyingAfterClose() {

@@ -45,27 +45,35 @@ private val SubscriptionPink = Color(0xFFFF4B89)
 internal fun SubscriptionScreen(
     plans: List<SubscriptionPlan>, loading: Boolean, error: String?,
     onRetry: () -> Unit, onBack: () -> Unit, onSubscribe: (String) -> Unit,
-    modifier: Modifier = Modifier, purchaseBusy: Boolean = false, purchaseMessage: String? = null, purchaseComplete: Boolean = false,
-    completedProductId: String? = null, planSelectionEnabled: Boolean = !purchaseBusy,
+    modifier: Modifier = Modifier, purchaseBusy: Boolean = false, purchaseMessage: String? = null,
+    planSelectionEnabled: Boolean = !purchaseBusy,
     checkoutState: yumo.achat.core.billing.SubscriptionPurchaseUiState? = null,
     onCheckPurchase: () -> Unit = {}, onResumePurchase: () -> Unit = {},
     templateEntry: Boolean = false,
+    onPlanSelected: (String) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = plans.firstOrNull { it.id == selectedId } ?: plans.getOrNull(if (plans.size == 3) 1 else 0)
+    var showPurchaseFeedback by remember { mutableStateOf(true) }
+    var feedbackProductId by remember { mutableStateOf<String?>(null) }
+    val feedbackTarget = feedbackProductId ?: selected?.id
+    val visiblePurchaseMessage = purchaseMessage.takeIf {
+        showPurchaseFeedback && (checkoutState?.productId == null || checkoutState.productId == feedbackTarget)
+    }
     val context = LocalContext.current
     val backLabel = stringResource(R.string.subscription_back)
-    val selectedComplete = purchaseComplete && selected?.id == completedProductId
     val action = checkoutState?.let { yumo.achat.core.billing.subscriptionCheckoutAction(it, selected?.id) }
         ?: yumo.achat.core.billing.SubscriptionCheckoutAction.Buy
-    val blocked = action in setOf(yumo.achat.core.billing.SubscriptionCheckoutAction.Unavailable,
-        yumo.achat.core.billing.SubscriptionCheckoutAction.Owned)
-    val enabled = !blocked && !loading && error == null && selected != null && !purchaseBusy && !selectedComplete
+    val blocked = action == yumo.achat.core.billing.SubscriptionCheckoutAction.Unavailable
+    val enabled = !blocked && !loading && error == null && selected != null && !purchaseBusy
     val purchaseAction: @Composable () -> Unit = {
         Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(CutCornerShape(topStart = 12.dp, bottomEnd = 12.dp))
             .background(Brush.horizontalGradient(if (enabled) listOf(SubscriptionCyan, Color(0xFF4F46E5), Color(0xFFFF007F)) else listOf(Color(0xFF343341), Color(0xFF343341))))
             .clickable(enabled = enabled, role = Role.Button) {
+                showPurchaseFeedback = true
+                feedbackProductId = if (action in setOf(yumo.achat.core.billing.SubscriptionCheckoutAction.Check,
+                        yumo.achat.core.billing.SubscriptionCheckoutAction.Resume)) checkoutState?.productId ?: selected?.id else selected?.id
                 when (action) {
                     yumo.achat.core.billing.SubscriptionCheckoutAction.Check -> onCheckPurchase()
                     yumo.achat.core.billing.SubscriptionCheckoutAction.Resume -> onResumePurchase()
@@ -73,11 +81,10 @@ internal fun SubscriptionScreen(
                 }
             }.padding(14.dp), contentAlignment = Alignment.Center) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(if (selectedComplete) R.string.subscription_subscribed else if (purchaseBusy) R.string.subscription_processing else when (action) {
+                Text(stringResource(if (purchaseBusy) R.string.subscription_processing else when (action) {
                     yumo.achat.core.billing.SubscriptionCheckoutAction.Check -> R.string.subscription_check_status
                     yumo.achat.core.billing.SubscriptionCheckoutAction.Resume -> R.string.subscription_resume_checkout
                     yumo.achat.core.billing.SubscriptionCheckoutAction.Unavailable -> R.string.subscription_plan_unavailable_action
-                    yumo.achat.core.billing.SubscriptionCheckoutAction.Owned -> R.string.subscription_already_owned_action
                     else -> R.string.subscription_action
                 }), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 if (!purchaseBusy) Image(painterResource(R.drawable.subscription_arrow), null, Modifier.size(16.dp))
@@ -126,7 +133,14 @@ internal fun SubscriptionScreen(
                                 .then(if (templateEntry && chosen) Modifier.background(Brush.verticalGradient(listOf(Color(0xFF181838), Color(0xFF121026))))
                                     else Modifier.background(if (chosen) Color(0xFF181838) else Color(0x991F1E2B)))
                                 .border(if (chosen) 2.dp else 1.dp, if (chosen) SubscriptionCyan else Color(0x803B494B), RoundedCornerShape(16.dp))
-                                .selectable(selected = chosen, enabled = !loading && error == null && planSelectionEnabled, role = Role.RadioButton, onClick = { selectedId = plan.id })
+                                .selectable(selected = chosen, enabled = !loading && error == null && planSelectionEnabled, role = Role.RadioButton, onClick = {
+                                    if (selected?.id != plan.id) {
+                                        selectedId = plan.id
+                                        showPurchaseFeedback = false
+                                        feedbackProductId = plan.id
+                                        onPlanSelected(plan.id)
+                                    }
+                                })
                                 .padding(horizontal = 8.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(plan.title, color = if (chosen) SubscriptionCyan else Color(0xFFB9CACB), fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -144,7 +158,7 @@ internal fun SubscriptionScreen(
             }
         }
         Spacer(Modifier.height(28.dp))
-        if (!templateEntry) purchaseMessage?.let { Text(it, color = SubscriptionCyan, fontSize = 12.sp, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)) }
+        if (!templateEntry) visiblePurchaseMessage?.let { Text(it, color = SubscriptionCyan, fontSize = 12.sp, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)) }
         if (!templateEntry) purchaseAction()
         if (!templateEntry) {
             Spacer(Modifier.height(12.dp))
@@ -174,7 +188,7 @@ internal fun SubscriptionScreen(
                 horizontalAlignment = Alignment.CenterHorizontally, content = body)
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally) {
-                purchaseMessage?.let {
+                visiblePurchaseMessage?.let {
                     Text(it, color = SubscriptionCyan, fontSize = 12.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(8.dp))
                 }
