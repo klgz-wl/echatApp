@@ -8,6 +8,23 @@ import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class CorePaymentPresentationTest {
+    @Test fun `unknown official result unlocks amount selection but not payment creation`() {
+        val record = PaymentRecord("old", "user", "coins100", "main", orderId = "old-order",
+            productType = "diamond", stage = PaymentStage.UNCERTAIN,
+            officialResultUnconfirmed = true, error = "payment_unconfirmed",
+            initialized = yumo.achat.core.payment.InitializedPayment("old-order", "official", "google_play", "sdk"))
+        val state = PaymentViewState("epoch", record)
+        val presentation = corePaymentPresentation(state)
+        assertFalse(presentation.locksProductSelection)
+        assertFalse(presentation.canStartPurchase)
+        assertTrue(presentation.canRetry)
+        assertFalse(shouldAdoptPaymentProduct("different-key", state, locked = false))
+        assertFalse(locksTopUpProductSelection(state,
+            yumo.achat.core.billing.CoinPurchaseState("epoch", yumo.achat.core.billing.CoinPurchaseStatus.BUSY), "user"))
+        val pending = state.copy(record = record.copy(officialPurchasePending = true))
+        assertTrue(locksTopUpProductSelection(pending,
+            yumo.achat.core.billing.CoinPurchaseState("epoch", yumo.achat.core.billing.CoinPurchaseStatus.PENDING), "user"))
+    }
     @Test fun `cancelled order refresh cannot overwrite manually selected amount`() {
         val record = PaymentRecord("old", "user", "coins100", "main", orderId = "old-order",
             stage = PaymentStage.CLOSED, officialCheckoutReleased = true,

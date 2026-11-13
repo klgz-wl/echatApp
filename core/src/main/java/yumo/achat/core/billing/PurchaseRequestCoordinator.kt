@@ -34,6 +34,36 @@ internal class PurchaseRequestCoordinator {
         PurchaseRequest(productId, productType, orderId, userId).also { activeRequest = it }
     }
 
+    /** Unknown checkout outcome: retain durable purchase records for reconciliation. */
+    fun interruptSubscription(request: PurchaseRequest): Boolean =
+        synchronized(lock) {
+            request.productType == BillingProductType.SUBS && activeRequest === request && request.interruptWait()
+        }
+
+    suspend fun awaitSubscriptionResult(request: PurchaseRequest, timeoutMillis: Long): BillingResult<BillingPurchase> {
+        require(request.productType == BillingProductType.SUBS)
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMillis) { request.awaitOrInterrupted() }
+            ?: request.completedResultOrUnknown()
+    }
+
+    fun completeQueriedSubscription(purchase: BillingPurchase, profileId: String?): Boolean {
+        if (purchase.productType != BillingProductType.SUBS || profileId.isNullOrBlank() ||
+            purchase.purchaseState !in setOf(PurchaseState.PURCHASED, PurchaseState.PENDING)) return false
+        val request = synchronized(lock) { activeRequest?.takeIf {
+            it.productType == BillingProductType.SUBS && it.productId == purchase.productId && it.orderId == profileId
+        } } ?: return false
+        return complete(request, BillingResult.success(purchase))
+    }
+
+    fun completeQueriedRecharge(purchase: BillingPurchase, profileId: String?): Boolean {
+        if (purchase.productType != BillingProductType.IN_APP || profileId.isNullOrBlank() ||
+            purchase.purchaseState !in setOf(PurchaseState.PURCHASED, PurchaseState.PENDING)) return false
+        val request = synchronized(lock) { activeRequest?.takeIf {
+            it.productType == BillingProductType.IN_APP && it.productId == purchase.productId && it.orderId == profileId
+        } } ?: return false
+        return complete(request, BillingResult.success(purchase))
+    }
+
     fun findMatching(
         productIds: List<String>,
         orderId: String?,
@@ -88,6 +118,18 @@ internal class PurchaseRequest(
     val userId: String?,
     private val deferred: CompletableDeferred<BillingResult<BillingPurchase>> = CompletableDeferred(),
 ) {
+    private val interrupted = CompletableDeferred<Unit>()
+    fun interruptWait(): Boolean = interrupted.complete(Unit)
+    suspend fun completedResultOrUnknown(): BillingResult<BillingPurchase> =
+        if (deferred.isCompleted) deferred.await()
+        else BillingResult.error(BillingResponseCode.SERVICE_UNAVAILABLE,
+            "Subscription checkout result requires verification", SUBSCRIPTION_CHECKOUT_INTERRUPTED)
+
+    suspend fun awaitOrInterrupted(): BillingResult<BillingPurchase> = kotlinx.coroutines.selects.select {
+        deferred.onAwait { it }
+        interrupted.onAwait { completedResultOrUnknown() }
+    }
+
     fun complete(result: BillingResult<BillingPurchase>): Boolean = deferred.complete(result)
 
     suspend fun await(): BillingResult<BillingPurchase> = deferred.await()
@@ -102,3 +144,7 @@ internal class PurchaseRequest(
         ): PurchaseRequest = PurchaseRequest(productId, productType, orderId, userId).apply { complete(result) }
     }
 }
+
+private const val SUBSCRIPTION_CHECKOUT_INTERRUPTED = "subscription_checkout_interrupted"
+internal fun BillingResult<*>.isInterruptedSubscriptionCheckout(): Boolean =
+    responseCode == BillingResponseCode.SERVICE_UNAVAILABLE && debugMessage == SUBSCRIPTION_CHECKOUT_INTERRUPTED

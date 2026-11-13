@@ -5,10 +5,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class UploadUserMessageTest {
-    @Test fun `only ordinary templates keep the diamond top up route`() {
+    @Test fun `vip and ordinary templates both route insufficient diamonds to top up`() {
         val error = """{"code":400101,"message":"Insufficient diamond balance"}"""
-        assertEquals(null, generationTopUpRouteDelayMillis(error, vipTemplate = true))
-        assertEquals(1200L, generationTopUpRouteDelayMillis(error, vipTemplate = false))
+        assertEquals(1200L, generationTopUpRouteDelayMillis(error))
+        assertEquals(null, generationTopUpRouteDelayMillis("VIP subscription required"))
     }
     @Test
     fun `typed technical failures use localized fallback instead of raw messages`() {

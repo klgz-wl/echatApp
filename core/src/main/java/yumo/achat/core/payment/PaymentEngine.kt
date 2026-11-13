@@ -404,8 +404,9 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                     error = response.safeFailureReason ?: if (response.status == "expired") "timeout" else "payment_failed", retryAction = response.safeRetryAction)
                 response.status == "paid" -> record.copy(stage = PaymentStage.AWAITING_FULFILLMENT, error = null, retryAction = null)
                 response.status == "pending" -> record.copy(
-                    stage = if (record.thirdParty) PaymentStage.CHECKOUT else PaymentStage.OFFICIAL_LAUNCHED,
-                    error = response.safeFailureReason,
+                    stage = if (record.thirdParty) PaymentStage.CHECKOUT else if (record.officialResultUnconfirmed)
+                        PaymentStage.UNCERTAIN else PaymentStage.OFFICIAL_LAUNCHED,
+                    error = if (record.officialResultUnconfirmed) "payment_unconfirmed" else response.safeFailureReason,
                     retryAction = response.safeRetryAction,
                 )
                 else -> record.copy(stage = PaymentStage.UNCERTAIN, error = "verification_failed")
@@ -509,7 +510,16 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         return result
     }
-    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false, userCancelled: Boolean = false): Boolean {
+    /** A returned/expired checkout is unknown, never an implicit cancellation. */
+    suspend fun officialResultUnconfirmed(key: String) = guarded { session ->
+        val record = current(key, session) ?: return@guarded
+        if (record.initialized?.channelType != "official" || record.locallyReleased || record.officialPurchasePending ||
+            record.stage !in setOf(PaymentStage.OFFICIAL_LAUNCHED, PaymentStage.UNCERTAIN)) return@guarded
+        save(record.copy(stage = PaymentStage.UNCERTAIN, officialResultUnconfirmed = true,
+            error = "payment_unconfirmed"), session, false)
+    }
+
+    suspend fun officialResult(key: String, cancelledOrUnavailable: Boolean, consumed: Boolean = false, failed: Boolean = false, userCancelled: Boolean = false, pendingStorePurchase: Boolean = false): Boolean {
         var fulfilled = false
         guarded { session ->
             val record = current(key, session) ?: return@guarded
@@ -533,6 +543,8 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
                     consumed -> PaymentStage.OFFICIAL_CONSUMED
                     else -> PaymentStage.OFFICIAL_LAUNCHED
                 },
+                officialResultUnconfirmed = false,
+                officialPurchasePending = pendingStorePurchase,
                 officialCheckoutReleased = userCancelled || record.officialCheckoutReleased,
                 openedAt = if (!cancelledOrUnavailable && !consumed && !userCancelled) record.openedAt ?: now else record.openedAt,
                 deadline = if (!cancelledOrUnavailable && !consumed && !userCancelled) record.deadline ?: now + config.maxSeconds * 1000L else record.deadline,

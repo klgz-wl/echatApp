@@ -13,6 +13,18 @@ import yumo.achat.core.payment.PaymentStage
 import yumo.achat.core.payment.PaymentViewState
 
 class TopUpPaymentRecoveryPresentationTest {
+    @Test fun `unknown official result provides status check while real purchase remains busy`() {
+        val state = payment(PaymentStage.UNCERTAIN, "payment_unconfirmed").let {
+            it.copy(record = it.record!!.copy(officialResultUnconfirmed = true,
+                initialized = InitializedPayment("order", "official", "google_play", "sdk")))
+        }
+        val checkout = state.toTopUpCheckoutState(CoinPurchaseState("epoch", CoinPurchaseStatus.BUSY))
+            as TopUpCheckoutState.Failed
+        assertEquals(R.string.top_up_previous_payment_unconfirmed, checkout.messageRes)
+        assertEquals(R.string.top_up_check_payment_status, checkout.actionRes)
+        assertTrue(corePaymentPresentation(state).canRetry)
+        assertFalse(corePaymentPresentation(state).canStartPurchase)
+    }
     @Test fun `store cancellation carries different diagnostic evidence from closing checkout`() {
         val closed = payment(PaymentStage.CLOSED, null).toTopUpCheckoutState(CoinPurchaseState())
         val original = payment(PaymentStage.OFFICIAL_LAUNCHED, null)

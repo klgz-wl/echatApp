@@ -31,6 +31,8 @@ import javax.inject.Singleton
     val orderCreationTrigger: String? = null,
     val officialCheckoutReleased: Boolean = false,
     val productType: String? = null,
+    val officialResultUnconfirmed: Boolean = false,
+    val officialPurchasePending: Boolean = false,
 ) {
     val thirdParty get() = initialized?.channelType == "third_party"
     val orderCreationUnknown get() = stage == PaymentStage.UNCERTAIN && orderId == null

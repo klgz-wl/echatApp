@@ -182,4 +182,6 @@
     <string name="top_up_payment_review_required">A previous payment needs review. Please contact support before making another payment. Retry to check its status again. (E-602)</string>
     <string name="me_vip_label">VIP</string>
     <string name="me_vip_crown" translatable="false">👑</string>
+    <string name="top_up_check_payment_status">CHECK PAYMENT STATUS</string>
+    <string name="top_up_previous_payment_unconfirmed">A previous payment is unconfirmed. Check its status before making another payment. (E-602)</string>
 </resources>

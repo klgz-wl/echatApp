@@ -157,8 +157,7 @@ internal class CoreTopUpPaymentController(
                     purchases.backendFulfilled(epoch)
                     purchaseState = purchases.state.value
                 }
-                productSelectionLocked = corePaymentPresentation(next).locksProductSelection ||
-                    blocksTopUpPurchase(purchaseState, next, sessions.current?.userId)
+                productSelectionLocked = locksTopUpProductSelection(next, purchaseState, sessions.current?.userId)
                 if (shouldAdoptPaymentProduct(previousKey, next, productSelectionLocked)) {
                     next.record?.productId?.let { selectedProductId = it }
                 }
@@ -183,8 +182,7 @@ internal class CoreTopUpPaymentController(
                     purchases.backendFulfilled(epoch)
                     purchaseState = purchases.state.value
                 }
-                productSelectionLocked = corePaymentPresentation(coreState).locksProductSelection ||
-                    blocksTopUpPurchase(purchaseState, coreState, sessions.current?.userId)
+                productSelectionLocked = locksTopUpProductSelection(coreState, purchaseState, sessions.current?.userId)
                 checkoutState = coreState.toTopUpCheckoutState(purchaseState)
             }
         }
@@ -204,7 +202,9 @@ internal class CoreTopUpPaymentController(
     fun retainAvailableProducts(products: List<StoreProduct>, userInfo: StoreUserInfo? = null) {
         this.products = products.associateBy(StoreProduct::id)
         this.userInfo = userInfo
-        val activeProduct = coreState.record?.takeIf { it.unresolved }?.productId
+        val activeProduct = coreState.record?.takeIf {
+            it.unresolved && !allowsUnconfirmedTopUpSelection(coreState)
+        }?.productId
         selectedProductId = activeProduct ?: selectedProductId?.takeIf(this.products::containsKey) ?: products.firstOrNull()?.id
     }
 
@@ -237,8 +237,16 @@ internal class CoreTopUpPaymentController(
         return route
     }
 
-    fun onHostPaused() = browserReturn.paused()
-    fun onHostResumed() { browserReturn.resumed(sessions.current?.epoch)?.let(payments::close) }
+    private val officialReturn = OfficialCheckoutReturn()
+    fun onHostPaused() {
+        officialReturn.paused(coreState.epoch, coreState.record)
+        browserReturn.paused()
+    }
+    fun onHostResumed() {
+        val epoch = sessions.current?.epoch
+        officialReturn.resumed(epoch)?.let { key -> payments.officialCheckoutReturned(epoch!!, key) }
+        browserReturn.resumed(epoch)?.let(payments::close)
+    }
 
     fun openThirdParty(route: TopUpPurchaseState.ThirdPartyReady) = payments.opened(route.record.key)
     fun onThirdPartyPageLoaded(route: TopUpPurchaseState.ThirdPartyReady, url: String?, htmlExcerpt: String?) =
@@ -400,4 +408,19 @@ internal fun PaymentViewState.toTopUpCheckoutState(purchase: CoinPurchaseState):
 }
 
 internal fun shouldAdoptPaymentProduct(previousKey: String?, next: PaymentViewState, locked: Boolean): Boolean =
-    locked || (previousKey != next.record?.key && next.record?.unresolved == true)
+    !allowsUnconfirmedTopUpSelection(next) && (locked || (previousKey != next.record?.key && next.record?.unresolved == true))
+
+/** Play's translucent window may pause the host without stopping it. */
+internal class OfficialCheckoutReturn {
+    private var captured: Pair<String, String>? = null
+    fun paused(epoch: String?, record: PaymentRecord?) {
+        captured = if (epoch != null && record?.productType == "diamond" &&
+            record.initialized?.channelType == "official" &&
+            record.stage in setOf(PaymentStage.OFFICIAL_LAUNCHED, PaymentStage.UNCERTAIN)) epoch to record.key else null
+    }
+    fun resumed(epoch: String?): String? {
+        val previous = captured
+        captured = null
+        return previous?.takeIf { it.first == epoch }?.second
+    }
+}

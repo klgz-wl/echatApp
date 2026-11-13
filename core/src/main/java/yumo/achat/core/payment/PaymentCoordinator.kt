@@ -17,6 +17,33 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
     private val foreground = MutableStateFlow(false)
     init {
         scope.launch {
+            state.map { snapshot -> snapshot.record?.takeIf {
+                it.initialized?.channelType == "official" && it.productType == "diamond" &&
+                    it.stage == PaymentStage.OFFICIAL_LAUNCHED && !it.officialResultUnconfirmed && !it.officialPurchasePending
+            }?.let { Triple(snapshot.epoch, it.key, it.openedAt) } }.distinctUntilChanged().collectLatest { candidate ->
+                val (epoch, key, openedAt) = candidate ?: return@collectLatest
+                delay(((openedAt ?: 0L) + 120_000L - System.currentTimeMillis()).coerceAtLeast(0))
+                if (sessions.current?.epoch == epoch) engine.officialResultUnconfirmed(key)
+            }
+        }
+        scope.launch {
+            combine(foreground, state) { active, snapshot -> snapshot.record?.takeIf {
+                active && it.productType == "diamond" && it.initialized?.channelType == "official" &&
+                    it.officialResultUnconfirmed && it.stage == PaymentStage.UNCERTAIN
+            }?.let { snapshot.epoch to it.key } }.distinctUntilChanged().collectLatest { candidate ->
+                val (epoch, key) = candidate ?: return@collectLatest
+                if (sessions.current?.epoch != epoch) return@collectLatest
+                try {
+                    withTimeoutOrNull(15_000) {
+                        if (billing.connect().isSuccess && sessions.current?.epoch == epoch)
+                            billing.queryPurchases(yumo.achat.core.billing.BillingProductType.IN_APP)
+                    }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Keep the original order checkable when Play is unavailable. */ }
+                if (sessions.current?.epoch == epoch) withTimeoutOrNull(15_000) { engine.poll(key) }
+            }
+        }
+        scope.launch {
             state.map { snapshot -> snapshot.record?.takeIf { it.thirdParty && it.unresolved }
                 ?.let { Triple(snapshot.epoch, it.key, it.checkoutDeadline) } }.distinctUntilChanged().collectLatest { timer ->
                 val (epoch, key, deadline) = timer ?: return@collectLatest
@@ -82,13 +109,43 @@ class PaymentCoordinator @Inject constructor(val engine: PaymentEngine, private 
             foreground.value = false
             return
         }
+        val returnedOrder = state.value.takeIf { !foreground.value }?.let { snapshot ->
+            snapshot.record?.takeIf { it.initialized?.channelType == "official" && it.productType == "diamond" }
+                ?.let { snapshot.epoch to it.key }
+        }
         scope.launch {
             state.value.record?.let { engine.expireCheckout(it.key) }
             sessions.synchronize()
             foreground.value = true
+            if (returnedOrder != null) {
+                delay(1500)
+                if (foreground.value && sessions.current?.epoch == returnedOrder.first)
+                    engine.officialResultUnconfirmed(returnedOrder.second)
+            }
         }
     }
-    fun retry(key: String) { scope.launch { engine.retry(key) } }
+    /** Capture order identity at host pause, not whichever order is visible after resume. */
+    fun officialCheckoutReturned(epoch: String, key: String) {
+        scope.launch {
+            delay(1500)
+            if (sessions.current?.epoch == epoch) engine.officialResultUnconfirmed(key)
+        }
+    }
+
+    fun retry(key: String) { scope.launch {
+        val snapshot = state.value
+        val epoch = sessions.current?.epoch
+        if (snapshot.record?.key == key && snapshot.record.officialResultUnconfirmed && snapshot.epoch == epoch) {
+            try {
+                withTimeoutOrNull(15_000) {
+                    if (billing.connect().isSuccess && sessions.current?.epoch == epoch)
+                        billing.queryPurchases(yumo.achat.core.billing.BillingProductType.IN_APP)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Preserve the unresolved order. */ }
+            if (sessions.current?.epoch == epoch) withTimeoutOrNull(15_000) { engine.poll(key) }
+        } else engine.retry(key)
+    } }
     fun close(key: String) { scope.launch { engine.close(key) } }
     fun opened(key: String) { scope.launch { engine.opened(key) } }
     fun poll(key: String) { scope.launch { engine.poll(key) } }
