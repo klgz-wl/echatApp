@@ -266,7 +266,6 @@
     <string name="drama_back_short">Back to Short</string>
     <string name="drama_unavailable_history">Unavailable</string>
     <string name="drama_comments">Comments</string>
-    <string name="drama_comments_unavailable">Comments are not available yet.</string>
     <string name="drama_completed">Series complete</string>
     <string name="drama_rating_unavailable">You have reached the final available episode. Ratings are not available yet.</string>
 
@@ -278,4 +277,14 @@
     <string name="drama_rating_hint">Tell us what you liked or what could be improved… (optional)</string>
     <string name="drama_rating_send">Send Feedback</string>
     <string name="drama_preview_rights_retry">Could not load episode access. Tap to retry.</string>
+    <string name="drama_comments_demo_notice">Demo comments · visible only on this device</string>
+    <string name="drama_comments_count">Comments (%1$d)</string>
+    <string name="drama_comment_close">Close comments</string>
+    <string name="drama_comment_viewer">Demo viewer %1$d</string>
+    <string name="drama_comment_you">You</string>
+    <string name="drama_comment_sample_one">That plot twist caught me by surprise!</string>
+    <string name="drama_comment_sample_two">I cannot wait to see what happens next.</string>
+    <string name="drama_comment_sample_three">The acting in this scene is so good.</string>
+    <string name="drama_comment_hint">Add a comment…</string>
+    <string name="drama_comment_send">Send</string>
 </resources>

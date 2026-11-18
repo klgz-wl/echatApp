@@ -40,6 +40,24 @@ class ShortDramaPlayerScreenTest {
     }).also { controller = it }
     @After fun release() { compose.runOnIdle { controller?.close(); scope.cancel() } }
 
+    @Test fun simulatedCommentsSendLocallyAndSurviveClosingSheet() {
+        val gateway=PlayerScreenGateway();val state=create(gateway)
+        compose.setContent{ShortDramaPlayerScreen(state,{},{},{},videoContent={_,modifier,_,_->Box(modifier)})}
+        compose.runOnIdle{state.start("drama")}
+        compose.onNodeWithContentDescription("Comments").performClick()
+        compose.onNodeWithText("Demo comments · visible only on this device").assertIsDisplayed()
+        compose.onNodeWithTag("drama-comment-send").assertIsNotEnabled()
+        compose.onNodeWithTag("drama-comment-input").performTextInput("   ")
+        compose.onNodeWithTag("drama-comment-send").assertIsNotEnabled()
+        compose.onNodeWithTag("drama-comment-input").performTextReplacement("A surprising ending!")
+        compose.onNodeWithTag("drama-comment-send").performClick()
+        compose.onNodeWithText("A surprising ending!").assertIsDisplayed()
+        compose.onNodeWithTag("drama-comment-send").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Close comments").performClick()
+        compose.onNodeWithContentDescription("Comments").performClick()
+        compose.onNodeWithText("A surprising ending!").assertIsDisplayed()
+        compose.runOnIdle{assertEquals(1,gateway.plays);assertEquals(0,gateway.unlocks)}
+    }
     @Test fun actualEpisodeRendersFramesAndPauseDoesNotRequestAnotherPlay() {
         val gateway = PlayerScreenGateway(); val state = create(gateway)
         compose.setContent { ShortDramaPlayerScreen(state, {}, {}, {}) }

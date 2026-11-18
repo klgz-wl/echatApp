@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -93,6 +94,8 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     val subtitleWarning = controller.errorCode == "DRAMA_SUBTITLE_ERROR"
     val detail = controller.detail
     val episode = controller.episode
+    var localComments by rememberSaveable(controller) { mutableStateOf(arrayListOf<String>()) }
+    var commentDraft by rememberSaveable(controller) { mutableStateOf("") }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AsyncImage(detail?.posterUrl, detail?.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (controller.media != null && (controller.errorCode == null || subtitleWarning) && (controller.action == DramaPlaybackAction.None || subtitleWarning)) {
@@ -190,10 +193,12 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                 colors = SliderDefaults.colors(thumbColor = AchatCyan, activeTrackColor = AchatCyan, inactiveTrackColor = Color.White.copy(alpha = .1f)))
         }
     }
-    if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaGlass) {
-        Text(stringResource(R.string.drama_comments),color=Color.White,fontSize=20.sp,modifier=Modifier.padding(20.dp))
-        Text(stringResource(R.string.drama_comments_unavailable),color=AchatMuted,modifier=Modifier.padding(20.dp))
-        TextButton(onClick={commentsOpen=false}) {Text(stringResource(R.string.drama_close),color=AchatCyan)}
+    if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaBackground,
+        sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
+        DramaCommentsPanel(localComments,commentDraft,onDraftChange={commentDraft=it.take(500)},onSend={
+            val body=commentDraft.trim()
+            if(body.isNotEmpty()) {localComments=ArrayList(listOf(body)+localComments);commentDraft=""}
+        },onClose={commentsOpen=false})
     }
     if (controller.completed && !dismissedCompletion) DramaCompletionDialog(detail?.title.orEmpty()) {dismissedCompletion=true}
     unlockOffer?.let { offer ->
