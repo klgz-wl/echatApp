@@ -1,6 +1,8 @@
 package yumo.achat.app.ui.imagevideo
 
 import androidx.compose.ui.test.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import org.junit.Assert.*
 import org.junit.Rule
@@ -11,6 +13,19 @@ import java.time.Instant
 class ShortDramaHomeScreenTest {
     @get:Rule val compose = createComposeRule()
     private val drama = HomeFeedItem("short_drama:drama-1", "short_drama", "drama-1", "Real drama title", "", true)
+    @Test fun pausedPreviewDoesNotUseElapsedTimeAndNaturalEndNotifiesOnce() {
+        var playing by androidx.compose.runtime.mutableStateOf(false)
+        val finishes=java.util.concurrent.atomic.AtomicInteger()
+        compose.setContent {DramaPreviewSurface("android.resource://yumo.achat.app/raw/drama_test_video",playing,true,
+            onProgress={},onFinished={finishes.incrementAndGet()},onError={error("Local preview failed")})}
+        compose.mainClock.advanceTimeBy(15_000)
+        compose.runOnIdle {assertEquals(0,finishes.get());playing=true}
+        compose.waitUntil(15_000){finishes.get()==1}
+        compose.runOnIdle{playing=false}
+        compose.runOnIdle{playing=true}
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.runOnIdle{assertEquals(1,finishes.get())}
+    }
     @Test fun shortPosterOpensCorrectDramaPlayerAndAcksAbsoluteDisplayedIndex() {
         val gateway = HomeScreenTestGateway(drama)
         var opened: String? = null

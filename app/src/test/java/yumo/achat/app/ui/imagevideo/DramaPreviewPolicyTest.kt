@@ -5,6 +5,20 @@ import org.junit.Test
 import yumo.achat.core.backend.ShortDramaEpisode
 
 class DramaPreviewPolicyTest {
+    @Test fun pausedAndBufferingTimeCannotFinishWithoutMediaPositionAdvancing() {
+        val progress=DramaPreviewProgress(restricted=true)
+        repeat(1000) {assertFalse(progress.update(2500))}
+        assertFalse(progress.update(9999))
+        assertTrue(progress.update(10000))
+        assertFalse(progress.update(10100))
+        assertFalse(progress.ended())
+    }
+    @Test fun shortVideoFinishesNaturallyOnceAndFreePreviewHasNoTenSecondGate() {
+        val short=DramaPreviewProgress(restricted=true)
+        assertFalse(short.update(2000));assertTrue(short.ended());assertFalse(short.ended())
+        val free=DramaPreviewProgress(restricted=false)
+        assertFalse(free.update(20000));assertTrue(free.ended())
+    }
     @Test fun restrictedPreviewStopsOnMediaPositionNotElapsedWallTime() {
         val paid=ShortDramaEpisode("e",3,"",5,true,false,"VIP_REQUIRED")
         assertFalse(previewShouldStop(9999,paid))

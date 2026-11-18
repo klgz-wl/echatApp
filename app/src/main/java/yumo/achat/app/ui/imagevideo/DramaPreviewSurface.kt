@@ -32,25 +32,28 @@ internal fun DramaPreviewSurface(url:String,playing:Boolean,restricted:Boolean,m
     val progress by rememberUpdatedState(onProgress)
     val player=remember(url,restricted){ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context,cacheEnabled=false)).build().apply {
         val item=MediaItem.Builder().setUri(url)
-        if(restricted)item.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(10_000).build())
+        if(restricted)item.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(DramaPreviewLimitMs).build())
         setMediaItem(item.build());repeatMode=Player.REPEAT_MODE_OFF;prepare()
     }}
+    val playbackProgress = remember(player) { DramaPreviewProgress(restricted) }
     var frame by remember(player){mutableStateOf(false)}
     DisposableEffect(player,lifecycle){
         val listener=object:Player.Listener {
             override fun onRenderedFirstFrame(){frame=true}
             override fun onPlayerError(error:PlaybackException){failure()}
-            override fun onPlaybackStateChanged(state:Int){if(state==Player.STATE_ENDED)finished()}
+            override fun onPlaybackStateChanged(state:Int){
+                if(state==Player.STATE_ENDED && playbackProgress.ended()){player.pause();finished()}
+            }
         }
         val observer=LifecycleEventObserver{_,_->resumed=lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)}
         player.addListener(listener);lifecycle.addObserver(observer)
         onDispose{lifecycle.removeObserver(observer);player.removeListener(listener);player.release()}
     }
-    LaunchedEffect(player,playing,resumed){player.playWhenReady=playing && resumed}
+    LaunchedEffect(player,playing,resumed){player.playWhenReady=playing && resumed && !playbackProgress.finished}
     LaunchedEffect(player){while(true){
         if(player.playbackState==Player.STATE_READY){
             progress(if(player.duration>0)(player.currentPosition.toFloat()/player.duration).coerceIn(0f,1f) else 0f)
-            if(restricted && player.currentPosition>=10_000){player.pause();finished()}
+            if(playbackProgress.update(player.currentPosition)){player.pause();finished()}
         }
         delay(100)
     }}
