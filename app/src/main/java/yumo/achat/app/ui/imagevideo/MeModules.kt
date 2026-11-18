@@ -87,9 +87,13 @@ internal fun MePlaceholderScreen(title: String, onBack: () -> Unit) {
 internal fun diamondAmountLabel(amount: Int, type: String): String =
     String.format(Locale.US, "%+.2f", walletTransactionDisplayAmount(amount, type).toDouble())
 
-internal fun diamondRecordTime(raw: String): String = runCatching {
-    java.time.OffsetDateTime.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy", Locale.US))
-}.getOrElse { raw }
+internal fun diamondRecordTime(raw: String): String {
+    val time=yumo.achat.core.payment.paymentTime(raw) ?: return raw
+    val zone=if(raw.endsWith("Z")) "UTC" else "GMT${raw.takeLast(6)}"
+    return java.text.SimpleDateFormat("HH:mm dd/MM/yyyy",Locale.US).apply {
+        timeZone=java.util.TimeZone.getTimeZone(zone)
+    }.format(java.util.Date(time))
+}
 
 
 @Composable

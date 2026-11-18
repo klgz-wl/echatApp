@@ -53,4 +53,26 @@ internal object HomeFeedParsers {
                 ShortDramaEpisode(e.optString("episode_id").takeIf { it.isNotBlank() } ?: e.getString("id"), e.getInt("episode_number"), e.optString("title"), e.nullableInt("amount"), e.optBoolean("vip"), e.optBoolean("can_play"), e.optString("access_reason"))
             }, data.optInt("episode_count", episodes.length()), data.optString("description"))
     }
+    fun <T> page(data: JSONObject, parse: (JSONObject) -> T): DramaPage<T> {
+        val page = data.nonNegativeInt("page").also { require(it >= 1) }
+        val size = data.nonNegativeInt("page_size").also { require(it in 1..50) }
+        val items = data.getJSONArray("items")
+        return DramaPage(List(items.length()) { parse(items.getJSONObject(it)) }, data.nonNegativeInt("total"), page, size)
+    }
+    fun summary(d: JSONObject): ShortDramaSummary {
+        val tags = d.optJSONArray("tags")
+        return ShortDramaSummary(d.getString("drama_id"), d.optString("title"), d.optString("poster_url"),
+            d.optString("first_episode_id"), if (tags == null) emptyList() else List(tags.length()) { tags.getString(it) },
+            d.nonNegativeInt("episode_count"), d.optBoolean("has_vip_episodes"), d.optInt("hot_score"))
+    }
+    fun history(d: JSONObject) = DramaHistoryEntry(d.getString("drama_id"), d.optString("title"), d.optString("poster_url"),
+        d.optString("last_episode_id"), d.optInt("episode_number"), d.optString("episode_title"),
+        d.optBoolean("available", false), d.optString("unavailable_reason"))
+    fun ads(d: JSONObject): List<ShortDramaAd> {
+        val items = d.getJSONArray("items")
+        return List(items.length()) { i -> val a = items.getJSONObject(i)
+            ShortDramaAd(a.getString("ad_id"), a.getString("drama_id"), a.optString("title"), a.optString("copy"),
+                a.optString("description"), a.optString("button_text"), a.optString("button_action")) }
+    }
+
 }

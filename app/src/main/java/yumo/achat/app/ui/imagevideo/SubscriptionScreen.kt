@@ -63,6 +63,7 @@ internal fun SubscriptionScreen(
     }
     val context = LocalContext.current
     val backLabel = stringResource(R.string.subscription_back)
+    val closeLabel = stringResource(R.string.template_subscription_close)
     val action = checkoutState?.let { yumo.achat.core.billing.subscriptionCheckoutAction(it, selected?.id) }
         ?: yumo.achat.core.billing.SubscriptionCheckoutAction.Buy
     val blocked = action == yumo.achat.core.billing.SubscriptionCheckoutAction.Unavailable
@@ -177,7 +178,7 @@ internal fun SubscriptionScreen(
                 Box(Modifier.size(48.dp, 6.dp).background(SubscriptionCyan.copy(alpha = .25f), RoundedCornerShape(99.dp)))
             }
             Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).clickable(onClick = onBack).semantics { contentDescription = context.getString(R.string.template_subscription_close) }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(44.dp).clickable(onClick = onBack).semantics { contentDescription = closeLabel }, contentAlignment = Alignment.Center) {
                     Box(Modifier.size(36.dp).background(Color(0x99292936), RoundedCornerShape(99.dp))
                         .border(1.dp, Color(0x663B494B), RoundedCornerShape(99.dp)), contentAlignment = Alignment.Center) {
                         Image(painterResource(R.drawable.template_subscription_close), null, Modifier.size(14.dp))

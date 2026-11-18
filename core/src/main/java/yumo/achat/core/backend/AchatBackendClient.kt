@@ -453,6 +453,20 @@ class AchatBackendClient(
         if (confirmation.optString("status") != "accepted") throw HomeFeedServiceException("ACK_NOT_ACCEPTED")
     }
 
+    fun shortDramas(token: String, page: Int = 1, pageSize: Int = 20, sort: String = "hot", tag: String = ""): DramaPage<ShortDramaSummary> {
+        require(page >= 1 && pageSize in 1..50 && sort in setOf("hot", "latest"))
+        val path = "/api/v1/short-dramas?page=$page&page_size=$pageSize&sort=$sort&is_home=true&is_vip=true" +
+            tag.trim().takeIf { it.isNotEmpty() }?.let { "&tag=${encodeQuery(it)}" }.orEmpty()
+        return parseHomeResponse { HomeFeedParsers.page(homeRequest(token, path), HomeFeedParsers::summary) }
+    }
+    fun shortDramaHistory(token: String, page: Int = 1, pageSize: Int = 20): DramaPage<DramaHistoryEntry> {
+        require(page >= 1 && pageSize in 1..50)
+        return parseHomeResponse { HomeFeedParsers.page(homeRequest(token, "/api/v1/short-dramas/history?page=$page&page_size=$pageSize"), HomeFeedParsers::history) }
+    }
+    fun shortDramaAds(token: String): List<ShortDramaAd> = parseHomeResponse {
+        HomeFeedParsers.ads(homeRequest(token, "/api/v1/short-drama-ads"))
+    }
+
     fun shortDramaDetail(token: String, dramaId: String): ShortDramaDetail {
         require(dramaId.isNotBlank())
         return parseHomeResponse { HomeFeedParsers.drama(homeRequest(token, "/api/v1/short-dramas/${encodeQuery(dramaId)}")) }

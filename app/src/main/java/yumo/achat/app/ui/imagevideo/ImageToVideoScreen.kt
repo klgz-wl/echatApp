@@ -229,6 +229,18 @@ internal fun topUpReturnTargetForInsufficientBalance(
     destination = destination,
 )
 
+internal fun restoreTopUpReturnRoute(navigation: Int, destination: String?): BottomNavigationRoute? {
+    if (navigation !in 0..5 || destination == null) return null
+    val target=runCatching {ImageToVideoDestination.valueOf(destination)}.getOrNull() ?: return null
+    return BottomNavigationRoute(navigation,target)
+}
+
+internal fun balancePurchaseReturnTarget(navigation: Int, destination: ImageToVideoDestination): BottomNavigationRoute? =
+    if (navigation==2) null else BottomNavigationRoute(navigation,destination)
+
+internal fun shouldHandleTopUpBack(destination: ImageToVideoDestination, navigation: Int, returnTarget: BottomNavigationRoute?): Boolean =
+    destination==ImageToVideoDestination.Templates && navigation==2 && returnTarget!=null
+
 internal fun routeAfterTopUpSuccess(returnTarget: BottomNavigationRoute?): BottomNavigationRoute? = returnTarget
 
 internal fun routeAfterGenerationTaskCreated(selectedNavigation: Int): BottomNavigationRoute =
@@ -730,7 +742,11 @@ private fun ImageToVideoHomeScreen(
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var homeHasBeenOpened by rememberSaveable { mutableStateOf(selectedNavigation == 0) }
-    var selectedDramaId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedDramaId by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf<String?>(null) }
+    var selectedDramaEpisodeId by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf<String?>(null) }
+    var showDramaHistory by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf(false) }
+    var dramaNavigationSerial by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf(0L) }
+    val dramaSaveableState=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     var subscriptionReturnDestination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     val dramaViewModel: ShortDramaPlayerViewModel = viewModel()
     val dramaOwnerKey = "${startupSession.userId}:${startupSession.epoch}:$homeGateRevision"
@@ -884,17 +900,8 @@ private fun ImageToVideoHomeScreen(
         profileMessage = TransientMessage(profileMessageSerial, text, tone)
     }
 
-    fun pendingTopUpReturnRoute(): BottomNavigationRoute? {
-        val destinationName = pendingTopUpReturnDestination ?: return null
-        val routeDestination = runCatching {
-            ImageToVideoDestination.valueOf(destinationName)
-        }.getOrNull() ?: return null
-        return if (pendingTopUpReturnNavigation in 0..3) {
-            BottomNavigationRoute(pendingTopUpReturnNavigation, routeDestination)
-        } else {
-            null
-        }
-    }
+    fun pendingTopUpReturnRoute(): BottomNavigationRoute? =
+        restoreTopUpReturnRoute(pendingTopUpReturnNavigation,pendingTopUpReturnDestination)
 
     fun setPendingTopUpReturnRoute(route: BottomNavigationRoute?) {
         pendingTopUpReturnNavigation = route?.selectedNavigation ?: -1
@@ -1292,7 +1299,7 @@ private fun ImageToVideoHomeScreen(
 
     fun navigateFromBalanceBadge() {
         val route = routeFromBalanceBadgeClick()
-        setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
+        setPendingTopUpReturnRoute(balancePurchaseReturnTarget(selectedNavigation,destination))
         topUpEntrySource = balanceTopUpEntrySource(selectedNavigation, destination)
         if (shouldRefreshTopUp(selectedNavigation, route.selectedNavigation)) {
             topUpRefreshSerial += 1
@@ -1326,6 +1333,12 @@ private fun ImageToVideoHomeScreen(
     }
 
     fun navigateFromVipBadge() {
+        if (selectedNavigation==0 || selectedNavigation==4) {
+            subscriptionReturnDestination=ImageToVideoDestination.Templates
+            subscriptionEntrySource=if(selectedNavigation==4) "short" else "home"
+            destination=ImageToVideoDestination.Subscription
+            return
+        }
         when (vipBadgeTarget(backendState.isVip)) {
             VipBadgeTarget.Subscription -> {
                 subscriptionReturnDestination = ImageToVideoDestination.Templates
@@ -1387,7 +1400,10 @@ private fun ImageToVideoHomeScreen(
         return result
     }
     val homeFeedGateway = remember(startupSession.epoch, homeGateRevision) {
-        object : yumo.achat.core.backend.ShortDramaPlaybackGateway {
+        object : yumo.achat.core.backend.ShortDramaPlaybackGateway, yumo.achat.core.backend.ShortDramaDiscoveryGateway {
+            override suspend fun shortDramas(page: Int, pageSize: Int, sort: String, tag: String) = guardedHomeRequest { repository.shortDramas(page,pageSize,sort,tag) }
+            override suspend fun shortDramaHistory(page: Int, pageSize: Int) = guardedHomeRequest { repository.shortDramaHistory(page,pageSize) }
+            override suspend fun shortDramaAds() = guardedHomeRequest { repository.shortDramaAds() }
             override suspend fun homeFeed(requestId: String) = guardedHomeRequest {
                 repository.homeFeed(requestId).also { batch ->
                     if (BuildConfig.DEBUG) {
@@ -1736,8 +1752,7 @@ private fun ImageToVideoHomeScreen(
         selectedNavigation = settingsReturnNavigation
     }
 
-    BackHandler(destination == ImageToVideoDestination.Templates && selectedNavigation == 2 &&
-        pendingTopUpReturnRoute()?.destination == ImageToVideoDestination.ShortDramaPlayer) {
+    BackHandler(shouldHandleTopUpBack(destination,selectedNavigation,pendingTopUpReturnRoute())) {
         val route = pendingTopUpReturnRoute()
         if (route != null) { selectedNavigation = route.selectedNavigation; destination = route.destination; setPendingTopUpReturnRoute(null) }
     }
@@ -1752,6 +1767,12 @@ private fun ImageToVideoHomeScreen(
             ),
     ) {
         BackgroundGlow()
+        if (showDramaHistory) {
+            key(dramaOwnerKey) { DramaHistoryScreen(homeFeedGateway,onBack={showDramaHistory=false},onOpen={id,episode ->
+                dramaNavigationSerial++;selectedDramaId=id;selectedDramaEpisodeId=episode;showDramaHistory=false;destination=ImageToVideoDestination.ShortDramaPlayer
+            }) }
+            return@Box
+        }
         if (homeHasBeenOpened) {
             key(homeGateRevision) { ZorvHomeFeed(
                 gateway = homeFeedGateway,
@@ -1759,10 +1780,11 @@ private fun ImageToVideoHomeScreen(
                 playbackEnabled = !showTemplateSubscription,
                 visible = destination == ImageToVideoDestination.Templates && selectedNavigation == 0,
                 playbackViewModel = dramaViewModel, ownerKey = dramaOwnerKey, userId = startupSession.userId,
-                onOpenDrama = { selectedDramaId = it; destination = ImageToVideoDestination.ShortDramaPlayer },
+                onOpenDrama = { dramaNavigationSerial++; selectedDramaId = it; selectedDramaEpisodeId=null; destination = ImageToVideoDestination.ShortDramaPlayer },
                 statusContent = { AttributionProfileRetry(authViewModel.attributionProfileRetryRequired, authViewModel::retryProfileRefresh) },
                 onSettings = { navigateFromBottomNavigation(3) },
                 onSubscription = ::navigateFromVipBadge, onBalance = ::navigateFromBalanceBadge,
+                onPreviewSubscription = { subscriptionEntrySource="short_drama_preview";showTemplateSubscription=true },
                 onNavigation = ::navigateFromBottomNavigation, onUse = ::useTemplate,
                 onExpose = { template, position ->
                     analytics.track("template_expose", mapOf("template_id" to template.templateId,
@@ -1774,8 +1796,16 @@ private fun ImageToVideoHomeScreen(
         }
         when (destination) {
             ImageToVideoDestination.Templates -> {
-                if (selectedNavigation != 0) {
+                if (selectedNavigation == 4) {
+                    dramaSaveableState.SaveableStateProvider("short:$dramaOwnerKey") { ShortDramaDiscoveryScreen(homeFeedGateway, backendState.diamondBalance, backendState.isVip,
+                        onSettings={navigateFromBottomNavigation(3)},onSubscription=::navigateFromVipBadge,onBalance=::navigateFromBalanceBadge,
+                        onNavigation=::navigateFromBottomNavigation,onHistory={showDramaHistory=true},
+                        onOpen={id,episode -> dramaNavigationSerial++;selectedDramaId=id;selectedDramaEpisodeId=episode;destination=ImageToVideoDestination.ShortDramaPlayer},
+                        detailGateway=homeFeedGateway) }
+                } else if (selectedNavigation != 0) {
                     TemplateBrowserScreen(
+                        onWatchHistory = { showDramaHistory=true },
+                        topUpShowVipBadge = topUpEntrySource != "short_drama_unlock",
                         loadDiamondHistory = {
                             if (!ownsTaskSession()) throw CancellationException("Session changed")
                             val records = repository.walletTransactions(page = it, pageSize = 20)
@@ -1873,7 +1903,8 @@ private fun ImageToVideoHomeScreen(
             ImageToVideoDestination.ShortDramaPlayer -> {
                 val drama = selectedDramaId
                 if (drama != null) ShortDramaPlayerRoute(drama, startupSession.userId, dramaOwnerKey, homeFeedGateway, dramaViewModel,
-                    onBack = { refreshDiamondBalance(); destination = ImageToVideoDestination.Templates; selectedNavigation = 0 },
+                    onBack = { refreshDiamondBalance(); dramaViewModel.release(); selectedDramaEpisodeId=null; destination = ImageToVideoDestination.Templates; selectedNavigation = 4 },
+                    preferredEpisodeId = selectedDramaEpisodeId, requestId = "$dramaOwnerKey:$dramaNavigationSerial",
                     onSubscription = {
                         subscriptionReturnDestination = ImageToVideoDestination.ShortDramaPlayer
                         subscriptionEntrySource = "short_drama_vip"
@@ -2090,6 +2121,8 @@ private fun TemplateBrowserScreen(
     attributionProfileRetryRequired: Boolean = false,
     onAttributionProfileRetry: () -> Unit = {},
     loadDiamondHistory: suspend (Int) -> List<yumo.achat.core.backend.WalletTransaction>,
+    onWatchHistory: () -> Unit = {},
+    topUpShowVipBadge: Boolean = true,
 ) {
     if (selectedNavigation == 2) {
         TopUpScreen(
@@ -2097,7 +2130,7 @@ private fun TemplateBrowserScreen(
             selectedProductId = selectedProductId,
             productSelectionEnabled = productSelectionEnabled,
             state = topUpState,
-            isVip = backendState.isVip,
+            isVip = backendState.isVip.takeIf { topUpShowVipBadge },
             onSubscription = onSubscription,
             diamondBalance = topUpHeaderDiamondBalance(
                 backendState = backendState,
@@ -2116,6 +2149,7 @@ private fun TemplateBrowserScreen(
 
     if (selectedNavigation == 3) {
         MeScreen(
+            onWatchHistory = onWatchHistory,
             loadDiamondHistory = loadDiamondHistory,
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
@@ -2137,18 +2171,6 @@ private fun TemplateBrowserScreen(
             onBalanceClick = onBalanceClick,
             onNavigationSelect = onNavigationSelect,
         )
-        return
-    }
-
-    if (selectedNavigation == 4) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(16.dp)) {
-            Header(TemplateSection.Video, backendState.diamondBalance, onBalanceClick,
-                backendState.isVip, onSubscription, onSettings = { onNavigationSelect(3) })
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.short_coming_soon), color = AchatMuted)
-            }
-            BottomNavigation(selectedNavigation, onNavigationSelect)
-        }
         return
     }
 
@@ -2595,16 +2617,13 @@ private fun MeScreen(
     onNavigationSelect: (Int) -> Unit,
     onBalanceClick: () -> Unit,
     loadDiamondHistory: suspend (Int) -> List<yumo.achat.core.backend.WalletTransaction> = { emptyList() },
+    onWatchHistory: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var activeModule by rememberSaveable { mutableStateOf<String?>(null) }
     BackHandler(activeModule != null) { activeModule = null }
     if (activeModule == "diamonds") {
         DiamondHistoryScreen(loadDiamondHistory, onBack = { activeModule = null })
-        return
-    }
-    if (activeModule == "watch") {
-        MePlaceholderScreen(stringResource(R.string.me_watch_history), onBack = { activeModule = null })
         return
     }
     val clipboardManager = remember(context) {
@@ -2627,7 +2646,7 @@ private fun MeScreen(
                 MeMenuRow(entry, onClick = {
                     when (entry) {
                         MeMenuEntry.Creations -> onConversationLog()
-                        MeMenuEntry.WatchHistory -> activeModule = "watch"
+                        MeMenuEntry.WatchHistory -> onWatchHistory()
                         MeMenuEntry.Feedback -> onFeedback()
                         MeMenuEntry.DiamondHistory -> activeModule = "diamonds"
                         MeMenuEntry.Privacy -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)))
@@ -4920,6 +4939,8 @@ private fun UploadPhotoScreen(
     val taskSucceededPattern = stringResource(R.string.task_succeeded)
     val taskFailedPattern = stringResource(R.string.task_failed)
     val uploadFailedMessage = stringResource(R.string.upload_failed)
+    val templateVipRequiredMessage = stringResource(R.string.template_vip_required)
+    val templateVipCheckFailedMessage = stringResource(R.string.template_vip_check_failed)
     val uploadSuccessPattern = stringResource(R.string.upload_success)
     fun showUploadMessage(
         text: String,
@@ -5103,12 +5124,12 @@ private fun UploadPhotoScreen(
                     try {
                         when (yumo.achat.core.backend.checkTemplateContinueAccess(template.vip, checkVipMembership)) {
                             yumo.achat.core.backend.TemplateVipAccess.SubscriptionRequired -> {
-                                showUploadMessage(context.getString(R.string.template_vip_required), TransientMessageTone.Error)
+                                showUploadMessage(templateVipRequiredMessage, TransientMessageTone.Error)
                                 onVipRequired()
                                 return@launch
                             }
                             yumo.achat.core.backend.TemplateVipAccess.CheckRequired -> {
-                                showUploadMessage(context.getString(R.string.template_vip_check_failed), TransientMessageTone.Error)
+                                showUploadMessage(templateVipCheckFailedMessage, TransientMessageTone.Error)
                                 return@launch
                             }
                             yumo.achat.core.backend.TemplateVipAccess.Allowed -> Unit
@@ -5146,7 +5167,7 @@ private fun UploadPhotoScreen(
                             template.analyticsContext(), submissionKey.idempotencyKey, null, error,
                         )
                         if (yumo.achat.core.backend.isTemplateVipRejection(error)) {
-                            showUploadMessage(context.getString(R.string.template_vip_required), TransientMessageTone.Error)
+                            showUploadMessage(templateVipRequiredMessage, TransientMessageTone.Error)
                             onVipRequired()
                             return@launch
                         }

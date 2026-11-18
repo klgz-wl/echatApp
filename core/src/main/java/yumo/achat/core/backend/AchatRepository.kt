@@ -34,11 +34,21 @@ class AchatRepository(
     configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
     attribution: BackendAttribution = NoOpBackendAttribution(configuration),
     onLoginResult: (Boolean, String?, String?) -> Unit = { _, _, _ -> },
-) : StorePaymentGateway, ProfileEditingGateway, ShortDramaPlaybackGateway {
+) : StorePaymentGateway, ProfileEditingGateway, ShortDramaPlaybackGateway, ShortDramaDiscoveryGateway {
     private val appContext = context.applicationContext
     private val client = AchatBackendClient(configuration)
     private val sessionManager = AchatSessionManager.application(context, configuration, attribution, onLoginResult)
     val sessionInvalidated: kotlinx.coroutines.flow.StateFlow<Boolean> = sessionManager.sessionInvalidated
+
+    override suspend fun shortDramas(page: Int, pageSize: Int, sort: String, tag: String): DramaPage<ShortDramaSummary> = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.shortDramas(it, page, pageSize, sort, tag) }
+    }
+    override suspend fun shortDramaHistory(page: Int, pageSize: Int): DramaPage<DramaHistoryEntry> = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.shortDramaHistory(it, page, pageSize) }
+    }
+    override suspend fun shortDramaAds(): List<ShortDramaAd> = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.shortDramaAds(it) }
+    }
 
     override suspend fun homeFeed(requestId: String): HomeFeedBatch = withContext(Dispatchers.IO) {
         sessionManager.authenticated { client.homeFeed(it, requestId) }

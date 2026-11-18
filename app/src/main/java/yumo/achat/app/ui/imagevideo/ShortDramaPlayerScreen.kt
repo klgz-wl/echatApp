@@ -68,10 +68,10 @@ internal fun DramaPlaybackVisibility(controller: ShortDramaPlaybackController, v
 @Composable
 internal fun ShortDramaPlayerRoute(dramaId: String, userId: String, ownerKey: String,
     gateway: ShortDramaPlaybackGateway, viewModel: ShortDramaPlayerViewModel,
-    onBack: () -> Unit, onSubscription: () -> Unit, onTopUp: () -> Unit) {
+    onBack: () -> Unit, onSubscription: () -> Unit, onTopUp: () -> Unit, preferredEpisodeId: String? = null, requestId: String = "$dramaId|$preferredEpisodeId") {
     val controller = viewModel.bind(ownerKey, userId, dramaId, gateway)
     DramaPlaybackVisibility(controller, viewModel)
-    LaunchedEffect(controller, dramaId) { controller.start(dramaId) }
+    LaunchedEffect(controller, requestId) { viewModel.openRequest(controller,requestId,dramaId,preferredEpisodeId) }
     ShortDramaPlayerScreen(controller, onBack, onSubscription, onTopUp)
 }
 
@@ -82,6 +82,8 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     videoContent: (@Composable (ShortDramaPlaybackController, Modifier, Long, Int) -> Unit)? = null) {
     BackHandler(onBack = onBack)
     var episodesOpen by remember { mutableStateOf(false) }
+    var commentsOpen by remember { mutableStateOf(false) }
+    var dismissedCompletion by remember(controller) { mutableStateOf(false) }
     var speedOpen by remember { mutableStateOf(false) }
     var subtitlesOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
@@ -97,15 +99,18 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             if (videoContent == null) DramaVideoSurface(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
             else videoContent(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
         }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xBB04050D), Color.Transparent, Color(0x9904050D), Color(0xFF05060F)))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xBB04050D), Color.Transparent, Color(0x9904050D), Color(0xFF05060F))))
+            .clickable(enabled=controller.media != null && controller.action==DramaPlaybackAction.None) { controller.setPlaying(!controller.playing) })
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                DramaGlassIcon(R.drawable.ic_drama_back, stringResource(R.string.drama_back_home), onBack)
+                DramaGlassIcon(R.drawable.ic_drama_back, stringResource(R.string.drama_back_short), onBack)
                 Spacer(Modifier.width(10.dp))
                 Text(stringResource(R.string.drama_episode_pill, episode?.episodeNumber ?: 1), color = AchatCyan, fontSize = 12.sp,
                     fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(Color(0xB20F172A))
                         .border(1.dp, AchatCyan.copy(alpha = .3f), CircleShape).padding(horizontal = 15.dp, vertical = 7.dp))
                 Spacer(Modifier.weight(1f))
+                DramaGlassIcon(R.drawable.ic_drama_comments, stringResource(R.string.drama_comments), { commentsOpen=true })
+                Spacer(Modifier.width(8.dp))
                 DramaGlassIcon(R.drawable.ic_drama_speed, stringResource(R.string.drama_speed), { speedOpen = true })
                 Spacer(Modifier.width(8.dp))
                 DramaGlassIcon(R.drawable.ic_drama_audio, stringResource(if (controller.muted) R.string.drama_unmute else R.string.drama_mute),
@@ -185,6 +190,12 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                 colors = SliderDefaults.colors(thumbColor = AchatCyan, activeTrackColor = AchatCyan, inactiveTrackColor = Color.White.copy(alpha = .1f)))
         }
     }
+    if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaGlass) {
+        Text(stringResource(R.string.drama_comments),color=Color.White,fontSize=20.sp,modifier=Modifier.padding(20.dp))
+        Text(stringResource(R.string.drama_comments_unavailable),color=AchatMuted,modifier=Modifier.padding(20.dp))
+        TextButton(onClick={commentsOpen=false}) {Text(stringResource(R.string.drama_close),color=AchatCyan)}
+    }
+    if (controller.completed && !dismissedCompletion) DramaCompletionDialog(detail?.title.orEmpty()) {dismissedCompletion=true}
     unlockOffer?.let { offer ->
         AlertDialog(onDismissRequest = { unlockOffer = null },
             title = { Text(stringResource(R.string.drama_confirm_unlock)) },
@@ -211,14 +222,70 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             }
         }
     }
-    if (speedOpen) AlertDialog(onDismissRequest = { speedOpen = false }, title = { Text(stringResource(R.string.drama_speed)) },
-        text = { Column { listOf(.5f, 1f, 1.5f, 2f).forEach { speed -> TextButton(onClick = { controller.setSpeed(speed); speedOpen = false }) { Text("${speed}×") } } } },
-        confirmButton = { TextButton(onClick = { speedOpen = false }) { Text(stringResource(R.string.drama_cancel)) } })
-    if (subtitlesOpen) AlertDialog(onDismissRequest = { subtitlesOpen = false }, title = { Text(stringResource(R.string.drama_subtitles)) },
-        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
-            TextButton(onClick = { controller.selectSubtitle(null); subtitlesOpen = false }) { Text(stringResource(R.string.drama_subtitle_off)) }
-            controller.grant?.subtitles.orEmpty().forEach { track -> TextButton(onClick = { controller.selectSubtitle(track.trackId); subtitlesOpen = false }) { Text(track.displayName.ifBlank { track.language }) } }
-        } }, confirmButton = { TextButton(onClick = { subtitlesOpen = false }) { Text(stringResource(R.string.drama_cancel)) } })
+    if (speedOpen) ModalBottomSheet(onDismissRequest={speedOpen=false},containerColor=DramaBackground) {
+        DramaSheetHeader(stringResource(R.string.drama_speed)) {speedOpen=false}
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            listOf(.5f,.75f,1f,1.25f,1.5f,2f).forEach { value ->
+                DramaOptionRow(if(value==1f) stringResource(R.string.drama_speed_normal) else "${value}×", "${value}×",controller.speed==value) {
+                    controller.setSpeed(value);speedOpen=false
+                }
+            }
+        }
+    }
+    if (subtitlesOpen) ModalBottomSheet(onDismissRequest={subtitlesOpen=false},containerColor=DramaBackground) {
+        DramaSheetHeader(stringResource(R.string.drama_subtitles)) {subtitlesOpen=false}
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            DramaOptionRow(stringResource(R.string.drama_subtitle_off),stringResource(R.string.drama_subtitle_off),controller.selectedSubtitleId==null) {controller.selectSubtitle(null);subtitlesOpen=false}
+            controller.grant?.subtitles.orEmpty().forEach { track ->
+                DramaOptionRow(track.displayName.ifBlank {track.language},track.language.uppercase(java.util.Locale.ROOT),controller.selectedSubtitleId==track.trackId) {
+                    controller.selectSubtitle(track.trackId);subtitlesOpen=false
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+private fun DramaCompletionDialog(title:String,onClose:()->Unit) {
+    var rating by remember {mutableIntStateOf(0)}
+    var feedback by remember {mutableStateOf("")}
+    androidx.compose.ui.window.Dialog(onDismissRequest=onClose) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.verticalGradient(listOf(DramaBackground,DramaGlass)))
+            .border(1.dp,AchatCyan.copy(alpha=.5f),RoundedCornerShape(24.dp)).padding(24.dp),verticalArrangement=Arrangement.spacedBy(18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+            Box(Modifier.align(Alignment.End).size(28.dp).clickable(onClick=onClose),contentAlignment=Alignment.Center) {
+                Image(painterResource(R.drawable.template_subscription_close),stringResource(R.string.drama_close),Modifier.size(16.dp))
+            }
+            Text(stringResource(R.string.drama_rating_title,title),color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                (1..5).forEach { value -> Icon(painterResource(R.drawable.ic_drama_rating_star),stringResource(R.string.drama_rating_stars,value),
+                    tint=if(value<=rating)DramaGold else AchatMuted,modifier=Modifier.size(36.dp).clickable{rating=value}.padding(4.dp)) }
+            }
+            OutlinedTextField(value=feedback,onValueChange={feedback=it.take(1000)},placeholder={Text(stringResource(R.string.drama_rating_hint))},
+                modifier=Modifier.fillMaxWidth().heightIn(min=120.dp),shape=RoundedCornerShape(16.dp))
+            Text(stringResource(R.string.drama_rating_unavailable),color=AchatMuted,fontSize=12.sp)
+            Button(onClick={},enabled=false,modifier=Modifier.fillMaxWidth()) {Text(stringResource(R.string.drama_rating_send))}
+        }
+    }
+}
+
+@Composable
+private fun DramaSheetHeader(title:String,onClose:()->Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
+        Text(title,color=AchatCyan,fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+        Box(Modifier.size(36.dp).clip(CircleShape).background(DramaGlass).clickable(onClick=onClose),contentAlignment=Alignment.Center) {
+            Image(painterResource(R.drawable.template_subscription_close),stringResource(R.string.drama_close),Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun DramaOptionRow(title:String,badge:String,selected:Boolean,onClick:()->Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if(selected)DramaGlass else Color(0xFF0F0C1E))
+        .border(1.dp,if(selected)AchatCyan else Color.White.copy(alpha=.08f),RoundedCornerShape(16.dp)).clickable(onClick=onClick).padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
+        Text(title,color=Color.White,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,modifier=Modifier.weight(1f))
+        Text(badge,color=if(selected)AchatCyan else AchatMuted,fontSize=11.sp,modifier=Modifier.background(DramaGlass,RoundedCornerShape(6.dp)).padding(6.dp))
+    }
 }
 
 @Composable
@@ -271,7 +338,7 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
             if (track != null && subtitleUrl != null) builder.setSubtitleConfigurations(listOf(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
                 .setMimeType(MimeTypes.TEXT_VTT).setLanguage(track.language).setLabel(track.displayName).setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build()))
             setMediaItem(builder.build(), controller.positionMs)
-            repeatMode = Player.REPEAT_MODE_ONE
+            repeatMode = Player.REPEAT_MODE_OFF
             prepare()
         }
     }
@@ -279,6 +346,10 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { hasFrame = true }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && controller.media?.url == media.url && episodeId != null && authorizationId != null)
+                    controller.episodeEnded(episodeId, authorizationId)
+            }
             override fun onPlayerError(error: PlaybackException) {
                 if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId) controller.reportMediaError()
             }

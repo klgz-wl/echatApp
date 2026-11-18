@@ -27,3 +27,7 @@
 - Full drama player icons (Back, Speed, Audio, Pause, Episodes): exported SVG paths from supplied Figma AB 两面 node 1226:4910, converted mechanically to ic_drama_*.xml. All titles/tags/descriptions and video content use API data rather than design sample text/media.
 
 - Debug-only drama playback fixture: `app/src/debug/res/raw/drama_test_video.mp4` is original procedural artwork generated locally with AVFoundation (H.264, 180×320, 12 fps, 2 seconds; moving colored geometry), solely for Android instrumentation playback verification; no third-party media, excluded from release/main resources.
+
+- Short-drama comments: exact SVG export from Figma `MfqtmQVwTbHwxNJEc3IIjl`, node `1226:5454`, mechanically converted to `ic_drama_comments.xml` with original path/stroke. Catalog/history posters and recommendation copy use live API content; no design sample titles or promotions are embedded.
+
+- Completion rating star: original Figma `MfqtmQVwTbHwxNJEc3IIjl` node `1229:5688` SVG path, converted to `ic_drama_rating_star.xml`. Close control reuses the existing matching exported template-subscription close glyph. Rating inputs are local UI only; Send remains disabled until a real submission contract exists.

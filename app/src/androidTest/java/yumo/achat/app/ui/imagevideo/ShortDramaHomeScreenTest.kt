@@ -31,6 +31,20 @@ class ShortDramaHomeScreenTest {
         compose.runOnIdle { assertEquals(0, gateway.previewRequests) }
     }
 
+    @Test fun pendingRightsKeepPreviewOnPosterUntilEpisodeIsKnown() {
+        val ready=kotlinx.coroutines.CompletableDeferred<Unit>()
+        val gateway=object:HomeScreenTestGateway(drama) {
+            override suspend fun shortDramaDetail(dramaId:String):ShortDramaDetail {ready.await();return super.shortDramaDetail(dramaId)}
+            override suspend fun resolveDramaPreview(resolverUrl:String):ResolvedDramaPreview {previewRequests++;return ResolvedDramaPreview("android.resource://yumo.achat.app/raw/drama_test_video",Instant.now().plusSeconds(300).toString())}
+        }
+        val item=drama.copy(preview=HomeFeedPreview("/preview",Instant.now().plusSeconds(300).toString()))
+        compose.setContent{ShortDramaHomeCard(item,gateway,true,true,{},{})}
+        compose.onNodeWithText("Watch Full Drama").assertIsDisplayed()
+        compose.waitUntil(5000){gateway.previewRequests>0}
+        compose.onAllNodes(hasTestTag("template-video-frame") or hasTestTag("template-video-loading")).assertCountEquals(0)
+        compose.runOnIdle{ready.complete(Unit)}
+        compose.waitUntil(15_000){compose.onAllNodesWithTag("template-video-frame").fetchSemanticsNodes().isNotEmpty()}
+    }
     @Test fun resolvedPreviewRendersRealVideoFrames() {
         val gateway = object : HomeScreenTestGateway(drama) {
             override suspend fun resolveDramaPreview(resolverUrl: String): ResolvedDramaPreview {

@@ -39,7 +39,6 @@ import kotlinx.coroutines.delay
 import yumo.achat.app.R
 import yumo.achat.app.ui.theme.*
 import yumo.achat.core.backend.*
-import java.time.OffsetDateTime
 
 internal fun HomeFeedItem.generationTemplate(): SelectedGenerationTemplate? {
     if (kind != "video_template" && kind != "image_template") return null
@@ -65,6 +64,7 @@ internal fun ZorvHomeFeed(
     onExpose: (SelectedGenerationTemplate, Int) -> Unit, statusContent: @Composable () -> Unit = {},
     visible: Boolean = true, onOpenDrama: (String) -> Unit,
     playbackViewModel: ShortDramaPlayerViewModel? = null, ownerKey: String = "", userId: String = "",
+    onPreviewSubscription: () -> Unit = onSubscription,
 ) {
     val scope = rememberCoroutineScope()
     val controller = remember(gateway, scope) { MixedHomeFeedController(gateway, scope) }
@@ -115,13 +115,9 @@ internal fun ZorvHomeFeed(
                         onUse(item.generationTemplate())
                     }
                     "short_drama" -> {
-                        var previewExpired by remember(item.resourceId, item.preview) { mutableStateOf(false) }
-                        val fallback = if (active && (item.preview == null || previewExpired) && playbackViewModel != null && gateway is ShortDramaPlaybackGateway)
-                            playbackViewModel.bind(ownerKey, userId, item.resourceId, gateway) else null
-                        ShortDramaHomeCard(item, gateway, active, playbackEnabled,
-                            onOpen = { savedHomePage = index; onOpenDrama(item.resourceId) },
-                            onRefresh = controller::refresh, fallbackController = fallback, playbackViewModel = playbackViewModel,
-                            onPreviewExpired = { previewExpired = true })
+                        ShortDramaHomeCard(item,gateway,active,playbackEnabled,
+                            onOpen={savedHomePage=index;onOpenDrama(item.resourceId)},onRefresh=controller::refresh,
+                            isVip=isVip,onSubscribe=onPreviewSubscription)
                     }
                     else -> HomeOtherResourceCard(item, active, playbackEnabled)
                 }
@@ -173,7 +169,7 @@ private fun HomeFeedPlaceholder(loading: Boolean, failed: Boolean, onRetry: () -
     }
 }
 
-internal fun previewExpiryMillis(raw: String): Long? = runCatching { OffsetDateTime.parse(raw).toInstant().toEpochMilli() }.getOrNull()
+internal fun previewExpiryMillis(raw: String): Long? = yumo.achat.core.payment.paymentTime(raw)
 
 internal suspend fun resolveDramaPreviewWithRetry(
     gateway: HomeFeedGateway,
@@ -202,30 +198,31 @@ internal suspend fun resolveDramaPreviewWithRetry(
 internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, active: Boolean,
     playbackEnabled: Boolean, onOpen: () -> Unit, onRefresh: () -> Unit,
     fallbackController: ShortDramaPlaybackController? = null, playbackViewModel: ShortDramaPlayerViewModel? = null,
-    onPreviewExpired: () -> Unit = {}) {
+    onPreviewExpired: () -> Unit = {}, isVip: Boolean? = null, onSubscribe: () -> Unit = onOpen) {
     var expandedDetails by remember { mutableStateOf(false) }
-    if (fallbackController != null && playbackViewModel != null) {
-        DramaPlaybackVisibility(fallbackController, playbackViewModel)
-        LaunchedEffect(fallbackController, item.resourceId) { fallbackController.start(item.resourceId) }
-    }
+    var finished by remember(item.id,item.preview) { mutableStateOf(false) }
     var resolved by remember(item.preview) { mutableStateOf<ResolvedDramaPreview?>(null) }
     var failed by remember(item.preview) { mutableStateOf(false) }
     var expired by remember(item.preview) { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
     var progress by remember(item.id) { mutableFloatStateOf(0f) }
     var detail by remember(item.resourceId) { mutableStateOf<ShortDramaDetail?>(null) }
-    LaunchedEffect(item.resourceId, active) {
-        if (active) try { detail = gateway.shortDramaDetail(item.resourceId) }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { /* Feed title and poster remain usable when optional metadata is unavailable. */ }
+    var metadataFailed by remember(item.resourceId) { mutableStateOf(false) }
+    LaunchedEffect(item.resourceId, active, isVip, retry) {
+        if(active) {
+            detail=null;metadataFailed=false
+            try { detail=gateway.shortDramaDetail(item.resourceId) }
+            catch(cancelled:CancellationException){throw cancelled}
+            catch(_:Exception){metadataFailed=true}
+        }
     }
-    LaunchedEffect(item.preview, active, retry, fallbackController) {
+    LaunchedEffect(item.preview, active, retry) {
         resolved = null
         failed = false
         expired = false
         progress = 0f
         val preview = item.preview
-        if (!active || preview == null || fallbackController != null) return@LaunchedEffect
+        if (!active || preview == null) return@LaunchedEffect
         val grantExpiry = previewExpiryMillis(preview.expiresAt)
         if (grantExpiry == null || grantExpiry <= System.currentTimeMillis()) { expired = true; return@LaunchedEffect }
         try {
@@ -242,18 +239,17 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
     LaunchedEffect(expired, active) {
         if (expired && active) onPreviewExpired()
     }
-    val metadata = fallbackController?.detail ?: detail
+    val metadata = detail
+    val firstEpisode=metadata?.episodes?.minByOrNull { it.episodeNumber }
+    val restricted=firstEpisode?.let { !it.canPlay && (it.vip || (it.amount ?: 0)>0) } == true
+    val gate=previewGate(finished,firstEpisode,isVip)
     val description = metadata?.description?.takeIf { it.isNotBlank() } ?: item.description
-    val actualProgress = fallbackController?.let { if (it.durationMs > 0) it.positionMs.toFloat() / it.durationMs else 0f } ?: progress
+    val actualProgress = progress
     HomeFeedCardFrame {
         AsyncImage(item.coverUrl, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        if (fallbackController?.media != null && (fallbackController.errorCode == null || fallbackController.errorCode == "DRAMA_SUBTITLE_ERROR")) {
-            DramaVideoSurface(fallbackController, Modifier.fillMaxSize())
-        }
         resolved?.let { media ->
-            if (active && !failed) TemplatePreviewImage(TemplatePreviewMedia.RemoteVideo(media.url, item.coverUrl),
-                active && playbackEnabled, item.title, modifier = Modifier.fillMaxSize(), cacheVideo = false,
-                onPlaybackError = { failed = true; resolved = null }, onVideoProgress = { progress = it })
+            if(active && firstEpisode!=null && !failed && !finished) DramaPreviewSurface(media.url,playbackEnabled,restricted,Modifier.fillMaxSize(),
+                onProgress={progress=it},onFinished={finished=true;progress=1f},onError={failed=true;resolved=null})
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x66070613), Color.Transparent, Color(0xFF070613)))))
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -264,20 +260,23 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
                 Spacer(Modifier.width(4.dp))
                 Text(stringResource(R.string.home_short_badge), color = Color.White, fontSize = 12.sp)
             }
-            TemplateVipBadge(item.vip)
+            TemplateVipBadge(firstEpisode?.vip == true)
         }
-        if (fallbackController?.loading == true && fallbackController.media == null) {
-            CircularProgressIndicator(color = AchatCyan, modifier = Modifier.align(Alignment.Center))
-        } else if (fallbackController != null && fallbackController.media == null && fallbackController.errorCode == null &&
-            fallbackController.action != DramaPlaybackAction.None) {
-            Text(stringResource(R.string.drama_open_to_check_access), color = Color.White, fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(12.dp)).background(Color(0xCC020617)).padding(12.dp))
+        if(metadataFailed) TextButton(onClick={retry++},modifier=Modifier.align(Alignment.Center)) {
+            Text(stringResource(R.string.drama_preview_rights_retry),color=AchatCyan)
         }
-        if (fallbackController?.errorCode != null) TextButton(onClick = fallbackController::retry, modifier = Modifier.align(Alignment.Center)) {
-            Text(stringResource(R.string.drama_retry_playback), color = AchatCyan)
-        }
-        if (fallbackController == null && (failed || expired)) TextButton(onClick = { if (expired) onRefresh() else retry++ }, modifier = Modifier.align(Alignment.Center)) {
+        if (failed || expired) TextButton(onClick = { if (expired) onRefresh() else retry++ }, modifier = Modifier.align(Alignment.Center)) {
             Text(stringResource(if (expired) R.string.drama_preview_expired else R.string.drama_preview_retry), color = AchatCyan)
+        }
+        if (finished && gate != DramaPreviewGate.Watch) {
+            Column(Modifier.align(Alignment.Center).padding(24.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xE6070613)).padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                Text(stringResource(when(gate){DramaPreviewGate.Subscribe->R.string.drama_preview_subscribe;DramaPreviewGate.Unlock->R.string.drama_preview_unlock;else->R.string.drama_price_unavailable}),color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+                if(gate==DramaPreviewGate.Unlock && firstEpisode?.amount!=null)
+                    Text(stringResource(R.string.drama_confirm_unlock_body,firstEpisode.episodeNumber,firstEpisode.amount ?: 0),color=AchatCyan)
+                TextButton(onClick={if(gate==DramaPreviewGate.Subscribe)onSubscribe() else onOpen()}) {
+                    Text(stringResource(if(gate==DramaPreviewGate.Subscribe)R.string.drama_subscribe else if(gate==DramaPreviewGate.Unlock)R.string.drama_preview_unlock else R.string.drama_watch_full),color=AchatCyan)
+                }
+            }
         }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -289,7 +288,7 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
             Text(item.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             DramaDescriptionLine(description, expandedDetails) { expandedDetails = !expandedDetails }
             Row(Modifier.fillMaxWidth().height(54.dp).clip(CircleShape).background(Color(0xE6171433))
-                .border(1.dp, AchatCyan.copy(alpha = .5f), CircleShape).clickable(role = Role.Button, onClick = onOpen)
+                .border(1.dp, AchatCyan.copy(alpha = .5f), CircleShape).clickable(role = Role.Button, onClick = {if(gate==DramaPreviewGate.Subscribe)onSubscribe() else onOpen()})
                 .padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 Image(painterResource(R.drawable.ic_home_watch_drama), null, Modifier.size(20.dp))

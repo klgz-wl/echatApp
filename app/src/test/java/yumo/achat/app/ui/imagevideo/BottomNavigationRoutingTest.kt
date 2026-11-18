@@ -4,6 +4,25 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class BottomNavigationRoutingTest {
+    @Test fun `cancel top up handles both normal section and episode return targets`() {
+        val home=BottomNavigationRoute(0,ImageToVideoDestination.Templates)
+        val drama=BottomNavigationRoute(4,ImageToVideoDestination.ShortDramaPlayer)
+        assertEquals(true,shouldHandleTopUpBack(ImageToVideoDestination.Templates,2,home))
+        assertEquals(true,shouldHandleTopUpBack(ImageToVideoDestination.Templates,2,drama))
+        assertEquals(false,shouldHandleTopUpBack(ImageToVideoDestination.Templates,2,null))
+        assertEquals(false,shouldHandleTopUpBack(ImageToVideoDestination.Templates,4,home))
+    }
+    @Test fun `saved top up return supports short and video navigation indices`() {
+        assertEquals(BottomNavigationRoute(4,ImageToVideoDestination.ShortDramaPlayer),restoreTopUpReturnRoute(4,"ShortDramaPlayer"))
+        assertEquals(BottomNavigationRoute(5,ImageToVideoDestination.UploadPhoto),restoreTopUpReturnRoute(5,"UploadPhoto"))
+        assertEquals(null,restoreTopUpReturnRoute(-1,"Templates"))
+        assertEquals(null,restoreTopUpReturnRoute(4,"invalid"))
+    }
+    @Test fun `balance purchase returns to original section after success`() {
+        assertEquals(BottomNavigationRoute(0,ImageToVideoDestination.Templates),balancePurchaseReturnTarget(0,ImageToVideoDestination.Templates))
+        assertEquals(BottomNavigationRoute(4,ImageToVideoDestination.Templates),balancePurchaseReturnTarget(4,ImageToVideoDestination.Templates))
+        assertEquals(null,balancePurchaseReturnTarget(2,ImageToVideoDestination.Templates))
+    }
     @Test
     fun `every bottom navigation item returns to the root container`() {
         listOf(0, 4, 5, 1).forEach { navigationIndex ->

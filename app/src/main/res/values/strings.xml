@@ -251,4 +251,31 @@
     <string name="drama_subtitle_retry">Subtitles unavailable. Choose subtitles again</string>
     <string name="drama_open_to_check_access">Open the drama to view episode access</string>
     <string name="home_feed_refresh">Refresh content</string>
+    <string name="drama_top_ten">Top 10 Dramas</string>
+    <string name="drama_all">All Short Dramas</string>
+    <string name="drama_continue">Continue Watching</string>
+
+    <string name="drama_expand_top_ten">TAP TO VIEW FULL TOP 10</string>
+    <string name="drama_all_series">All series</string>
+    <string name="drama_new">New</string>
+    <string name="drama_load_more">Load more</string>
+    <string name="drama_discovery_failed">Could not load short dramas. Please try again.</string>
+    <string name="drama_discovery_empty">No short dramas yet</string>
+    <string name="drama_banner_retry">Retry recommendations</string>
+    <string name="drama_rank">TOP %1$d</string>
+    <string name="drama_back_short">Back to Short</string>
+    <string name="drama_unavailable_history">Unavailable</string>
+    <string name="drama_comments">Comments</string>
+    <string name="drama_comments_unavailable">Comments are not available yet.</string>
+    <string name="drama_completed">Series complete</string>
+    <string name="drama_rating_unavailable">You have reached the final available episode. Ratings are not available yet.</string>
+
+    <string name="drama_preview_subscribe">Subscribe to unlock full episodes</string>
+    <string name="drama_preview_unlock">Watch Full Series</string>
+    <string name="drama_speed_normal">Normal</string>
+    <string name="drama_rating_title">What did you think of “%1$s”?</string>
+    <string name="drama_rating_stars">%1$d stars</string>
+    <string name="drama_rating_hint">Tell us what you liked or what could be improved… (optional)</string>
+    <string name="drama_rating_send">Send Feedback</string>
+    <string name="drama_preview_rights_retry">Could not load episode access. Tap to retry.</string>
 </resources>

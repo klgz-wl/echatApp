@@ -2,7 +2,6 @@ package yumo.achat.app.ui.imagevideo
 
 import androidx.compose.runtime.*
 import kotlinx.coroutines.*
-import java.time.Instant
 import yumo.achat.core.backend.*
 
 data class DramaUnlockIntent(val dramaId: String, val episodeId: String, val amount: Int, val idempotencyKey: String)
@@ -26,6 +25,7 @@ class ShortDramaPlaybackController(
     var media by mutableStateOf<ResolvedDramaPreview?>(null); private set
     var subtitleMedia by mutableStateOf<ResolvedDramaPreview?>(null); private set
     var selectedSubtitleId by mutableStateOf<String?>(null); private set
+    var completed by mutableStateOf(false); private set
     var loading by mutableStateOf(false); private set
     var errorCode by mutableStateOf<String?>(null); private set
     var action by mutableStateOf(DramaPlaybackAction.None); private set
@@ -48,7 +48,11 @@ class ShortDramaPlaybackController(
     private var deferredPlay = false
 
     fun start(dramaId: String, preferredEpisodeId: String? = null) {
-        if (closed || this.dramaId == dramaId && (loading || detail != null)) return
+        if (closed) return
+        if (this.dramaId == dramaId && (loading || detail != null)) {
+            if (preferredEpisodeId != null && preferredEpisodeId != episode?.episodeId) selectEpisode(preferredEpisodeId)
+            return
+        }
         this.dramaId = dramaId
         detail = null; episode = null
         switch { load(preferredEpisodeId) }
@@ -63,6 +67,7 @@ class ShortDramaPlaybackController(
         generation++; work?.cancel(); renewal?.cancel(); subtitleJob?.cancel(); subtitleVersion++
         grant = null; media = null; subtitleMedia = null; selectedSubtitleId = null
         resumeAfterMediaError = false; deferredPlay = false
+        completed = false
         pendingUnlock = null; positionMs = 0; durationMs = 0; loading = false
         launch(block)
     }
@@ -193,22 +198,22 @@ class ShortDramaPlaybackController(
         if (action in setOf(DramaPlaybackAction.VipRequired, DramaPlaybackAction.TopUpRequired, DramaPlaybackAction.UnlockRequired) && episode != null) {
             media = null; subtitleMedia = null
             launch { load(episode?.episodeId) }
-        } else if (grant != null && errorCode == null) launch { refresh() }
+        } else if (grant != null && errorCode == null && playing && !completed) launch { refresh() }
         else if (grant == null && errorCode == null && deferredPlay && episode != null) launch { playIfAllowed() }
     }
     private fun scheduleRenewal() {
         renewal?.cancel()
-        if (!visible || closed || (errorCode != null && errorCode != "DRAMA_SUBTITLE_ERROR") || grant == null) return
+        if (!visible || !playing || completed || closed || (errorCode != null && errorCode != "DRAMA_SUBTITLE_ERROR") || grant == null) return
         val version = generation
-        val expires = listOfNotNull(grant?.expiresAt,media?.expiresAt,subtitleMedia?.expiresAt).mapNotNull { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }.minOrNull() ?: return
+        val expires = listOfNotNull(grant?.expiresAt,media?.expiresAt,subtitleMedia?.expiresAt).mapNotNull { previewExpiryMillis(it) }.minOrNull() ?: return
         renewal = scope.launch {
             wait((expires - now() - 20_000).coerceAtLeast(1_000))
-            if (visible && !closed && version == generation && !loading) this@ShortDramaPlaybackController.launch { refresh() }
+            if (visible && playing && !completed && !closed && version == generation && !loading) this@ShortDramaPlaybackController.launch { refresh() }
         }
     }
     private fun ensureCurrent(version: Long) { if (closed || version != generation) throw CancellationException() }
     private fun validateExpiry(value: String, allowExpired: Boolean = false): Long {
-        val expiry = runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
+        val expiry = previewExpiryMillis(value)
             ?: throw HomeFeedServiceException("DRAMA_INVALID_EXPIRY")
         if (!allowExpired && expiry <= now()) throw HomeFeedServiceException("DRAMA_EXPIRED")
         return expiry
@@ -244,7 +249,24 @@ class ShortDramaPlaybackController(
     }
     fun updatePosition(positionMs: Long, durationMs: Long) { this.positionMs = positionMs.coerceAtLeast(0); this.durationMs = durationMs.coerceAtLeast(0) }
     @JvmName("changePlaying")
-    fun setPlaying(value: Boolean) { playing = value }
+    fun setPlaying(value: Boolean) {
+        if (closed || completed || playing == value) return
+        playing = value
+        renewal?.cancel()
+        if (value && visible && grant != null && !loading) {
+            val expires = listOfNotNull(grant?.expiresAt, media?.expiresAt).mapNotNull { previewExpiryMillis(it) }.minOrNull() ?: 0L
+            if (expires - now() <= 20_000) launch { refresh() } else scheduleRenewal()
+        }
+    }
+    fun episodeEnded(episodeId: String, authorizationId: String) {
+        if (closed || loading || completed || episode?.episodeId != episodeId || grant?.authorizationId != authorizationId) return
+        renewal?.cancel()
+        val next = detail?.episodes?.sortedBy { it.episodeNumber }?.let { list ->
+            val index=list.indexOfFirst { it.episodeId==episodeId }; if(index>=0) list.getOrNull(index+1) else null
+        }
+        if (next == null) { completed=true; playing=false; return }
+        selectEpisode(next.episodeId)
+    }
     @JvmName("changeMuted")
     fun setMuted(value: Boolean) { muted = value }
     @JvmName("changeSpeed")

@@ -46,6 +46,7 @@ internal class PreferencesDramaUnlockStore(context: Context, userId: String) : D
 internal class ShortDramaPlayerViewModel(application: Application) : AndroidViewModel(application) {
     private var owner: String? = null
     private var drama: String? = null
+    private var consumedRequest: String? = null
     private var current: ShortDramaPlaybackController? = null
     private var unlockWatcher: Job? = null
     var walletRevision by mutableLongStateOf(0L)
@@ -64,12 +65,17 @@ internal class ShortDramaPlayerViewModel(application: Application) : AndroidView
         }
         return current!!
     }
+    fun openRequest(controller: ShortDramaPlaybackController, requestId: String, dramaId: String, episodeId: String?) {
+        if (controller !== current || consumedRequest == requestId) return
+        consumedRequest=requestId
+        controller.start(dramaId,episodeId)
+    }
     fun surface(controller: ShortDramaPlaybackController, token: String, visible: Boolean) {
         if (controller !== current) return
         if (visible) visibleSurfaces += token else visibleSurfaces -= token
         controller.setVisible(visibleSurfaces.isNotEmpty())
     }
     fun releaseOwner(ownerKey: String) { if (owner == ownerKey) release() }
-    fun release() { unlockWatcher?.cancel(); unlockWatcher = null; current?.close(); current = null; visibleSurfaces.clear(); owner = null; drama = null }
+    fun release() { unlockWatcher?.cancel(); unlockWatcher = null; current?.close(); current = null; visibleSurfaces.clear(); consumedRequest=null; owner = null; drama = null }
     override fun onCleared() { release() }
 }

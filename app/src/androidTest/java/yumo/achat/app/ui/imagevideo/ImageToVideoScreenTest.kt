@@ -109,15 +109,15 @@ class ImageToVideoScreenTest {
     }
 
     @Test
-    fun shortIsPlaceholderAndSettingsReturnsToShort() {
+    fun shortDiscoveryAndSettingsReturnsToShort() {
         composeRule.onNodeWithText("SHORT").performClick()
-        composeRule.onNodeWithText("Short videos coming soon").assertIsDisplayed()
+        composeRule.onNodeWithTag("short-discovery").assertIsDisplayed()
         composeRule.onNodeWithText("SHORT").assertIsSelected()
         composeRule.onNodeWithContentDescription("Settings").performClick()
         composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
         androidx.test.espresso.Espresso.pressBack()
         composeRule.onNodeWithText("SHORT").assertIsSelected()
-        composeRule.onNodeWithText("Short videos coming soon").assertIsDisplayed()
+        composeRule.onNodeWithTag("short-discovery").assertIsDisplayed()
     }
 
     @Test
