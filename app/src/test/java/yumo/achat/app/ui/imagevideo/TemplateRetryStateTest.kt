@@ -10,9 +10,20 @@ import yumo.achat.core.backend.VisualTemplate
 
 class TemplateRetryStateTest {
     @Test
+    fun `category IDs come from the selected backend modality list`() {
+        val state = AchatBackendUiState(
+            videoCategories = listOf(yumo.achat.core.backend.VisualCategory("v-portrait", "Portrait", 1),
+                yumo.achat.core.backend.VisualCategory("v-dance", "Dance", 2)),
+            imageCategories = listOf(yumo.achat.core.backend.VisualCategory("i-style", "Style", 1)))
+        assertEquals("v-dance", state.selectedTemplateCategoryId(TemplateSection.Video, 1))
+        assertEquals("i-style", state.selectedTemplateCategoryId(TemplateSection.Image, 0))
+        assertNull(state.selectedTemplateCategoryId(TemplateSection.Image, 1))
+    }
+
+    @Test
     fun `template tabs map to backend sort values`() {
         assertEquals("hot", templateSortBy(TemplateSection.Video, selectedTab = 0))
-        assertEquals("latest", templateSortBy(TemplateSection.Video, selectedTab = 1))
+        assertEquals("hot", templateSortBy(TemplateSection.Video, selectedTab = 1))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 0))
         assertEquals("latest", templateSortBy(TemplateSection.Image, selectedTab = 1))
     }

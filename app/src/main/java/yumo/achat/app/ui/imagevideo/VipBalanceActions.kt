@@ -6,6 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import yumo.achat.app.R
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,10 +25,12 @@ internal fun VipBalanceActions(
     isVip: Boolean?, diamondBalance: Int, onVipClick: () -> Unit,
     onBalanceClick: (() -> Unit)? = null,
 ) {
+    val balanceDescription = stringResource(R.string.balance_panel_description)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         meVipBadgeStyle(isVip)?.let { MeVipBadge(it, onClick = onVipClick) }
         Row(
             modifier = Modifier.height(32.dp)
+                .semantics { contentDescription = balanceDescription }
                 .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, AchatCyan.copy(alpha = .34f), RoundedCornerShape(12.dp))
                 .background(Color(0xB20A111C))

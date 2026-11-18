@@ -34,11 +34,43 @@ class AchatRepository(
     configuration: AchatBackendConfiguration = AchatBackendConfiguration.Default,
     attribution: BackendAttribution = NoOpBackendAttribution(configuration),
     onLoginResult: (Boolean, String?, String?) -> Unit = { _, _, _ -> },
-) : StorePaymentGateway, ProfileEditingGateway {
+) : StorePaymentGateway, ProfileEditingGateway, ShortDramaPlaybackGateway {
     private val appContext = context.applicationContext
     private val client = AchatBackendClient(configuration)
     private val sessionManager = AchatSessionManager.application(context, configuration, attribution, onLoginResult)
     val sessionInvalidated: kotlinx.coroutines.flow.StateFlow<Boolean> = sessionManager.sessionInvalidated
+
+    override suspend fun homeFeed(requestId: String): HomeFeedBatch = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.homeFeed(it, requestId) }
+    }
+
+    override suspend fun acknowledgeHomeFeed(batchId: String, displayedThroughIndex: Int, idempotencyKey: String): Unit = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.acknowledgeHomeFeed(it, batchId, displayedThroughIndex, idempotencyKey) }
+    }
+
+    override suspend fun resolveDramaPreview(resolverUrl: String): ResolvedDramaPreview = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.resolveDramaPreview(it, resolverUrl) }
+    }
+
+    override suspend fun shortDramaDetail(dramaId: String): ShortDramaDetail = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.shortDramaDetail(it, dramaId) }
+    }
+
+    override suspend fun playDramaEpisode(dramaId: String, episodeId: String): DramaPlaybackGrant = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.playDramaEpisode(it, dramaId, episodeId) }
+    }
+    override suspend fun refreshDramaGrant(grant: String): DramaPlaybackGrant = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.refreshDramaGrant(it, grant) }
+    }
+    override suspend fun resolveDramaMedia(resolverUrl: String): ResolvedDramaPreview = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.resolveDramaMedia(it, resolverUrl) }
+    }
+    override suspend fun resolveDramaSubtitle(resolverUrl: String): ResolvedDramaPreview = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.resolveDramaSubtitle(it, resolverUrl) }
+    }
+    override suspend fun unlockDramaEpisode(dramaId: String, episodeId: String, confirmedAmount: Int, idempotencyKey: String): Unit = withContext(Dispatchers.IO) {
+        sessionManager.authenticated { client.unlockDramaEpisode(it, dramaId, episodeId, confirmedAmount, idempotencyKey) }
+    }
 
     suspend fun authenticateStartup(): AuthSession? = withContext(Dispatchers.IO) {
         sessionManager.startupSession()
@@ -126,6 +158,7 @@ class AchatRepository(
         categoryId: String? = null,
         page: Int = 1,
         pageSize: Int = 20,
+        homeFeatured: Boolean = false,
     ): TemplateLoadResult = withContext(Dispatchers.IO) {
         require(modality == "video" || modality == "image") { "Unsupported template modality" }
         loadTemplateResult("Unable to load $modality templates") {
@@ -137,6 +170,7 @@ class AchatRepository(
                     categoryId = categoryId,
                     page = page,
                     pageSize = pageSize,
+                    homeFeatured = homeFeatured,
                 )
             }
         }
@@ -194,6 +228,7 @@ class AchatRepository(
         quality: String,
         resourceId: String,
         idempotencyKey: String,
+        catalogContext: HomeCatalogContext? = null,
     ): VisualGenerationTask = withContext(Dispatchers.IO) {
         validateGenerationCreationInputs(templateId, resourceId, idempotencyKey)
         sessionManager.authenticated { token ->
@@ -204,6 +239,7 @@ class AchatRepository(
                 quality = quality,
                 resourceId = resourceId,
                 idempotencyKey = idempotencyKey,
+                catalogContext = catalogContext,
             )
         }
     }

@@ -8,6 +8,14 @@ import kotlinx.coroutines.runBlocking
 import yumo.achat.core.backend.VisualGenerationTask
 
 class GenerationBalanceTest {
+    @Test fun `catalog binding changes require a new generation operation identity`() {
+        val context = yumo.achat.core.backend.HomeCatalogContext("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", 1)
+        val first = nextGenerationSubmissionKey(null, "template", "fast", "photo", context) { "first" }
+        val retry = nextGenerationSubmissionKey(first, "template", "fast", "photo", context) { "unused" }
+        val changed = nextGenerationSubmissionKey(first, "template", "fast", "photo", context.copy(catalogBindingRevision = 2)) { "changed" }
+        org.junit.Assert.assertEquals("first", retry.idempotencyKey)
+        org.junit.Assert.assertEquals("changed", changed.idempotencyKey)
+    }
     @Test
     fun `task creation immediately deducts backend reported diamond cost`() {
         assertEquals(91, balanceAfterGenerationTaskCreated(currentBalance = 100, diamondCost = 9))

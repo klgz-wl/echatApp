@@ -39,8 +39,12 @@ internal object TemplateVideoCache {
     fun mediaSourceFactory(
         context: Context,
         networkConfiguration: TemplateVideoNetworkConfiguration = DefaultTemplateVideoNetworkConfiguration,
+        cacheEnabled: Boolean = true,
     ): DefaultMediaSourceFactory =
-        DefaultMediaSourceFactory(cacheDataSourceFactory(context, networkConfiguration))
+        DefaultMediaSourceFactory(if (cacheEnabled) cacheDataSourceFactory(context, networkConfiguration)
+            else DefaultDataSource.Factory(context.applicationContext, DefaultHttpDataSource.Factory()
+                .setConnectTimeoutMs(networkConfiguration.connectTimeoutMs)
+                .setReadTimeoutMs(networkConfiguration.readTimeoutMs)))
             .setLoadErrorHandlingPolicy(
                 DefaultLoadErrorHandlingPolicy(networkConfiguration.minimumRetryCount),
             )

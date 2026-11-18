@@ -15,6 +15,7 @@ internal data class GenerationSubmissionKey(
     val quality: String,
     val resourceId: String,
     val idempotencyKey: String,
+    val catalogContext: yumo.achat.core.backend.HomeCatalogContext? = null,
 ) : java.io.Serializable
 
 internal fun nextGenerationSubmissionKey(
@@ -22,12 +23,14 @@ internal fun nextGenerationSubmissionKey(
     templateId: String,
     quality: String,
     resourceId: String,
+    catalogContext: yumo.achat.core.backend.HomeCatalogContext? = null,
     newKey: () -> String = { UUID.randomUUID().toString() },
 ): GenerationSubmissionKey {
     if (previous != null &&
         previous.templateId == templateId &&
         previous.quality == quality &&
-        previous.resourceId == resourceId
+        previous.resourceId == resourceId &&
+        previous.catalogContext == catalogContext
     ) {
         return previous
     }
@@ -36,6 +39,7 @@ internal fun nextGenerationSubmissionKey(
         quality = quality,
         resourceId = resourceId,
         idempotencyKey = newKey(),
+        catalogContext = catalogContext,
     )
 }
 

@@ -14,7 +14,9 @@ internal fun analyticsPageName(
     hasSelectedResult: Boolean,
 ): String? = when (destination) {
     ImageToVideoDestination.Templates -> when (selectedNavigation) {
-        0 -> "video"
+        0 -> "home"
+        4 -> "short"
+        5 -> "video"
         1 -> "image"
         2 -> "purchase"
         3 -> "profile"
@@ -24,6 +26,7 @@ internal fun analyticsPageName(
     ImageToVideoDestination.MyTasks -> if (hasSelectedResult) "media" else "records"
     ImageToVideoDestination.EditName -> "settings"
     ImageToVideoDestination.Subscription -> "subscription"
+    ImageToVideoDestination.ShortDramaPlayer -> "short_drama_player"
     ImageToVideoDestination.Feedback -> null
 }
 

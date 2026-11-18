@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.ui.platform.testTag
 import android.provider.MediaStore
 import android.view.inputmethod.InputMethodManager
 import android.view.WindowManager
@@ -188,6 +189,7 @@ internal enum class ImageToVideoDestination {
     Feedback,
     EditName,
     Subscription,
+    ShortDramaPlayer,
 }
 
 internal data class BottomNavigationRoute(
@@ -196,7 +198,7 @@ internal data class BottomNavigationRoute(
 )
 
 internal fun routeFromBottomNavigation(navigationIndex: Int): BottomNavigationRoute {
-    require(navigationIndex in 0..3) { "Unsupported bottom navigation index: $navigationIndex" }
+    require(navigationIndex in 0..5) { "Unsupported bottom navigation index: $navigationIndex" }
     return BottomNavigationRoute(
         selectedNavigation = navigationIndex,
         destination = ImageToVideoDestination.Templates,
@@ -209,7 +211,7 @@ internal fun balanceTopUpEntrySource(
     selectedNavigation: Int,
     destination: ImageToVideoDestination = ImageToVideoDestination.Templates,
 ): String = if (destination == ImageToVideoDestination.UploadPhoto) "generation" else when (selectedNavigation) {
-    0 -> "video_balance"
+    0, 5 -> "video_balance"
     1 -> "image_balance"
     3 -> "profile_purchase"
     else -> "main"
@@ -236,7 +238,9 @@ internal fun routeAfterGenerationTaskCreated(selectedNavigation: Int): BottomNav
     )
 
 internal fun bottomNavigationAnalyticsName(navigationIndex: Int): String = when (navigationIndex) {
-    0 -> "video"
+    0 -> "home"
+    4 -> "short"
+    5 -> "video"
     1 -> "image"
     2 -> "purchase"
     3 -> "profile"
@@ -257,10 +261,8 @@ internal enum class TemplateSection {
     Image,
 }
 
-internal fun templateSortBy(section: TemplateSection, selectedTab: Int): String = when {
-    section == TemplateSection.Video && selectedTab == 0 -> "hot"
-    else -> "latest"
-}
+internal fun templateSortBy(section: TemplateSection, @Suppress("UNUSED_PARAMETER") selectedTab: Int): String =
+    if (section == TemplateSection.Video) "hot" else "latest"
 
 internal fun shouldShowTemplateTabs(@Suppress("UNUSED_PARAMETER") section: TemplateSection): Boolean = true
 
@@ -301,6 +303,12 @@ internal data class AchatBackendUiState(
     val videoCategories: List<VisualCategory> = emptyList(),
     val imageCategories: List<VisualCategory> = emptyList(),
 )
+
+internal fun AchatBackendUiState.templateCategories(section: TemplateSection): List<VisualCategory> =
+    if (section == TemplateSection.Video) videoCategories else imageCategories
+
+internal fun AchatBackendUiState.selectedTemplateCategoryId(section: TemplateSection, selectedTab: Int): String? =
+    templateCategories(section).getOrNull(selectedTab)?.id
 
 internal fun AchatBackendUiState.withTemplateLoadResult(
     modality: String,
@@ -441,7 +449,7 @@ internal sealed interface TopUpPurchaseState {
     ) : TopUpPurchaseState
 }
 
-private data class SelectedGenerationTemplate(
+internal data class SelectedGenerationTemplate(
     val templateId: String,
     val modality: String,
     val quality: String,
@@ -452,6 +460,7 @@ private data class SelectedGenerationTemplate(
     val source: String,
     val quotedDiamondCost: Int,
     val vip: Boolean = false,
+    val catalogContext: yumo.achat.core.backend.HomeCatalogContext? = null,
 )
 
 private fun SelectedGenerationTemplate.analyticsContext() = GenerationAnalyticsContext(
@@ -720,6 +729,15 @@ private fun ImageToVideoHomeScreen(
     var currentTemplate by rememberSaveable { mutableIntStateOf(1) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
+    var homeHasBeenOpened by rememberSaveable { mutableStateOf(selectedNavigation == 0) }
+    var selectedDramaId by rememberSaveable { mutableStateOf<String?>(null) }
+    var subscriptionReturnDestination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
+    val dramaViewModel: ShortDramaPlayerViewModel = viewModel()
+    val dramaOwnerKey = "${startupSession.userId}:${startupSession.epoch}:$homeGateRevision"
+    DisposableEffect(dramaOwnerKey) {
+        onDispose { if ((localContext as? Activity)?.isChangingConfigurations != true) dramaViewModel.releaseOwner(dramaOwnerKey) }
+    }
+    var settingsReturnNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
     var startupReloadSerial by remember { mutableIntStateOf(0) }
     var videoTemplateRequestSerial by remember { mutableStateOf(0L) }
@@ -906,7 +924,7 @@ private fun ImageToVideoHomeScreen(
     fun reloadTemplates(
         section: TemplateSection,
         sortBy: String,
-        categoryId: String? = null,
+        categoryId: String? = backendState.selectedTemplateCategoryId(section, selectedTab),
         page: Int = 1,
         append: Boolean = false,
     ) {
@@ -921,6 +939,7 @@ private fun ImageToVideoHomeScreen(
             TemplateSection.Video -> if (append) {
                 backendState.copy(videoPaginationLoading = true, videoPaginationErrorMessage = null)
             } else backendState.copy(
+                videoTemplates = emptyList(),
                 videoTemplatesLoading = true,
                 videoTemplatePage = 1,
                 videoTemplatesHasMore = false,
@@ -929,6 +948,7 @@ private fun ImageToVideoHomeScreen(
             TemplateSection.Image -> if (append) {
                 backendState.copy(imagePaginationLoading = true, imagePaginationErrorMessage = null)
             } else backendState.copy(
+                imageTemplates = emptyList(),
                 imageTemplatesLoading = true,
                 imageTemplatePage = 1,
                 imageTemplatesHasMore = false,
@@ -1073,6 +1093,10 @@ private fun ImageToVideoHomeScreen(
                 // Keep the last visible balance; the next refresh opportunity reconciles it.
             }
         }
+    }
+
+    LaunchedEffect(dramaViewModel.walletRevision) {
+        if (dramaViewModel.walletRevision > 0) refreshDiamondBalance()
     }
 
     suspend fun refreshRechargeBalance(): Boolean {
@@ -1231,8 +1255,10 @@ private fun ImageToVideoHomeScreen(
     }
 
     fun navigateFromBottomNavigation(navigationIndex: Int) {
+        if (navigationIndex == 0) homeHasBeenOpened = true
         val route = routeFromBottomNavigation(navigationIndex)
         val previousNavigation = selectedNavigation
+        if (navigationIndex == 3 && previousNavigation != 3) settingsReturnNavigation = previousNavigation
         setPendingTopUpReturnRoute(topUpReturnTargetForManualEntry())
         if (navigationIndex == 2) topUpEntrySource = "main"
         analytics.track(
@@ -1258,8 +1284,8 @@ private fun ImageToVideoHomeScreen(
         templateEdgeHintRes = null
         selectedResultTask = null
         destination = route.destination
-        if (navigationIndex == 0 || navigationIndex == 1) {
-            val section = if (navigationIndex == 0) TemplateSection.Video else TemplateSection.Image
+        if ((navigationIndex == 1 || navigationIndex == 5) && previousNavigation == navigationIndex) {
+            val section = if (navigationIndex == 1) TemplateSection.Image else TemplateSection.Video
             reloadTemplates(section = section, sortBy = templateSortBy(section, selectedTab = 0))
         }
     }
@@ -1302,8 +1328,10 @@ private fun ImageToVideoHomeScreen(
     fun navigateFromVipBadge() {
         when (vipBadgeTarget(backendState.isVip)) {
             VipBadgeTarget.Subscription -> {
+                subscriptionReturnDestination = ImageToVideoDestination.Templates
                 subscriptionEntrySource = when (selectedNavigation) {
-                    0 -> "video_templates"
+                    0, 5 -> "video_templates"
+                    4 -> "short"
                     1 -> "image_templates"
                     2 -> "top_up"
                     else -> "profile_page"
@@ -1334,6 +1362,52 @@ private fun ImageToVideoHomeScreen(
         templateEdgeHintRes = null
         selectedResultTask = null
         destination = ImageToVideoDestination.Templates
+    }
+
+    LaunchedEffect(selectedNavigation, backendState.videoCategories, backendState.imageCategories, backendState.isLoading) {
+        if ((selectedNavigation == 1 || selectedNavigation == 5) && !backendState.isLoading) {
+            val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
+            selectedTab = selectedTab.coerceIn(0, backendState.templateCategories(section).lastIndex.coerceAtLeast(0))
+            currentTemplate = 1
+            reloadTemplates(section, templateSortBy(section, selectedTab))
+        }
+    }
+
+    suspend fun <T> guardedHomeRequest(block: suspend () -> T): T {
+        val revision = homeGateRevision
+        val target = attributionRuntime?.currentGateTarget()
+        suspend fun owns(): Boolean = ownsTaskSession() && (attributionRuntime == null ||
+            (revision == attributionRuntime.homeGateRevision.value && target == attributionRuntime.currentGateTarget()))
+        if (!owns()) throw CancellationException("Home owner changed")
+        val result = authViewModel.loadTemplates {
+            if (!owns()) throw CancellationException("Home owner changed")
+            block()
+        }
+        if (!owns()) throw CancellationException("Home owner changed")
+        return result
+    }
+    val homeFeedGateway = remember(startupSession.epoch, homeGateRevision) {
+        object : yumo.achat.core.backend.ShortDramaPlaybackGateway {
+            override suspend fun homeFeed(requestId: String) = guardedHomeRequest {
+                repository.homeFeed(requestId).also { batch ->
+                    if (BuildConfig.DEBUG) {
+                        val knownKinds = setOf("short_drama", "video_template", "image_template", "live_persona")
+                        val counts = batch.items.groupingBy { it.kind.takeIf(knownKinds::contains) ?: "unknown" }.eachCount()
+                        android.util.Log.d("ZorvHomeFeed", "Received batch resource counts=$counts")
+                    }
+                }
+            }
+            override suspend fun acknowledgeHomeFeed(batchId: String, displayedThroughIndex: Int, idempotencyKey: String) =
+                guardedHomeRequest { repository.acknowledgeHomeFeed(batchId, displayedThroughIndex, idempotencyKey) }
+            override suspend fun resolveDramaPreview(resolverUrl: String) = guardedHomeRequest { repository.resolveDramaPreview(resolverUrl) }
+            override suspend fun shortDramaDetail(dramaId: String) = guardedHomeRequest { repository.shortDramaDetail(dramaId) }
+            override suspend fun playDramaEpisode(dramaId: String, episodeId: String) = guardedHomeRequest { repository.playDramaEpisode(dramaId, episodeId) }
+            override suspend fun refreshDramaGrant(grant: String) = guardedHomeRequest { repository.refreshDramaGrant(grant) }
+            override suspend fun resolveDramaMedia(resolverUrl: String) = guardedHomeRequest { repository.resolveDramaMedia(resolverUrl) }
+            override suspend fun resolveDramaSubtitle(resolverUrl: String) = guardedHomeRequest { repository.resolveDramaSubtitle(resolverUrl) }
+            override suspend fun unlockDramaEpisode(dramaId: String, episodeId: String, confirmedAmount: Int, idempotencyKey: String) =
+                guardedHomeRequest { repository.unlockDramaEpisode(dramaId, episodeId, confirmedAmount, idempotencyKey) }
+        }
     }
 
     LaunchedEffect(analytics) {
@@ -1528,18 +1602,7 @@ private fun ImageToVideoHomeScreen(
             backendState = updated.backendState
             topUpState = updated.topUpState
             topUpPaymentController.retainAvailableProducts(catalog.products, catalog.userInfo)
-            screenScope.launch {
-                val transactions = try {
-                    repository.walletTransactions()
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                if (refreshSerial == topUpRefreshSerial) {
-                    topUpState = topUpState.copy(transactions = transactions)
-                }
-            }
+
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -1669,6 +1732,16 @@ private fun ImageToVideoHomeScreen(
         } else emptyMap(),
     )
 
+    BackHandler(destination == ImageToVideoDestination.Templates && selectedNavigation == 3) {
+        selectedNavigation = settingsReturnNavigation
+    }
+
+    BackHandler(destination == ImageToVideoDestination.Templates && selectedNavigation == 2 &&
+        pendingTopUpReturnRoute()?.destination == ImageToVideoDestination.ShortDramaPlayer) {
+        val route = pendingTopUpReturnRoute()
+        if (route != null) { selectedNavigation = route.selectedNavigation; destination = route.destination; setPendingTopUpReturnRoute(null) }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -1679,92 +1752,134 @@ private fun ImageToVideoHomeScreen(
             ),
     ) {
         BackgroundGlow()
+        if (homeHasBeenOpened) {
+            key(homeGateRevision) { ZorvHomeFeed(
+                gateway = homeFeedGateway,
+                balance = backendState.diamondBalance, isVip = backendState.isVip,
+                playbackEnabled = !showTemplateSubscription,
+                visible = destination == ImageToVideoDestination.Templates && selectedNavigation == 0,
+                playbackViewModel = dramaViewModel, ownerKey = dramaOwnerKey, userId = startupSession.userId,
+                onOpenDrama = { selectedDramaId = it; destination = ImageToVideoDestination.ShortDramaPlayer },
+                statusContent = { AttributionProfileRetry(authViewModel.attributionProfileRetryRequired, authViewModel::retryProfileRefresh) },
+                onSettings = { navigateFromBottomNavigation(3) },
+                onSubscription = ::navigateFromVipBadge, onBalance = ::navigateFromBalanceBadge,
+                onNavigation = ::navigateFromBottomNavigation, onUse = ::useTemplate,
+                onExpose = { template, position ->
+                    analytics.track("template_expose", mapOf("template_id" to template.templateId,
+                        "category_id" to template.categoryId, "modality" to template.modality,
+                        "source" to template.source, "position" to position.toLong(), "filter_category_id" to ""),
+                        userId = backendState.profileId)
+                },
+            ) }
+        }
         when (destination) {
             ImageToVideoDestination.Templates -> {
-                TemplateBrowserScreen(
-                    selectedTab = selectedTab,
-                    currentTemplate = currentTemplate,
-                    isPlaying = isPlaying && !showTemplateSubscription,
-                    selectedNavigation = selectedNavigation,
-                    homeTaskBadges = homeTaskBadges,
-                    onTabSelect = {
-                        selectedTab = it
-                        currentTemplate = 1
-                        templateEdgeHintRes = null
-                        val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
-                        val sortBy = templateSortBy(section, it)
-                        reloadTemplates(section = section, sortBy = sortBy)
-                        analytics.track(
-                            name = "template_category_tab_click",
-                            parameters = mapOf(
-                                "modality" to if (section == TemplateSection.Video) "video" else "image",
-                                "tab_index" to it,
-                                "sort_by" to sortBy,
-                            ),
-                            userId = backendState.profileId,
-                        )
-                    },
-                    onPlayToggle = { isPlaying = !isPlaying },
-                    onMoveTemplate = ::moveTemplate,
-                    onTemplatePageSelected = { page ->
-                        currentTemplate = page
-                        templateEdgeHintRes = null
-                    },
-                    onTemplateExpose = { template, position ->
-                        analytics.track(
-                            name = "template_expose",
-                            parameters = mapOf(
-                                "template_id" to template.templateId,
-                                "category_id" to template.categoryId,
-                                "modality" to template.modality,
-                                "source" to template.source,
-                                "position" to position.toLong(),
-                                "filter_category_id" to "",
-                            ),
-                            userId = backendState.profileId,
-                        )
-                    },
-                    onUseTemplate = ::useTemplate,
-                    onConversationLog = ::openMyTasks,
-                    onFeedback = { destination = ImageToVideoDestination.Feedback },
-                    onSubscription = ::navigateFromVipBadge,
-                    onLogout = { performAccountAction(false) },
-                    onDeleteAccount = { deleteDialogOpen = true; accountActionError = null },
-                    accountActionBusy = accountActionBusy,
-                    accountActionError = accountActionError,
-                    onEditName = { destination = ImageToVideoDestination.EditName },
-                    onEditAvatar = ::openAvatarPicker,
-                    isAvatarSaving = profileEditingController.avatarSaving,
-                    localProfileAvatarUri = localProfileAvatarUri,
-                    onTemplateRetry = ::retryTemplates,
-                    attributionProfileRetryRequired = authViewModel.attributionProfileRetryRequired,
-                    onAttributionProfileRetry = authViewModel::retryProfileRefresh,
-                    onLoadMoreTemplates = ::loadNextTemplatePage,
-                    onNavigationSelect = ::navigateFromBottomNavigation,
-                    selectedProductId = topUpPaymentController.selectedProductId,
-                    productSelectionEnabled = !topUpPaymentController.productSelectionLocked,
-                    topUpState = topUpState,
-                    purchaseState = topUpPaymentController.state,
-                    checkoutState = topUpPaymentController.checkoutState,
-                    isReconciling = topUpPaymentController.reconciliationCount > 0,
-                    onProductSelect = topUpPaymentController::selectProduct,
-                    onPreparePayment = {
-                        (localContext as? Activity)?.let { topUpPaymentController.prepare(it, topUpEntrySource) }
-                    },
-                    onTopUpRetry = { topUpRefreshSerial += 1 },
-                    onBalanceClick = ::navigateFromBalanceBadge,
-                    edgeHint = templateEdgeHint,
-                    onEdgeHintDismiss = { messageId ->
-                        if (templateEdgeHintSerial.toLong() == messageId) {
+                if (selectedNavigation != 0) {
+                    TemplateBrowserScreen(
+                        loadDiamondHistory = {
+                            if (!ownsTaskSession()) throw CancellationException("Session changed")
+                            val records = repository.walletTransactions(page = it, pageSize = 20)
+                            if (!ownsTaskSession()) throw CancellationException("Session changed")
+                            records
+                        },
+                        selectedTab = selectedTab,
+                        currentTemplate = currentTemplate,
+                        isPlaying = isPlaying && !showTemplateSubscription,
+                        selectedNavigation = selectedNavigation,
+                        homeTaskBadges = homeTaskBadges,
+                        onTabSelect = {
+                            selectedTab = it
+                            currentTemplate = 1
                             templateEdgeHintRes = null
-                        }
-                    },
-                    backendState = backendState,
-                )
+                            val section = if (selectedNavigation == 1) TemplateSection.Image else TemplateSection.Video
+                            val sortBy = templateSortBy(section, it)
+                            reloadTemplates(section = section, sortBy = sortBy)
+                            analytics.track(
+                                name = "template_category_tab_click",
+                                parameters = mapOf(
+                                    "modality" to if (section == TemplateSection.Video) "video" else "image",
+                                    "tab_index" to it,
+                                    "category_id" to backendState.selectedTemplateCategoryId(section, it).orEmpty(),
+                                    "sort_by" to sortBy,
+                                ),
+                                userId = backendState.profileId,
+                            )
+                        },
+                        onPlayToggle = { isPlaying = !isPlaying },
+                        onMoveTemplate = ::moveTemplate,
+                        onTemplatePageSelected = { page ->
+                            currentTemplate = page
+                            templateEdgeHintRes = null
+                        },
+                        onTemplateExpose = { template, position ->
+                            analytics.track(
+                                name = "template_expose",
+                                parameters = mapOf(
+                                    "template_id" to template.templateId,
+                                    "category_id" to template.categoryId,
+                                    "modality" to template.modality,
+                                    "source" to template.source,
+                                    "position" to position.toLong(),
+                                    "filter_category_id" to "",
+                                ),
+                                userId = backendState.profileId,
+                            )
+                        },
+                        onUseTemplate = ::useTemplate,
+                        onConversationLog = ::openMyTasks,
+                        onFeedback = { destination = ImageToVideoDestination.Feedback },
+                        onSubscription = ::navigateFromVipBadge,
+                        onLogout = { performAccountAction(false) },
+                        onDeleteAccount = { deleteDialogOpen = true; accountActionError = null },
+                        accountActionBusy = accountActionBusy,
+                        accountActionError = accountActionError,
+                        onEditName = { destination = ImageToVideoDestination.EditName },
+                        onEditAvatar = ::openAvatarPicker,
+                        isAvatarSaving = profileEditingController.avatarSaving,
+                        localProfileAvatarUri = localProfileAvatarUri,
+                        onTemplateRetry = ::retryTemplates,
+                        attributionProfileRetryRequired = authViewModel.attributionProfileRetryRequired,
+                        onAttributionProfileRetry = authViewModel::retryProfileRefresh,
+                        onLoadMoreTemplates = ::loadNextTemplatePage,
+                        onNavigationSelect = ::navigateFromBottomNavigation,
+                        selectedProductId = topUpPaymentController.selectedProductId,
+                        productSelectionEnabled = !topUpPaymentController.productSelectionLocked,
+                        topUpState = topUpState,
+                        purchaseState = topUpPaymentController.state,
+                        checkoutState = topUpPaymentController.checkoutState,
+                        isReconciling = topUpPaymentController.reconciliationCount > 0,
+                        onProductSelect = topUpPaymentController::selectProduct,
+                        onPreparePayment = {
+                            (localContext as? Activity)?.let { topUpPaymentController.prepare(it, topUpEntrySource) }
+                        },
+                        onTopUpRetry = { topUpRefreshSerial += 1 },
+                        onBalanceClick = ::navigateFromBalanceBadge,
+                        edgeHint = templateEdgeHint,
+                        onEdgeHintDismiss = { messageId ->
+                            if (templateEdgeHintSerial.toLong() == messageId) {
+                                templateEdgeHintRes = null
+                            }
+                        },
+                        backendState = backendState,
+                    )
+                }
             }
 
             ImageToVideoDestination.Subscription -> {
-                SubscriptionRoute(repository = repository, trigger = subscriptionEntrySource, isVip = backendState.isVip, onBack = { destination = ImageToVideoDestination.Templates })
+                SubscriptionRoute(repository = repository, trigger = subscriptionEntrySource, isVip = backendState.isVip,
+                    onBack = { destination = subscriptionReturnDestination })
+            }
+
+            ImageToVideoDestination.ShortDramaPlayer -> {
+                val drama = selectedDramaId
+                if (drama != null) ShortDramaPlayerRoute(drama, startupSession.userId, dramaOwnerKey, homeFeedGateway, dramaViewModel,
+                    onBack = { refreshDiamondBalance(); destination = ImageToVideoDestination.Templates; selectedNavigation = 0 },
+                    onSubscription = {
+                        subscriptionReturnDestination = ImageToVideoDestination.ShortDramaPlayer
+                        subscriptionEntrySource = "short_drama_vip"
+                        destination = ImageToVideoDestination.Subscription
+                    },
+                    onTopUp = { navigateToTopUpForInsufficientBalance(); topUpEntrySource = "short_drama_unlock" })
             }
 
             ImageToVideoDestination.UploadPhoto -> {
@@ -1974,6 +2089,7 @@ private fun TemplateBrowserScreen(
     backendState: AchatBackendUiState,
     attributionProfileRetryRequired: Boolean = false,
     onAttributionProfileRetry: () -> Unit = {},
+    loadDiamondHistory: suspend (Int) -> List<yumo.achat.core.backend.WalletTransaction>,
 ) {
     if (selectedNavigation == 2) {
         TopUpScreen(
@@ -2000,6 +2116,7 @@ private fun TemplateBrowserScreen(
 
     if (selectedNavigation == 3) {
         MeScreen(
+            loadDiamondHistory = loadDiamondHistory,
             selectedNavigation = selectedNavigation,
             onConversationLog = onConversationLog,
             onFeedback = onFeedback,
@@ -2020,6 +2137,18 @@ private fun TemplateBrowserScreen(
             onBalanceClick = onBalanceClick,
             onNavigationSelect = onNavigationSelect,
         )
+        return
+    }
+
+    if (selectedNavigation == 4) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(16.dp)) {
+            Header(TemplateSection.Video, backendState.diamondBalance, onBalanceClick,
+                backendState.isVip, onSubscription, onSettings = { onNavigationSelect(3) })
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.short_coming_soon), color = AchatMuted)
+            }
+            BottomNavigation(selectedNavigation, onNavigationSelect)
+        }
         return
     }
 
@@ -2111,12 +2240,12 @@ private fun TemplateBrowserScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick, isVip = backendState.isVip, onSubscription = onSubscription)
+        Header(section = section, diamondBalance = backendState.diamondBalance, onBalanceClick = onBalanceClick, isVip = backendState.isVip, onSubscription = onSubscription, onSettings = { onNavigationSelect(3) })
         AttributionProfileRetry(attributionProfileRetryRequired, onAttributionProfileRetry)
         Spacer(Modifier.height(8.dp))
         if (shouldShowTemplateTabs(section)) {
             CategoryTabs(
-                section = section,
+                categories = backendState.templateCategories(section),
                 selectedTab = selectedTab,
                 onSelect = onTabSelect,
             )
@@ -2237,6 +2366,7 @@ private fun TemplateFeedPager(
             val templateIndex = Math.floorMod(page, templates.size)
             val template = templates[templateIndex]
             HeroCard(
+                videoPlaybackEnabled = page == pagerState.currentPage,
                 currentPage = templateIndex + 1,
                 totalPages = templates.size,
                 durationSeconds = template.durationSeconds.takeIf { it > 0 } ?: 5,
@@ -2464,110 +2594,66 @@ private fun MeScreen(
     diamondBalance: Int,
     onNavigationSelect: (Int) -> Unit,
     onBalanceClick: () -> Unit,
+    loadDiamondHistory: suspend (Int) -> List<yumo.achat.core.backend.WalletTransaction> = { emptyList() },
 ) {
     val context = LocalContext.current
-    val systemModuleRows = meSystemModulePresentations()
-    val copyIdLabel = stringResource(R.string.profile_copy_id_description)
+    var activeModule by rememberSaveable { mutableStateOf<String?>(null) }
+    BackHandler(activeModule != null) { activeModule = null }
+    if (activeModule == "diamonds") {
+        DiamondHistoryScreen(loadDiamondHistory, onBack = { activeModule = null })
+        return
+    }
+    if (activeModule == "watch") {
+        MePlaceholderScreen(stringResource(R.string.me_watch_history), onBack = { activeModule = null })
+        return
+    }
     val clipboardManager = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-    ) {
-        MeHeader(diamondBalance = diamondBalance, onBalanceClick = onBalanceClick, isVip = isVip, onSubscription = onSubscription)
-        Spacer(Modifier.height(28.dp))
-        ProfileCard(
-            profileName = profileName,
-            profileId = profileId,
-            avatarUrl = profileAvatarUrl,
-            localAvatarUri = localProfileAvatarUri,
-            onEditName = onEditName,
-            onEditAvatar = onEditAvatar,
-            onCopyId = {
-                clipboardManager.setPrimaryClip(
-                    ClipData.newPlainText(copyIdLabel, profileId),
-                )
-            },
-            nameEditEnabled = !isAvatarSaving,
-            avatarEditEnabled = !isAvatarSaving,
-        )
-        if (isAvatarSaving) {
-            Text(
-                text = stringResource(R.string.profile_avatar_updating),
-                color = AchatCyan,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            DiamondIcon(7.dp)
-            Spacer(Modifier.width(7.dp))
-            Text(
-                text = stringResource(R.string.system_modules),
-                color = AchatCyan,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ModuleRow(
-                icon = ModuleIcon.ConversationLog,
-                title = stringResource(R.string.conversation_log),
-                subtitle = stringResource(R.string.conversation_log_subtitle),
-                trailing = systemModuleRows[0].badge,
-                onClick = onConversationLog,
-            )
-            ModuleRow(
-                icon = ModuleIcon.Feedback,
-                title = stringResource(R.string.feedback),
-                subtitle = stringResource(R.string.feedback_subtitle),
-                trailing = systemModuleRows[1].badge,
-                onClick = onFeedback,
-            )
-            ModuleRow(
-                icon = ModuleIcon.Edit,
-                title = stringResource(R.string.edit_name),
-                subtitle = stringResource(R.string.edit_name_subtitle),
-                trailing = systemModuleRows[2].badge,
-                onClick = { if (!isAvatarSaving) onEditName() },
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = stringResource(R.string.account_delete),
-            color = AchatCyan,
-            textDecoration = TextDecoration.Underline,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-                .clickable(enabled = !accountActionBusy, onClick = onDeleteAccount)
-                .padding(10.dp),
-        )
-        Spacer(Modifier.height(7.dp))
-        Box(
-            Modifier.fillMaxWidth().height(50.dp)
+    val copyIdLabel = stringResource(R.string.profile_copy_id_description)
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            MeHeader(diamondBalance, onBalanceClick, isVip, onSubscription)
+            Spacer(Modifier.height(30.dp))
+            ProfileCard(profileName, profileId, profileAvatarUrl, localProfileAvatarUri,
+                onEditName, onEditAvatar,
+                onCopyId = { clipboardManager.setPrimaryClip(ClipData.newPlainText(copyIdLabel, profileId)) },
+                nameEditEnabled = !isAvatarSaving, avatarEditEnabled = !isAvatarSaving)
+            if (isAvatarSaving) Text(stringResource(R.string.profile_avatar_updating), color = AchatCyan)
+            Spacer(Modifier.height(20.dp))
+            Text(stringResource(R.string.system_modules), color = AchatCyan, fontSize = 11.sp, letterSpacing = 1.2.sp)
+            Spacer(Modifier.height(12.dp))
+            meMenuEntries().forEach { entry ->
+                MeMenuRow(entry, onClick = {
+                    when (entry) {
+                        MeMenuEntry.Creations -> onConversationLog()
+                        MeMenuEntry.WatchHistory -> activeModule = "watch"
+                        MeMenuEntry.Feedback -> onFeedback()
+                        MeMenuEntry.DiamondHistory -> activeModule = "diamonds"
+                        MeMenuEntry.Privacy -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)))
+                        MeMenuEntry.Terms -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.TERMS_OF_SERVICE_URL)))
+                        MeMenuEntry.Version -> Unit
+                    }
+                })
+                Spacer(Modifier.height(14.dp))
+            }
+            Spacer(Modifier.height(18.dp))
+            Text(stringResource(R.string.account_delete), color = AchatCyan,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+                    .clickable(enabled = !accountActionBusy, onClick = onDeleteAccount).padding(10.dp))
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.fillMaxWidth().height(50.dp)
                 .clip(CutCornerShape(topStart = 9.dp, bottomEnd = 9.dp))
-                .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFF5C68EB), AchatPink)))
-                .clickable(enabled = !accountActionBusy, onClick = onLogout),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(if (accountActionBusy) R.string.account_logout_busy else R.string.account_log_out),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-            )
+                .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFF4F46E5), AchatPink)))
+                .clickable(enabled = !accountActionBusy, onClick = onLogout), contentAlignment = Alignment.Center) {
+                Text(stringResource(if (accountActionBusy) R.string.account_logout_busy else R.string.account_log_out),
+                    color = Color.White, fontWeight = FontWeight.Bold)
+            }
+            accountActionError?.let { Text(it, color = AchatPink) }
+            Spacer(Modifier.height(24.dp))
         }
-        if (accountActionError != null) {
-            Text(accountActionError, color = AchatPink, modifier = Modifier.align(Alignment.CenterHorizontally))
-        }
-        Spacer(Modifier.height(14.dp))
-        BottomNavigation(
-            selectedIndex = selectedNavigation,
-            onSelect = onNavigationSelect,
-        )
+        BottomNavigation(selectedNavigation, onNavigationSelect)
     }
 }
 
@@ -2585,7 +2671,8 @@ private fun MeHeader(diamondBalance: Int, onBalanceClick: () -> Unit, isVip: Boo
         Text(
             text = stringResource(R.string.me_title),
             color = AchatCyan,
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f).padding(end = 12.dp),
         )
         VipBalanceActions(isVip, diamondBalance, onSubscription, onBalanceClick)
@@ -2628,16 +2715,15 @@ internal fun ProfileCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(116.dp),
+            .height(122.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(76.dp)
-                .offset(y = 20.dp)
+                .height(122.dp)
                 .background(Brush.horizontalGradient(listOf(Color(0xF0181B28), Color(0xF20B0C14))))
-                .border(1.dp, Color.White.copy(alpha = 0.05f))
-                .padding(start = 102.dp, end = 12.dp),
+                .border(1.dp, AchatCyan.copy(alpha = 0.25f))
+                .padding(start = 112.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -2711,7 +2797,7 @@ internal fun ProfileCard(
         Box(
             modifier = Modifier
                 .size(90.dp)
-                .offset(y = 16.dp),
+                .offset(x = 16.dp, y = 20.dp),
         ) {
             Box(
                 modifier = Modifier
@@ -2956,6 +3042,7 @@ internal fun MyTasksScreen(
     onLoadMore: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(onBack = onBack)
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isLoading,
         onRefresh = onRefresh,
@@ -2966,11 +3053,7 @@ internal fun MyTasksScreen(
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        SecondaryHeader(
-            title = stringResource(R.string.my_tasks_title),
-            backDescription = stringResource(R.string.back_to_me_description),
-            onBack = onBack,
-        )
+        MeDetailHeader(stringResource(R.string.me_creations), onBack)
         Spacer(Modifier.height(14.dp))
         Box(
             modifier = Modifier
@@ -3017,8 +3100,13 @@ internal fun MyTasksScreen(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        tasks.forEach { task ->
-                            TaskStatusCard(task = task, onOpen = { onOpenTask(task) })
+                        tasks.chunked(2).forEach { row ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                row.forEach { task ->
+                                    CreationCard(task, onOpen = { onOpenTask(task) }, modifier = Modifier.weight(1f))
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
                         }
                         if (paginationLoading) {
                             Text(
@@ -3165,6 +3253,7 @@ internal fun GenerationResultScreen(
     initialVideoPlaybackFailed: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(onBack = onBack)
     val context = LocalContext.current
     val reportSuccess = stringResource(R.string.report_success)
     var reportOpen by remember(task.taskId) { mutableStateOf(false) }
@@ -4215,6 +4304,18 @@ internal fun TopUpScreen(
                             onSelect = { onProductSelect(pack.id) },
                         )
                     }
+                }
+            }
+        }
+        if ((selectedPack != null && !state.isLoading && state.errorMessage.isNullOrBlank()) ||
+            purchaseState != TopUpPurchaseState.Idle || checkoutState != TopUpCheckoutState.Idle) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(Color(0xF5090D19), RoundedCornerShape(12.dp))
+                    .border(1.dp, AchatCyan.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                if (!state.isLoading && state.errorMessage.isNullOrBlank()) {
                     selectedPack?.let { pack ->
                         Spacer(Modifier.height(1.dp))
                         Row(
@@ -4261,19 +4362,18 @@ internal fun TopUpScreen(
                         )
                         Spacer(Modifier.height(2.dp))
                     }
-                    WalletTransactionHistory(state.transactions)
                 }
-            }
-            if ((selectedPack == null || state.isLoading || !state.errorMessage.isNullOrBlank()) &&
-                (purchaseState != TopUpPurchaseState.Idle || checkoutState != TopUpCheckoutState.Idle)) {
-                TopUpPurchaseStatus(purchaseState, checkoutState)
-                StartChatButton(
-                    label = stringResource(R.string.top_up_try_again),
-                    enabled = !isReconciling && (checkoutState is TopUpCheckoutState.Failed ||
-                        checkoutState == TopUpCheckoutState.Cancelled || checkoutState == TopUpCheckoutState.UserCancelled ||
-                        checkoutState == TopUpCheckoutState.TimedOut),
-                    onClick = onPreparePayment,
-                )
+                if ((selectedPack == null || state.isLoading || !state.errorMessage.isNullOrBlank()) &&
+                    (purchaseState != TopUpPurchaseState.Idle || checkoutState != TopUpCheckoutState.Idle)) {
+                    TopUpPurchaseStatus(purchaseState, checkoutState)
+                    StartChatButton(
+                        label = stringResource(R.string.top_up_try_again),
+                        enabled = !isReconciling && (checkoutState is TopUpCheckoutState.Failed ||
+                            checkoutState == TopUpCheckoutState.Cancelled || checkoutState == TopUpCheckoutState.UserCancelled ||
+                            checkoutState == TopUpCheckoutState.TimedOut),
+                        onClick = onPreparePayment,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -4327,59 +4427,6 @@ private fun TopUpPurchaseStatus(state: TopUpPurchaseState, checkoutState: TopUpC
             title = stringResource(R.string.top_up_third_party_ready),
             channelCode = state.channelCode,
         )
-    }
-}
-
-@Composable
-private fun WalletTransactionHistory(transactions: List<WalletTransaction>) {
-    if (transactions.isEmpty()) return
-    Spacer(Modifier.height(10.dp))
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x66101524))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Text(
-            text = "RECENT WALLET ACTIVITY",
-            color = AchatCyan,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        transactions.take(5).forEach { transaction ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = transaction.description ?: transaction.type.ifBlank {
-                            transaction.category ?: "Wallet transaction"
-                        },
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = transaction.createdAt.take(10),
-                        color = AchatMuted,
-                        fontSize = 9.sp,
-                    )
-                }
-                Text(
-                    text = formatWalletTransactionAmount(transaction.amount, transaction.type),
-                    color = if (walletTransactionDisplayAmount(transaction.amount, transaction.type) >= 0) AchatCyan else AchatPink,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
     }
 }
 
@@ -5048,6 +5095,7 @@ private fun UploadPhotoScreen(
                     templateId = template.templateId,
                     quality = template.quality,
                     resourceId = resourceId,
+                    catalogContext = template.catalogContext,
                 )
                 generationSubmissionKey = submissionKey
                 scope.launch {
@@ -5073,6 +5121,7 @@ private fun UploadPhotoScreen(
                             quality = template.quality,
                             resourceId = resourceId,
                             idempotencyKey = submissionKey.idempotencyKey,
+                            catalogContext = template.catalogContext,
                         )
                         generationAnalytics.submitResult(
                             template.analyticsContext(), submissionKey.idempotencyKey, task, null,
@@ -5207,46 +5256,21 @@ private fun BackgroundGlow() {
 }
 
 @Composable
-private fun Header(section: TemplateSection, diamondBalance: Int, onBalanceClick: () -> Unit, isVip: Boolean?, onSubscription: () -> Unit) {
-    val title = stringResource(
-        if (section == TemplateSection.Image) R.string.image_to_image_title else R.string.image_to_video_title,
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f).padding(end = 12.dp),
-            color = Color.White,
-            fontSize = if (section == TemplateSection.Image) 20.sp else 24.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        VipBalanceActions(isVip, diamondBalance, onSubscription, onBalanceClick)
-    }
+private fun Header(@Suppress("UNUSED_PARAMETER") section: TemplateSection, diamondBalance: Int,
+    onBalanceClick: () -> Unit, isVip: Boolean?, onSubscription: () -> Unit, onSettings: () -> Unit = {}) {
+    ZorvBrandHeader(diamondBalance, isVip, onSettings, onSubscription, onBalanceClick, horizontalPadding = 4.dp)
 }
 
 @Composable
-private fun CategoryTabs(
-    section: TemplateSection,
-    selectedTab: Int,
-    onSelect: (Int) -> Unit,
+internal fun CategoryTabs(
+    categories: List<VisualCategory>, selectedTab: Int, onSelect: (Int) -> Unit,
 ) {
-    val firstLabel = stringResource(
-        if (section == TemplateSection.Image) R.string.tab_single_image else R.string.tab_hot,
-    )
-    val secondLabel = stringResource(
-        if (section == TemplateSection.Image) R.string.tab_multi_image else R.string.tab_new,
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
-    ) {
-        CategoryTab(firstLabel, selectedTab == 0) { onSelect(0) }
-        CategoryTab(secondLabel, selectedTab == 1) { onSelect(1) }
+    if (categories.isEmpty()) return
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("catalog-category-tabs"),
+        horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        categories.forEachIndexed { index, category ->
+            key(category.id) { CategoryTab(category.name, selectedTab == index) { onSelect(index) } }
+        }
     }
 }
 
@@ -5306,5 +5330,33 @@ private fun CategoryTab(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun ImageToVideoPreview() {
     AchatTheme {
         ImageToVideoScreen()
+    }
+}
+
+@Composable
+private fun CreationCard(task: TrackedGenerationTask, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier.aspectRatio(0.7f)
+        .background(Color(0xFF141023))
+        .border(1.dp, Brush.linearGradient(listOf(AchatCyan, Color(0xFF7928CA), AchatPink)), androidx.compose.ui.graphics.RectangleShape)
+        .semantics { contentDescription = task.title }
+        .clickable(enabled = task.canOpenResult, onClick = onOpen), contentAlignment = Alignment.Center) {
+        val image = task.thumbnailUrl?.takeIf { it.isNotBlank() } ?: task.resultUrl?.takeIf { task.canPreviewAsImage }
+        if (image != null) MyTaskProgressiveImage(imageUrl = image, thumbnailUrl = null,
+            contentDescription = task.title, contentScale = ContentScale.Crop, widthPx = 400, heightPx = 570,
+            modifier = Modifier.fillMaxSize().padding(3.dp))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xAA000000)))))
+        if (task.canOpenResult && !task.canPreviewAsImage) {
+            androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_me_play),
+                contentDescription = stringResource(R.string.me_open_creation), tint = Color.Unspecified, modifier = Modifier.size(44.dp))
+        }
+        if (!task.canOpenResult) {
+            Column(Modifier.align(Alignment.BottomCenter).padding(12.dp)) {
+                Text(task.title, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(task.status, color = AchatCyan, fontSize = 12.sp)
+                if (task.status == "failed" && !task.errorMessage.isNullOrBlank()) {
+                    Text(task.errorMessage, color = AchatPink, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
     }
 }

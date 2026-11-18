@@ -1,10 +1,16 @@
 package yumo.achat.app.ui.imagevideo
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +31,32 @@ import yumo.achat.core.payment.PaymentStage
 class TopUpCardTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun paymentButtonStaysVisibleAfterSelectionInLongCatalog() {
+        var selected by mutableStateOf<String?>(null)
+        var requested: String? = null
+        val longCatalog = catalog().copy(products = (1..12).map { index ->
+            catalog().products.first().copy(id = "pack-$index", value = index * 100, sortOrder = index)
+        })
+        composeRule.setContent {
+            AchatTheme {
+                Box(Modifier.width(360.dp).height(480.dp)) {
+                    TopUpScreen(2, selected, state = TopUpUiState(catalog = longCatalog),
+                        purchaseState = TopUpPurchaseState.Idle,
+                        onProductSelect = { selected = it }, onPreparePayment = { requested = selected },
+                        onRetry = {}, onNavigationSelect = {})
+                }
+            }
+        }
+        composeRule.onAllNodesWithText("CONTINUE").assertCountEquals(0)
+        composeRule.onNodeWithText("100").performClick()
+        composeRule.onNodeWithText("CONTINUE").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals("pack-1", requested) }
+        composeRule.onNodeWithText("1200").performScrollTo().performClick()
+        composeRule.onNodeWithText("CONTINUE").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals("pack-12", requested) }
+    }
 
     @Test fun cancelledPlayCheckoutAllowsSelectingAnotherAmountAndContinuingWithIt() {
         var record by mutableStateOf(paymentRecord("pack-200", "cancelled-order", true).copy(stage = PaymentStage.OFFICIAL_LAUNCHED))
@@ -68,12 +100,12 @@ class TopUpCardTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Payment is pending in Google Play").assertIsDisplayed()
+        composeRule.onNodeWithText("Payment is pending in Google Play (E-602)").assertIsDisplayed()
         composeRule.runOnIdle { checkout = TopUpCheckoutState.AwaitingPayment(false) }
-        composeRule.onAllNodesWithText("Payment is pending in Google Play").assertCountEquals(0)
-        composeRule.onNodeWithText("Waiting for payment confirmation...").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Payment is pending in Google Play (E-602)").assertCountEquals(0)
+        composeRule.onNodeWithText("Waiting for payment confirmation... (E-602)").assertIsDisplayed()
         composeRule.runOnIdle { checkout = TopUpCheckoutState.Succeeded("order") }
-        composeRule.onAllNodesWithText("Waiting for payment confirmation...").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Waiting for payment confirmation... (E-602)").assertCountEquals(0)
         composeRule.onNodeWithText("100").performClick()
         composeRule.runOnIdle { assertEquals("pack-100", selected) }
     }

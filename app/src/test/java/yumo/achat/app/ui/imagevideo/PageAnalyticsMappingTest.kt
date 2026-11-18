@@ -6,7 +6,9 @@ import org.junit.Test
 class PageAnalyticsMappingTest {
     @Test
     fun `template destinations map navigation to contract pages`() {
-        assertEquals("video", analyticsPageName(ImageToVideoDestination.Templates, 0, false))
+        assertEquals("home", analyticsPageName(ImageToVideoDestination.Templates, 0, false))
+        assertEquals("short", analyticsPageName(ImageToVideoDestination.Templates, 4, false))
+        assertEquals("video", analyticsPageName(ImageToVideoDestination.Templates, 5, false))
         assertEquals("image", analyticsPageName(ImageToVideoDestination.Templates, 1, false))
         assertEquals("purchase", analyticsPageName(ImageToVideoDestination.Templates, 2, false))
         assertEquals("profile", analyticsPageName(ImageToVideoDestination.Templates, 3, false))

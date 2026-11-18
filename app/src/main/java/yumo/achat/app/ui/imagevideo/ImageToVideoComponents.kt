@@ -57,6 +57,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -108,6 +109,7 @@ internal fun HeroCard(
     onEdgeHintDismiss: (Long) -> Unit = {},
     vip: Boolean = false,
     modifier: Modifier = Modifier,
+    videoPlaybackEnabled: Boolean = true,
 ) {
     val portraitDescription = stringResource(R.string.template_portrait_description)
     val playDescription = stringResource(
@@ -153,6 +155,7 @@ internal fun HeroCard(
         TemplatePreviewImage(
             media = previewMedia,
             isPlaying = isPlaying,
+            videoPlaybackEnabled = videoPlaybackEnabled,
             contentDescription = portraitDescription,
             onMediaErrorChanged = { mediaHasError = it },
             modifier = Modifier.fillMaxSize(),
@@ -258,7 +261,7 @@ private fun TemplateSwipeGestureLayer(
 
 @Composable
 @OptIn(UnstableApi::class)
-private fun TemplatePreviewImage(
+internal fun TemplatePreviewImage(
     media: TemplatePreviewMedia,
     isPlaying: Boolean,
     contentDescription: String?,
@@ -267,6 +270,9 @@ private fun TemplatePreviewImage(
     onPlaybackError: () -> Unit = {},
     onMediaErrorChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
+    videoPlaybackEnabled: Boolean = true,
+    cacheVideo: Boolean = true,
+    onVideoProgress: (Float) -> Unit = {},
 ) {
     val placeholder = painterResource(R.drawable.hero_portrait)
     when (media) {
@@ -352,17 +358,23 @@ private fun TemplatePreviewImage(
         }
 
         is TemplatePreviewMedia.RemoteVideo -> {
-            var hasRenderedFirstFrame by remember(media.url) { mutableStateOf(false) }
-            var hasPlaybackError by remember(media.url) { mutableStateOf(false) }
+            var hasRenderedFirstFrame by remember(media.url, videoPlaybackEnabled) { mutableStateOf(false) }
+            var hasPlaybackError by remember(media.url, videoPlaybackEnabled) { mutableStateOf(false) }
             var retrySerial by remember(media.url) { mutableStateOf(0) }
             var posterRetrySerial by remember(media.posterUrl) { mutableStateOf(0) }
             var posterHasError by remember(media.posterUrl) { mutableStateOf(false) }
             val playbackErrorCallback = rememberUpdatedState(onPlaybackError)
-            Box(modifier = modifier.background(Color.Black)) {
-                key(media.url, retrySerial) {
+            Box(
+                modifier = modifier
+                    .background(Color.Black)
+                    .testTag(if (hasRenderedFirstFrame) "template-video-frame" else "template-video-loading"),
+            ) {
+                if (videoPlaybackEnabled) key(media.url, retrySerial) {
                     TemplatePreviewVideo(
                         url = media.url,
                         isPlaying = isPlaying,
+                        cacheEnabled = cacheVideo,
+                        onProgress = onVideoProgress,
                         resizeMode = videoResizeMode,
                         onFirstFrame = {
                             hasRenderedFirstFrame = true
@@ -497,6 +509,8 @@ private fun TemplatePreviewVideo(
     onFirstFrame: () -> Unit = {},
     onPlaybackError: () -> Unit = {},
     modifier: Modifier = Modifier,
+    cacheEnabled: Boolean = true,
+    onProgress: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -505,9 +519,10 @@ private fun TemplatePreviewVideo(
     var lifecycleStarted by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
-    val binding = remember(url) {
+    val progressCallback = rememberUpdatedState(onProgress)
+    val binding = remember(url, cacheEnabled) {
         val player = ExoPlayer.Builder(context)
-            .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context))
+            .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = cacheEnabled))
             .build()
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() = firstFrameCallback.value()
@@ -540,6 +555,14 @@ private fun TemplatePreviewVideo(
 
     LaunchedEffect(binding.player, isPlaying, lifecycleStarted) {
         binding.player.playWhenReady = shouldPlayVideo(isPlaying, lifecycleStarted)
+    }
+
+    LaunchedEffect(binding.player, lifecycleStarted) {
+        while (lifecycleStarted) {
+            val duration = binding.player.duration
+            progressCallback.value(if (duration > 0) (binding.player.currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f)
+            delay(250)
+        }
     }
 
     AndroidView(
@@ -1144,29 +1167,30 @@ private fun PhotoGlyph(modifier: Modifier = Modifier) {
 }
 
 @Composable
-internal fun BottomNavigation(selectedIndex: Int, onSelect: (Int) -> Unit) {
+internal fun BottomNavigation(selectedIndex: Int, onSelect: (Int) -> Unit, fullBleed: Boolean = false) {
+    val shape = RoundedCornerShape(if (fullBleed) 0.dp else 12.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 66.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xD9080A13))
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .clip(shape)
+            .background(if (fullBleed) Color(0xE6090818) else Color(0xD9080A13))
+            .border(1.dp, if (fullBleed) AchatCyan.copy(alpha = .2f) else Color.White.copy(alpha = .1f), shape)
+            .padding(horizontal = if (fullBleed) 24.dp else 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround,
     ) {
-        NavItem(stringResource(R.string.nav_video), NavIcon.Video, selectedIndex == 0) { onSelect(0) }
-        NavItem(stringResource(R.string.nav_image), NavIcon.Image, selectedIndex == 1) { onSelect(1) }
-        NavItem(stringResource(R.string.nav_top_up), NavIcon.Diamond, selectedIndex == 2) { onSelect(2) }
-        NavItem(stringResource(R.string.nav_me), NavIcon.Person, selectedIndex == 3) { onSelect(3) }
+        NavItem(stringResource(R.string.nav_home), R.drawable.ic_nav_home, selectedIndex == 0) { onSelect(0) }
+        NavItem(stringResource(R.string.nav_short), R.drawable.ic_nav_short, selectedIndex == 4) { onSelect(4) }
+        NavItem(stringResource(R.string.nav_video), R.drawable.ic_nav_video, selectedIndex == 5) { onSelect(5) }
+        NavItem(stringResource(R.string.nav_image), R.drawable.ic_nav_image, selectedIndex == 1) { onSelect(1) }
     }
 }
 
 private enum class NavIcon { Video, Image, Diamond, Person }
 
 @Composable
-private fun NavItem(label: String, icon: NavIcon, selected: Boolean, onClick: () -> Unit) {
+private fun NavItem(label: String, icon: Int, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(62.dp)
@@ -1174,13 +1198,19 @@ private fun NavItem(label: String, icon: NavIcon, selected: Boolean, onClick: ()
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        NavGlyph(icon, selected)
+        Box(Modifier.size(32.dp).background(
+            if (selected) AchatCyan.copy(alpha = 0.12f) else Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Icon(painterResource(icon), contentDescription = null,
+                tint = if (selected) AchatCyan else Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
+        }
         Spacer(Modifier.height(4.dp))
         Text(
             label,
-            color = if (selected) AchatCyan else Color(0xFF565667),
+            color = if (selected) AchatCyan else Color(0xFF94A3B8),
             style = MaterialTheme.typography.labelMedium,
-            letterSpacing = 0.sp,
+            letterSpacing = 0.5.sp,
+            fontSize = 10.sp,
         )
     }
 }

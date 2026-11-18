@@ -1,5 +1,9 @@
 package yumo.achat.app.ui.imagevideo
 
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -9,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Before
@@ -27,14 +32,15 @@ class ImageToVideoScreenTest {
     fun enterAuthenticatedHome() {
         composeRule.waitUntil(30_000) {
             composeRule.onAllNodesWithText("Login with device").fetchSemanticsNodes().isNotEmpty() ||
-                composeRule.onAllNodesWithText("Image To Video").fetchSemanticsNodes().isNotEmpty()
+                composeRule.onAllNodesWithText("Zorv").fetchSemanticsNodes().isNotEmpty()
         }
         if (composeRule.onAllNodesWithText("Login with device").fetchSemanticsNodes().isNotEmpty()) {
             composeRule.onNodeWithText("Login with device").performClick()
         }
         composeRule.waitUntil(60_000) {
-            composeRule.onAllNodesWithText("Image To Video").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("Zorv").fetchSemanticsNodes().isNotEmpty()
         }
+        composeRule.onNodeWithText("VIDEO").performClick()
     }
 
     private fun assumeUsableLiveTemplate() {
@@ -54,19 +60,19 @@ class ImageToVideoScreenTest {
 
     @Test
     fun imageToVideoDesignIsDisplayed() {
-        composeRule.onNodeWithText("Image To Video").assertIsDisplayed()
-        composeRule.onNodeWithText("Hot").assertIsDisplayed()
-        composeRule.onNodeWithText("New").assertIsDisplayed()
+        composeRule.onNodeWithText("Zorv").assertIsDisplayed()
+        composeRule.onNodeWithTag("catalog-category-tabs").assertIsDisplayed()
         composeRule.onNodeWithText("VIDEO").assertIsDisplayed()
         composeRule.onNodeWithText("IMAGE").assertIsDisplayed()
-        composeRule.onNodeWithText("TOP UP").assertIsDisplayed()
-        composeRule.onNodeWithText("ME").assertIsDisplayed()
+        composeRule.onNodeWithText("VIDEO").assertIsSelected()
+        composeRule.onNodeWithText("SHORT").assertIsDisplayed()
     }
 
     @Test
-    fun newTabBecomesSelectedWhenTapped() {
-        composeRule.onNodeWithText("New").performClick()
-        composeRule.onNodeWithText("New").assertIsSelected()
+    fun backendCategoryBecomesSelectedWhenTapped() {
+        val tabs = composeRule.onAllNodes(isSelectable() and hasAnyAncestor(hasTestTag("catalog-category-tabs")))
+        assumeTrue("Requires at least two backend categories", tabs.fetchSemanticsNodes().size >= 2)
+        tabs[1].performClick().assertIsSelected()
     }
 
     @Test
@@ -103,6 +109,18 @@ class ImageToVideoScreenTest {
     }
 
     @Test
+    fun shortIsPlaceholderAndSettingsReturnsToShort() {
+        composeRule.onNodeWithText("SHORT").performClick()
+        composeRule.onNodeWithText("Short videos coming soon").assertIsDisplayed()
+        composeRule.onNodeWithText("SHORT").assertIsSelected()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
+        androidx.test.espresso.Espresso.pressBack()
+        composeRule.onNodeWithText("SHORT").assertIsSelected()
+        composeRule.onNodeWithText("Short videos coming soon").assertIsDisplayed()
+    }
+
+    @Test
     fun imageNavigationBecomesSelectedWhenTapped() {
         composeRule.onNodeWithText("IMAGE").performClick()
         composeRule.onNodeWithText("IMAGE").assertIsSelected()
@@ -112,15 +130,14 @@ class ImageToVideoScreenTest {
     fun imageNavigationShowsImageToImageDesign() {
         composeRule.onNodeWithText("IMAGE").performClick()
 
-        composeRule.onNodeWithText("IMAGE TO IMAGE").assertIsDisplayed()
-        composeRule.onNodeWithText("SINGLE IMAGE").assertIsDisplayed()
-        composeRule.onNodeWithText("MULTI IMAGE").assertIsDisplayed()
+        composeRule.onNodeWithText("Zorv").assertIsDisplayed()
+        composeRule.onNodeWithTag("catalog-category-tabs").assertIsDisplayed()
         composeRule.onNodeWithText("USE THIS TEMPLATE").assertIsDisplayed()
     }
 
     @Test
     fun topUpNavigationShowsCreditPackDesign() {
-        composeRule.onNodeWithText("TOP UP").performClick()
+        composeRule.onNodeWithContentDescription("Token balance").performClick()
 
         composeRule.onNodeWithText("SYSTEM CREDITS").assertIsDisplayed()
         composeRule.onNodeWithText("CHOOSE A PACK").assertIsDisplayed()
@@ -128,25 +145,22 @@ class ImageToVideoScreenTest {
 
     @Test
     fun meNavigationShowsProfileAndSystemModules() {
-        composeRule.onNodeWithText("ME").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
 
         composeRule.onNodeWithText("Me").assertIsDisplayed()
         composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
-        composeRule.onNodeWithText("Delete Account").assertIsDisplayed()
-        composeRule.onNodeWithText("LOG OUT").assertIsDisplayed()
-        composeRule.onNodeWithText("Conversation Log").assertIsDisplayed()
-        composeRule.onNodeWithText("LOGS").assertIsDisplayed()
-        composeRule.onNodeWithText("Feedback").assertIsDisplayed()
-        composeRule.onNodeWithText("FEED").assertIsDisplayed()
-        composeRule.onNodeWithText("Edit Name").assertIsDisplayed()
-        composeRule.onNodeWithText("USER_ID").assertIsDisplayed()
-        composeRule.onNodeWithText("ME").assertIsSelected()
+        listOf("My Creations", "Watch History", "Feedback", "Diamond History", "Privacy Policy", "Terms of Service", "App Version").forEach {
+            composeRule.onNodeWithText(it).performScrollTo().assertIsDisplayed()
+        }
+        composeRule.onNodeWithText("Delete Account").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("LOG OUT").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("HOME").assertIsDisplayed()
     }
 
     @Test
     fun deleteAccountRequiresCountdownAndCanBeCancelled() {
-        composeRule.onNodeWithText("ME").performClick()
-        composeRule.onNodeWithText("Delete Account").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithText("Delete Account").performScrollTo().performClick()
 
         composeRule.onNodeWithText("Tips").assertIsDisplayed()
         composeRule.onNodeWithText("Delete Account (3)").assertIsNotEnabled()
@@ -156,10 +170,10 @@ class ImageToVideoScreenTest {
 
     @Test
     fun conversationLogOpensMyTasksScreen() {
-        composeRule.onNodeWithText("ME").performClick()
-        composeRule.onNodeWithText("Conversation Log").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithText("My Creations").performClick()
 
-        composeRule.onNodeWithText("My Tasks").assertIsDisplayed()
+        composeRule.onNodeWithText("My Creations").assertIsDisplayed()
 
         composeRule.onNodeWithContentDescription("Back to me").performClick()
         composeRule.onNodeWithText("SYSTEM MODULES").assertIsDisplayed()
@@ -167,8 +181,8 @@ class ImageToVideoScreenTest {
 
     @Test
     fun feedbackOpensFeedbackForm() {
-        composeRule.onNodeWithText("ME").performClick()
-        composeRule.onNodeWithText("Feedback").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithText("Feedback").performScrollTo().performClick()
 
         composeRule.onNodeWithText("Feedback").assertIsDisplayed()
         composeRule.onNodeWithText("Tell us what feels off").assertIsDisplayed()
@@ -183,8 +197,8 @@ class ImageToVideoScreenTest {
 
     @Test
     fun editNameOpensNamePickerSheet() {
-        composeRule.onNodeWithText("ME").performClick()
-        composeRule.onNodeWithText("Edit Name").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithContentDescription("Edit profile").performClick()
 
         composeRule.onNodeWithText("Edit display name").assertIsDisplayed()
         composeRule.onNodeWithText("Display name").assertIsDisplayed()
@@ -224,7 +238,7 @@ class ImageToVideoScreenTest {
         composeRule.onNodeWithText("USE THIS TEMPLATE").performClick()
         composeRule.onNodeWithContentDescription("Back to templates").performClick()
 
-        composeRule.onNodeWithText("Image To Video").assertIsDisplayed()
+        composeRule.onNodeWithText("Zorv").assertIsDisplayed()
         composeRule.onNodeWithText("Hot").assertIsDisplayed()
     }
 

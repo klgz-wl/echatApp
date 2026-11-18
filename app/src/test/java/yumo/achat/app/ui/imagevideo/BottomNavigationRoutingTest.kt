@@ -6,7 +6,7 @@ import org.junit.Test
 class BottomNavigationRoutingTest {
     @Test
     fun `every bottom navigation item returns to the root container`() {
-        (0..3).forEach { navigationIndex ->
+        listOf(0, 4, 5, 1).forEach { navigationIndex ->
             val route = routeFromBottomNavigation(navigationIndex)
 
             assertEquals(navigationIndex, route.selectedNavigation)

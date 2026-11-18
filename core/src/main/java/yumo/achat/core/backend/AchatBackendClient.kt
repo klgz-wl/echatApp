@@ -27,7 +27,7 @@ internal interface AchatAuthApi {
     fun deleteAccount(token: String)
 }
 
-class AchatBackendHttpException(
+open class AchatBackendHttpException(
     val statusCode: Int,
     val responseBody: String,
 ) : IllegalStateException(responseBody.ifBlank { "HTTP $statusCode" })
@@ -41,6 +41,15 @@ class AchatBackendClient(
     private val cancellableRequests by lazy {
         OkHttpClient.Builder().retryOnConnectionFailure(false).followRedirects(false)
             .followSslRedirects(false).callTimeout(20, TimeUnit.SECONDS).build()
+    }
+
+    // OkHttp can follow up a 503 with Retry-After: 0 even when connection retries are disabled.
+    // Playback grants have no idempotency key, so surface that first response for a user retry.
+    private val homeRequests by lazy {
+        cancellableRequests.newBuilder().addNetworkInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            if (response.code == 503) response.newBuilder().removeHeader("Retry-After").build() else response
+        }.build()
     }
 
     fun clientConfigs(keys: Collection<String>, token: String? = null, deviceId: String? = null): ClientConfigs {
@@ -318,6 +327,7 @@ class AchatBackendClient(
         categoryId: String? = null,
         page: Int = 1,
         pageSize: Int = 20,
+        homeFeatured: Boolean = false,
     ): PagedResult<VisualTemplate> {
         require(sortBy == "hot" || sortBy == "latest") { "Unsupported template sort: $sortBy" }
         val query = buildList {
@@ -325,7 +335,8 @@ class AchatBackendClient(
             add("page_size=$pageSize")
             add("sort_by=$sortBy")
             add("is_vip=1")
-            categoryId?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            if (modality == "video") add("home_featured=$homeFeatured")
+            categoryId?.trim()?.takeIf { it.isNotEmpty() && !(modality == "video" && homeFeatured) }?.let {
                 add("category_id=${URLEncoder.encode(it, StandardCharsets.UTF_8.name())}")
             }
         }.joinToString("&")
@@ -385,6 +396,7 @@ class AchatBackendClient(
         quality: String,
         resourceId: String,
         idempotencyKey: String,
+        catalogContext: HomeCatalogContext? = null,
     ): VisualGenerationTask {
         val boundary = "achat-${UUID.randomUUID()}"
         val response = try {
@@ -400,12 +412,19 @@ class AchatBackendClient(
                     MultipartFormData.write(
                         outputStream = outputStream,
                         boundary = boundary,
-                        parts = listOf(
+                        parts = buildList {
+                            addAll(listOf(
                             MultipartFormData.textPart("template_id", templateId),
                             MultipartFormData.textPart("quality", quality),
                             MultipartFormData.textPart("idempotency_key", idempotencyKey),
                             MultipartFormData.textPart("resource_id", resourceId),
-                        ),
+                            ))
+                            catalogContext?.let {
+                                add(MultipartFormData.textPart("catalog_id", it.catalogId))
+                                add(MultipartFormData.textPart("catalog_item_id", it.catalogItemId))
+                                add(MultipartFormData.textPart("catalog_binding_revision", it.catalogBindingRevision.toString()))
+                            }
+                        },
                     )
                 },
             )
@@ -421,6 +440,92 @@ class AchatBackendClient(
         AchatBackendParsers.parseVisualGenerationTask(
             get("/api/v1/visual-generation/tasks/$taskId", token),
         )
+
+    fun homeFeed(token: String, requestId: String): HomeFeedBatch {
+        require(requestId.isNotBlank() && requestId.length <= 128)
+        return parseHomeResponse { HomeFeedParsers.batch(homeRequest(token, "/api/v1/resource-catalog/home-feed?request_id=${encodeQuery(requestId)}&limit=20&is_vip=1")) }
+    }
+
+    fun acknowledgeHomeFeed(token: String, batchId: String, displayedThroughIndex: Int, idempotencyKey: String) {
+        require(batchId.isNotBlank() && displayedThroughIndex >= 0 && idempotencyKey.isNotBlank() && idempotencyKey.length <= 128)
+        val confirmation = homeRequest(token, "/api/v1/resource-catalog/home-feed/${encodeQuery(batchId)}/ack", JSONObject()
+            .put("displayed_through_index", displayedThroughIndex).put("idempotency_key", idempotencyKey).toString())
+        if (confirmation.optString("status") != "accepted") throw HomeFeedServiceException("ACK_NOT_ACCEPTED")
+    }
+
+    fun shortDramaDetail(token: String, dramaId: String): ShortDramaDetail {
+        require(dramaId.isNotBlank())
+        return parseHomeResponse { HomeFeedParsers.drama(homeRequest(token, "/api/v1/short-dramas/${encodeQuery(dramaId)}")) }
+    }
+
+    fun playDramaEpisode(token: String, dramaId: String, episodeId: String): DramaPlaybackGrant {
+        require(dramaId.isNotBlank() && episodeId.isNotBlank())
+        return parseHomeResponse { HomeFeedParsers.playback(homeRequest(token, "/api/v1/short-dramas/${encodeQuery(dramaId)}/episodes/${encodeQuery(episodeId)}/play", "{}")) }
+    }
+
+    fun refreshDramaGrant(token: String, grant: String): DramaPlaybackGrant {
+        require(grant.isNotBlank() && grant != "." && grant != "..")
+        return parseHomeResponse { HomeFeedParsers.playback(homeRequest(token, "/api/v1/short-dramas/media/${encodeQuery(grant)}/refresh", "{}")) }
+    }
+
+    fun unlockDramaEpisode(token: String, dramaId: String, episodeId: String, confirmedAmount: Int, idempotencyKey: String) {
+        require(dramaId.isNotBlank() && episodeId.isNotBlank() && confirmedAmount >= 0 && idempotencyKey.isNotBlank() && idempotencyKey.length <= 200)
+        val confirmation = homeRequest(token, "/api/v1/short-dramas/${encodeQuery(dramaId)}/episodes/${encodeQuery(episodeId)}/unlock", JSONObject()
+            .put("payment_idempotency_key", idempotencyKey).put("confirmed_amount", confirmedAmount).put("currency", "coins").toString())
+        if (confirmation.opt("is_unlocked") != true) throw HomeFeedServiceException("UNLOCK_NOT_CONFIRMED")
+    }
+
+    fun resolveDramaPreview(token: String, resolverUrl: String): ResolvedDramaPreview = resolveDramaResource(token, resolverUrl, "preview")
+    fun resolveDramaMedia(token: String, resolverUrl: String): ResolvedDramaPreview = resolveDramaResource(token, resolverUrl, "full")
+    fun resolveDramaSubtitle(token: String, resolverUrl: String): ResolvedDramaPreview = resolveDramaResource(token, resolverUrl, "subtitle")
+
+    private fun resolveDramaResource(token: String, resolverUrl: String, kind: String): ResolvedDramaPreview {
+        val base = java.net.URI(baseUrl)
+        val uri = try { base.resolve(java.net.URI(resolverUrl)) } catch (_: Exception) { throw HomeFeedServiceException("INVALID_DRAMA_RESOLVER") }
+        val basePort = if (base.port >= 0) base.port else if (base.scheme == "https") 443 else 80
+        val uriPort = if (uri.port >= 0) uri.port else if (uri.scheme == "https") 443 else 80
+        val segment = "[A-Za-z0-9_-][A-Za-z0-9_.-]*"
+        val pathPattern = when (kind) {
+            "preview" -> "/api/v1/short-dramas/previews/$segment"
+            "subtitle" -> "/api/v1/short-dramas/media/$segment/subtitles/$segment"
+            else -> "/api/v1/short-dramas/media/$segment"
+        }
+        if (uri.scheme != base.scheme || uri.host != base.host || uriPort != basePort || uri.userInfo != null || uri.fragment != null ||
+            !Regex(pathPattern).matches(uri.rawPath.orEmpty())) throw HomeFeedServiceException("INVALID_DRAMA_RESOLVER")
+        return parseHomeResponse {
+            val data = homeRequest(token, uri.rawPath + (uri.rawQuery?.let { "?$it" } ?: ""))
+            val expectedGrant = if (kind == "preview") "preview" else "full"
+            if (data.has("grant_type") && data.optString("grant_type") != expectedGrant) throw HomeFeedServiceException("INVALID_DRAMA_GRANT")
+            val mediaUrl = data.getString("url")
+            val media = java.net.URI(mediaUrl)
+            if (media.scheme?.lowercase() !in setOf("http", "https") || media.host.isNullOrBlank() || media.userInfo != null) throw HomeFeedServiceException("INVALID_DRAMA_URL")
+            ResolvedDramaPreview(mediaUrl, data.getString("expires_at"))
+        }
+    }
+
+    private inline fun <T> parseHomeResponse(parse: () -> T): T = try { parse() } catch (e: HomeFeedServiceException) {
+        throw e
+    } catch (_: Exception) { throw HomeFeedServiceException("INVALID_HOME_RESPONSE") }
+
+    private fun homeRequest(token: String, path: String, body: String? = null): JSONObject {
+        val request = Request.Builder().url(baseUrl + path).header("Authorization", "Bearer $token")
+            .apply { if (body != null) post(body.toRequestBody("application/json".toMediaType())) }
+            .build()
+        try {
+            homeRequests.newCall(request).execute().use { response ->
+                val status = response.code
+                val root = runCatching { JSONObject(response.body?.string().orEmpty()) }.getOrNull()
+                val rawCode = root?.opt("code")
+                val successCode = rawCode == null || rawCode == JSONObject.NULL || rawCode == 0 || rawCode == "0"
+                if (!response.isSuccessful || !successCode) {
+                    val safeCode = (rawCode as? String)?.takeIf { Regex("[A-Z][A-Z0-9_]{0,79}").matches(it) } ?: "HTTP_$status"
+                    throw HomeFeedServiceException(safeCode, status)
+                }
+                return root?.optJSONObject("data") ?: throw HomeFeedServiceException("INVALID_HOME_RESPONSE", status)
+            }
+        } catch (e: HomeFeedServiceException) { throw e
+        } catch (_: IOException) { throw HomeFeedServiceException("HOME_NETWORK_ERROR") }
+    }
 
     private fun get(path: String, token: String): String =
         request(

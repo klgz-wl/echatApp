@@ -19,7 +19,29 @@ class AchatBackendClientTemplateTest {
 
         assertTrue(query.get().contains("sort_by=hot"))
         assertTrue(query.get().contains("is_vip=1"))
+        assertTrue(query.get().contains("home_featured=false"))
         assertFalse(query.get().contains("category_id"))
+    }
+
+    @Test
+    fun `featured video templates preserve vip filter and omit category`() = withTemplateServer { client, query ->
+        client.templates(
+            token = "token-1", modality = "video", sortBy = "hot",
+            categoryId = "portrait", homeFeatured = true,
+        )
+        assertTrue(query.get().contains("home_featured=true"))
+        assertTrue(query.get().contains("is_vip=1"))
+        assertFalse(query.get().contains("category_id"))
+    }
+
+    @Test
+    fun `regular video templates preserve category`() = withTemplateServer { client, query ->
+        client.templates(
+            token = "token-1", modality = "video", sortBy = "hot",
+            categoryId = "portrait", homeFeatured = false,
+        )
+        assertTrue(query.get().contains("home_featured=false"))
+        assertTrue(query.get().contains("category_id=portrait"))
     }
 
     @Test
@@ -29,11 +51,13 @@ class AchatBackendClientTemplateTest {
             modality = "image",
             sortBy = "latest",
             categoryId = "portrait",
+            homeFeatured = true,
         )
 
         assertTrue(query.get().contains("sort_by=latest"))
         assertTrue(query.get().contains("is_vip=1"))
         assertTrue(query.get().contains("category_id=portrait"))
+        assertFalse(query.get().contains("home_featured"))
     }
 
     private fun withTemplateServer(
