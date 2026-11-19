@@ -23,23 +23,29 @@ import kotlinx.coroutines.delay
 @Composable
 @OptIn(UnstableApi::class)
 internal fun DramaPreviewSurface(url:String,playing:Boolean,restricted:Boolean,modifier:Modifier=Modifier,
-    onProgress:(Float)->Unit,onFinished:()->Unit,onError:()->Unit) {
+    onProgress:(Float)->Unit,onFinished:()->Unit,onError:()->Unit,
+    buffer:DramaPreviewBuffer?=null,preloadKey:String=url,onFirstFrame:()->Unit={}) {
     val context=LocalContext.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle){mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))}
     val finished by rememberUpdatedState(onFinished)
     val failure by rememberUpdatedState(onError)
     val progress by rememberUpdatedState(onProgress)
-    val player=remember(url,restricted){ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context,cacheEnabled=false)).build().apply {
-        val item=MediaItem.Builder().setUri(url)
-        if(restricted)item.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(DramaPreviewLimitMs).build())
-        setMediaItem(item.build());repeatMode=Player.REPEAT_MODE_OFF;prepare()
-    }}
+    val firstFrame by rememberUpdatedState(onFirstFrame)
+    val player=remember(url,restricted,buffer,preloadKey){
+        val prepared=buffer?.createPlayer(context,preloadKey,url,restricted) ?: ExoPlayer.Builder(context)
+            .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context,cacheEnabled=false)).build().apply {
+                val item=MediaItem.Builder().setUri(url)
+                if(restricted)item.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(DramaPreviewLimitMs).build())
+                setMediaItem(item.build())
+            }
+        prepared.apply {repeatMode=Player.REPEAT_MODE_OFF;prepare()}
+    }
     val playbackProgress = remember(player) { DramaPreviewProgress(restricted) }
     var frame by remember(player){mutableStateOf(false)}
     DisposableEffect(player,lifecycle){
         val listener=object:Player.Listener {
-            override fun onRenderedFirstFrame(){frame=true}
+            override fun onRenderedFirstFrame(){frame=true;firstFrame()}
             override fun onPlayerError(error:PlaybackException){failure()}
             override fun onPlaybackStateChanged(state:Int){
                 if(state==Player.STATE_ENDED && playbackProgress.ended()){player.pause();finished()}

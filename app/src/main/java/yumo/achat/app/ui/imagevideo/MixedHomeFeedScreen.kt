@@ -18,10 +18,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -65,11 +73,29 @@ internal fun ZorvHomeFeed(
     visible: Boolean = true, onOpenDrama: (String) -> Unit,
     playbackViewModel: ShortDramaPlayerViewModel? = null, ownerKey: String = "", userId: String = "",
     onPreviewSubscription: () -> Unit = onSubscription,
+    onPreviewTopUp: () -> Unit = onBalance,
 ) {
     val scope = rememberCoroutineScope()
     val controller = remember(gateway, scope) { MixedHomeFeedController(gateway, scope) }
     DisposableEffect(controller) { controller.start(); onDispose { controller.close() } }
     var savedHomePage by remember { mutableIntStateOf(0) }
+    var completedPreviews by rememberSaveable(gateway) {mutableStateOf(arrayListOf<String>())}
+    val context=LocalContext.current
+    val lifecycle=LocalLifecycleOwner.current.lifecycle
+    var foreground by remember(lifecycle) {mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))}
+    val warmup=remember(gateway,isVip) {DramaPreviewWarmupController(gateway,scope)}
+    val videoBuffer=remember(gateway,isVip) {DramaPreviewBuffer(context)}
+    DisposableEffect(lifecycle) {
+        val observer=LifecycleEventObserver {_,_->foreground=lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)}
+        lifecycle.addObserver(observer);onDispose {lifecycle.removeObserver(observer)}
+    }
+    DisposableEffect(warmup,videoBuffer) {onDispose {warmup.close();videoBuffer.close()}}
+    val prepareEnabled=visible && foreground && playbackEnabled
+    val hasEntries=controller.entries.isNotEmpty()
+    LaunchedEffect(prepareEnabled,hasEntries,warmup,videoBuffer) {
+        if(!prepareEnabled || !hasEntries){warmup.clear();videoBuffer.update(emptyList(),0)}
+        if(!hasEntries)completedPreviews=arrayListOf()
+    }
     if (!visible) return
     Column(Modifier.fillMaxSize().background(Color(0xFF070613)).statusBarsPadding().navigationBarsPadding()) {
         ZorvBrandHeader(balance, isVip, onSettings, onSubscription, onBalance)
@@ -84,11 +110,19 @@ internal fun ZorvHomeFeed(
             val expose by rememberUpdatedState(onExpose)
             val entries = controller.entries
             val page = pager.currentPage.coerceIn(entries.indices)
-            // Only template neighbors are prefetched. Preview grants/signatures stay out of the disk cache.
+            val currentEntry=entries[page]
+            val currentGate=previewGate(currentEntry.key in completedPreviews,warmup.states[currentEntry.key]?.firstEpisode,isVip)
+            val endGateVisible=currentGate in setOf(DramaPreviewGate.Subscribe,DramaPreviewGate.Unlock)
+            LaunchedEffect(entries,page,prepareEnabled,warmup) {
+                if(prepareEnabled)warmup.setWindow(entries,page) else warmup.clear()
+            }
+            val preparedStates=warmup.states.values.filter {it.firstEpisode!=null && it.media!=null && !it.expired}
+            SideEffect {videoBuffer.update(if(prepareEnabled)preparedStates else emptyList(),page)}
+            // Template bytes use their existing cache; authorized drama samples stay in bounded RAM.
             val nearby = (page - 1..page + 1).filter { it in entries.indices && it != page }
                 .map { entries[it].item }.filter { it.kind == "video_template" || it.kind == "image_template" }
             TemplateMediaPreloader(nearby.filter { it.kind == "video_template" && it.fileUrl.isNotBlank() }
-                .map { TemplateVideoPreloadTarget(it.fileUrl, 256 * 1024L) }, nearby.map { it.coverUrl }.filter { it.isNotBlank() })
+                .map { TemplateVideoPreloadTarget(it.fileUrl, 256 * 1024L) }, (nearby.map {it.coverUrl}+warmup.states.values.map {it.entry.item.coverUrl}).filter {it.isNotBlank()}.distinct())
             val settled = entries.getOrNull(pager.settledPage)
             LaunchedEffect(settled?.key, lifecycle, controller) {
                 lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -107,7 +141,8 @@ internal fun ZorvHomeFeed(
             Box(Modifier.weight(1f).fillMaxWidth()) {
             VerticalPager(pager, key = { controller.entries[it].key }, pageSpacing = 16.dp,
                 modifier = Modifier.fillMaxSize().testTag("zorv-home-pager")) { index ->
-                val item = controller.entries[index].item
+                val entry = controller.entries[index]
+                val item = entry.item
                 val active = index == pager.currentPage
                 when (item.kind) {
                     "video_template", "image_template" -> HomeFeaturedCard(item.visualTemplate(), active, playbackEnabled,
@@ -117,15 +152,18 @@ internal fun ZorvHomeFeed(
                     "short_drama" -> {
                         ShortDramaHomeCard(item,gateway,active,playbackEnabled,
                             onOpen={savedHomePage=index;onOpenDrama(item.resourceId)},onRefresh=controller::refresh,
-                            isVip=isVip,onSubscribe=onPreviewSubscription)
+                            isVip=isVip,onSubscribe=onPreviewSubscription,
+                            sharedWarmup=warmup,preparedEntry=entry,videoBuffer=videoBuffer,
+                            onTopUp=onPreviewTopUp,completed=entry.key in completedPreviews,
+                            onPreviewCompleted={completedPreviews=ArrayList((completedPreviews+entry.key).distinct())})
                     }
                     else -> HomeOtherResourceCard(item, active, playbackEnabled)
                 }
             }
-            if (controller.error) TextButton(onClick = controller::retry, modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp)) {
+            if (controller.error && !endGateVisible) TextButton(onClick = controller::retry, modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp)) {
                 Text(stringResource(R.string.home_mixed_retry), color = AchatPink)
             }
-            if (controller.exhausted) TextButton(onClick = controller::refresh, modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp)) {
+            if (controller.exhausted && !endGateVisible) TextButton(onClick = controller::refresh, modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp)) {
                 Text(stringResource(R.string.home_mixed_refresh), color = AchatCyan)
             }
             }
@@ -198,58 +236,45 @@ internal suspend fun resolveDramaPreviewWithRetry(
 internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, active: Boolean,
     playbackEnabled: Boolean, onOpen: () -> Unit, onRefresh: () -> Unit,
     fallbackController: ShortDramaPlaybackController? = null, playbackViewModel: ShortDramaPlayerViewModel? = null,
-    onPreviewExpired: () -> Unit = {}, isVip: Boolean? = null, onSubscribe: () -> Unit = onOpen) {
+    onPreviewExpired: () -> Unit = {}, isVip: Boolean? = null, onSubscribe: () -> Unit = onOpen,
+    sharedWarmup:DramaPreviewWarmupController?=null,preparedEntry:HomeFeedEntry?=null,videoBuffer:DramaPreviewBuffer?=null,
+    onTopUp:()->Unit=onOpen,completed:Boolean?=null,onPreviewCompleted:()->Unit={}) {
     var expandedDetails by remember { mutableStateOf(false) }
-    var finished by remember(item.id,item.preview) { mutableStateOf(false) }
-    var resolved by remember(item.preview) { mutableStateOf<ResolvedDramaPreview?>(null) }
-    var failed by remember(item.preview) { mutableStateOf(false) }
-    var expired by remember(item.preview) { mutableStateOf(false) }
-    var retry by remember { mutableIntStateOf(0) }
+    var localFinished by remember(item.id,item.preview) { mutableStateOf(false) }
+    val finished=completed ?: localFinished
     var progress by remember(item.id) { mutableFloatStateOf(0f) }
-    var detail by remember(item.resourceId) { mutableStateOf<ShortDramaDetail?>(null) }
-    var metadataFailed by remember(item.resourceId) { mutableStateOf(false) }
-    LaunchedEffect(item.resourceId, active, isVip, retry) {
-        if(active) {
-            detail=null;metadataFailed=false
-            try { detail=gateway.shortDramaDetail(item.resourceId) }
-            catch(cancelled:CancellationException){throw cancelled}
-            catch(_:Exception){metadataFailed=true}
-        }
+    val scope=rememberCoroutineScope()
+    val localWarmup=remember(gateway,isVip,sharedWarmup) {if(sharedWarmup==null)DramaPreviewWarmupController(gateway,scope) else null}
+    val preparation=sharedWarmup ?: requireNotNull(localWarmup)
+    val entry=preparedEntry ?: HomeFeedEntry(item,"local:${item.id}",0)
+    DisposableEffect(localWarmup) {onDispose {localWarmup?.close()}}
+    LaunchedEffect(entry,active,localWarmup) {
+        if(localWarmup!=null){if(active)localWarmup.setWindow(listOf(entry),0) else localWarmup.clear()}
     }
-    LaunchedEffect(item.preview, active, retry) {
-        resolved = null
-        failed = false
-        expired = false
-        progress = 0f
-        val preview = item.preview
-        if (!active || preview == null) return@LaunchedEffect
-        val grantExpiry = previewExpiryMillis(preview.expiresAt)
-        if (grantExpiry == null || grantExpiry <= System.currentTimeMillis()) { expired = true; return@LaunchedEffect }
-        try {
-            val media = resolveDramaPreviewWithRetry(gateway, preview.resolverUrl)
-            val until = minOf(grantExpiry, previewExpiryMillis(media.expiresAt) ?: 0L)
-            if (until <= System.currentTimeMillis()) { expired = true; return@LaunchedEffect }
-            resolved = media
-            delay((until - System.currentTimeMillis()).coerceAtLeast(1))
-            resolved = null
-            expired = true
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (error: Exception) { expired = error is HomeFeedServiceException && error.code == "GRANT_EXPIRED"; failed = !expired }
-    }
-    LaunchedEffect(expired, active) {
-        if (expired && active) onPreviewExpired()
-    }
-    val metadata = detail
-    val firstEpisode=metadata?.episodes?.minByOrNull { it.episodeNumber }
-    val restricted=firstEpisode?.let { !it.canPlay && (it.vip || (it.amount ?: 0)>0) } == true
+    val state=preparation.states[entry.key]
+    val metadata=state?.detail
+    val firstEpisode=state?.firstEpisode
+    val resolved=state?.media?.takeIf {state.expiresAtMs>System.currentTimeMillis()}
+    val expired=state?.expired==true
+    val failed=state?.mediaFailed==true
+    val metadataFailed=state?.detailFailed==true
+    val restricted=state?.restricted==true
     val gate=previewGate(finished,firstEpisode,isVip)
+    LaunchedEffect(expired,active){if(expired && active)onPreviewExpired()}
     val description = metadata?.description?.takeIf { it.isNotBlank() } ?: item.description
-    val actualProgress = progress
+    val actualProgress = if(finished)1f else progress
+    var firstFrame by remember(resolved?.url,active) {mutableStateOf(false)}
+    val showGate=finished && gate in setOf(DramaPreviewGate.Subscribe,DramaPreviewGate.Unlock)
     HomeFeedCardFrame {
-        AsyncImage(item.coverUrl, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+      Box(Modifier.fillMaxSize().then(if(showGate)Modifier.blur(6.dp).clearAndSetSemantics {} else Modifier)) {
+        val showPoster=item.preview==null || failed || expired || metadataFailed || finished ||
+            (metadata!=null && firstEpisode==null)
+        if(showPoster) AsyncImage(item.coverUrl,item.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+        if(!showPoster && !firstFrame) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
         resolved?.let { media ->
             if(active && firstEpisode!=null && !failed && !finished) DramaPreviewSurface(media.url,playbackEnabled,restricted,Modifier.fillMaxSize(),
-                onProgress={progress=it},onFinished={finished=true;progress=1f},onError={failed=true;resolved=null})
+                onProgress={progress=it},onFinished={localFinished=true;progress=1f;onPreviewCompleted()},onError={videoBuffer?.discard(entry.key);state.mediaFailed=true;state.media=null},
+                buffer=videoBuffer,preloadKey=entry.key,onFirstFrame={firstFrame=true})
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x66070613), Color.Transparent, Color(0xFF070613)))))
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -262,21 +287,11 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
             }
             TemplateVipBadge(firstEpisode?.vip == true)
         }
-        if(metadataFailed) TextButton(onClick={retry++},modifier=Modifier.align(Alignment.Center)) {
+        if(metadataFailed) TextButton(onClick={preparation.retry(entry.key)},modifier=Modifier.align(Alignment.Center)) {
             Text(stringResource(R.string.drama_preview_rights_retry),color=AchatCyan)
         }
-        if (failed || expired) TextButton(onClick = { if (expired) onRefresh() else retry++ }, modifier = Modifier.align(Alignment.Center)) {
+        if (failed || expired) TextButton(onClick = { if (expired) onRefresh() else preparation.retry(entry.key) }, modifier = Modifier.align(Alignment.Center)) {
             Text(stringResource(if (expired) R.string.drama_preview_expired else R.string.drama_preview_retry), color = AchatCyan)
-        }
-        if (finished && gate != DramaPreviewGate.Watch) {
-            Column(Modifier.align(Alignment.Center).padding(24.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xE6070613)).padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                Text(stringResource(when(gate){DramaPreviewGate.Subscribe->R.string.drama_preview_subscribe;DramaPreviewGate.Unlock->R.string.drama_preview_unlock;else->R.string.drama_price_unavailable}),color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
-                if(gate==DramaPreviewGate.Unlock && firstEpisode?.amount!=null)
-                    Text(stringResource(R.string.drama_confirm_unlock_body,firstEpisode.episodeNumber,firstEpisode.amount ?: 0),color=AchatCyan)
-                TextButton(onClick={if(gate==DramaPreviewGate.Subscribe)onSubscribe() else onOpen()}) {
-                    Text(stringResource(if(gate==DramaPreviewGate.Subscribe)R.string.drama_subscribe else if(gate==DramaPreviewGate.Unlock)R.string.drama_preview_unlock else R.string.drama_watch_full),color=AchatCyan)
-                }
-            }
         }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -288,7 +303,7 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
             Text(item.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             DramaDescriptionLine(description, expandedDetails) { expandedDetails = !expandedDetails }
             Row(Modifier.fillMaxWidth().height(54.dp).clip(CircleShape).background(Color(0xE6171433))
-                .border(1.dp, AchatCyan.copy(alpha = .5f), CircleShape).clickable(role = Role.Button, onClick = {if(gate==DramaPreviewGate.Subscribe)onSubscribe() else onOpen()})
+                .border(1.dp, AchatCyan.copy(alpha = .5f), CircleShape).clickable(role = Role.Button, onClick = {when(gate){DramaPreviewGate.Subscribe->onSubscribe();DramaPreviewGate.Unlock->onTopUp();else->onOpen()}})
                 .padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 Image(painterResource(R.drawable.ic_home_watch_drama), null, Modifier.size(20.dp))
@@ -302,5 +317,31 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
                     .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFFB026FF)))))
             }
         }
+      }
+      if(showGate) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.16f))
+            .clickable(interactionSource=remember {MutableInteractionSource()},indication=null) {}.clearAndSetSemantics {})
+        HomeDramaGateButton(gate,Modifier.align(Alignment.Center).offset(y=(-80).dp)) {
+            if(gate==DramaPreviewGate.Subscribe)onSubscribe() else onTopUp()
+        }
+      } else if(finished && gate==DramaPreviewGate.Unavailable) {
+        TextButton(onClick=onOpen,modifier=Modifier.align(Alignment.Center)) {
+            Text(stringResource(R.string.drama_price_unavailable),color=Color.White)
+        }
+      }
+
+    }
+}
+
+@Composable
+private fun HomeDramaGateButton(gate:DramaPreviewGate,modifier:Modifier,onClick:()->Unit) {
+    val shape=CircleShape
+    Box(modifier.padding(horizontal=12.dp).fillMaxWidth().heightIn(min=56.dp)
+        .shadow(18.dp,shape,ambientColor=DramaGateStart.copy(alpha=.5f),spotColor=DramaGateStart.copy(alpha=.5f))
+        .clip(shape).background(Brush.horizontalGradient(listOf(DramaGateStart,DramaGateMiddle,DramaGateEnd)))
+        .border(1.dp,DramaGateBorder,shape).clickable(role=Role.Button,onClick=onClick)
+        .padding(horizontal=12.dp,vertical=12.dp),contentAlignment=Alignment.Center) {
+        Text(stringResource(if(gate==DramaPreviewGate.Subscribe)R.string.drama_preview_subscribe else R.string.drama_preview_unlock),
+            color=Color.White,fontSize=16.sp,lineHeight=24.sp,fontWeight=FontWeight.ExtraBold,textAlign=TextAlign.Center,maxLines=2)
     }
 }

@@ -26,6 +26,15 @@ class DramaPreviewPolicyTest {
         assertFalse(previewShouldStop(10000,null))
         assertFalse(previewShouldStop(10000,paid.copy(canPlay=true)))
     }
+    @Test fun vipMembershipGatePrecedesCoinGateAndOrdinaryPaidDoesNotInventVip() {
+        val vip=ShortDramaEpisode("e",1,"",5,true,false,"EPISODE_LOCKED")
+        assertEquals(DramaPreviewGate.Subscribe,previewGate(true,vip,false))
+        assertEquals(DramaPreviewGate.Unlock,previewGate(true,vip,true))
+        assertEquals(DramaPreviewGate.Unlock,previewGate(true,vip.copy(vip=false),false))
+        assertEquals(DramaPreviewGate.Watch,previewGate(true,vip.copy(amount=0,canPlay=true),true))
+        assertFalse(previewShouldStop(20000,vip.copy(vip=false,amount=0,canPlay=true)))
+        assertEquals(DramaPreviewGate.Watch,previewGate(true,vip.copy(canPlay=true),true))
+    }
     @Test fun completedPreviewGatesUseCurrentEpisodeRights() {
         val e=ShortDramaEpisode("e",3,"",5,true,false,"VIP_REQUIRED")
         assertEquals(DramaPreviewGate.Subscribe,previewGate(true,e,false))

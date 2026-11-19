@@ -1785,6 +1785,7 @@ private fun ImageToVideoHomeScreen(
                 onSettings = { navigateFromBottomNavigation(3) },
                 onSubscription = ::navigateFromVipBadge, onBalance = ::navigateFromBalanceBadge,
                 onPreviewSubscription = { subscriptionEntrySource="short_drama_preview";showTemplateSubscription=true },
+                onPreviewTopUp = { navigateFromBalanceBadge();topUpEntrySource="short_drama_unlock" },
                 onNavigation = ::navigateFromBottomNavigation, onUse = ::useTemplate,
                 onExpose = { template, position ->
                     analytics.track("template_expose", mapOf("template_id" to template.templateId,

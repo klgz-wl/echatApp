@@ -21,9 +21,9 @@ internal fun previewShouldStop(positionMs: Long, episode: ShortDramaEpisode?): B
     positionMs >= DramaPreviewLimitMs && episode != null && !episode.canPlay && (episode.vip || (episode.amount ?: 0)>0)
 internal fun previewGate(finished: Boolean, episode: ShortDramaEpisode?, isVip: Boolean?): DramaPreviewGate {
     if(!finished || episode==null || episode.canPlay)return DramaPreviewGate.Watch
-    return when(episode.accessReason) {
-        "VIP_REQUIRED" -> DramaPreviewGate.Subscribe
-        "EPISODE_LOCKED" -> if(isVip==true) DramaPreviewGate.Unlock else if(episode.vip) DramaPreviewGate.Subscribe else DramaPreviewGate.Unavailable
-        else -> DramaPreviewGate.Unavailable
-    }
+    if(episode.vip && isVip!=true)return DramaPreviewGate.Subscribe
+    val amount=episode.amount
+    if(amount==null || episode.accessReason=="PRICE_NOT_CONFIGURED")return DramaPreviewGate.Unavailable
+    if(amount>0)return DramaPreviewGate.Unlock
+    return if(episode.accessReason=="VIP_REQUIRED")DramaPreviewGate.Subscribe else DramaPreviewGate.Watch
 }
