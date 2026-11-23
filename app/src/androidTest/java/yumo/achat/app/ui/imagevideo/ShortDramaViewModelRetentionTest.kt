@@ -10,6 +10,25 @@ import org.junit.Test
 
 class ShortDramaViewModelRetentionTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @Test fun completedHomeEntryRestartsOnlyOnceForTheConsumedPlayerRequest() {
+        val gateway=PlayerScreenGateway()
+        compose.activityRule.scenario.onActivity { activity ->
+            val vm=ViewModelProvider(activity)[ShortDramaPlayerViewModel::class.java]
+            val controller=vm.bind("owner","user","drama",gateway)
+            vm.surface(controller,"player",true)
+            controller.start("drama")
+            controller.episodeEnded("episode-3",controller.grant!!.authorizationId,advance=false)
+            vm.openRequest(controller,"watch-full","drama",null)
+            assertFalse(controller.completed);assertFalse(controller.seriesCompleted)
+            assertEquals(0L,controller.positionMs)
+            val replay=controller.replaySerial
+            controller.updatePosition(4500,20000)
+            vm.openRequest(controller,"watch-full","drama",null)
+            assertEquals(4500L,controller.positionMs);assertEquals(replay,controller.replaySerial)
+            assertEquals(1,gateway.plays);assertEquals(0,gateway.unlocks)
+            vm.release()
+        }
+    }
     @Test fun returningFromBillingDoesNotReapplyConsumedEntryEpisode() {
         val gateway=PlayerScreenGateway()
         compose.activityRule.scenario.onActivity { activity ->

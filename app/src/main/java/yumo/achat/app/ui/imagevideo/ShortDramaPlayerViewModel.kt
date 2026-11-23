@@ -65,16 +65,18 @@ internal class ShortDramaPlayerViewModel(application: Application) : AndroidView
         }
         return current!!
     }
-    fun openRequest(controller: ShortDramaPlaybackController, requestId: String, dramaId: String, episodeId: String?) {
+    fun openRequest(controller: ShortDramaPlaybackController, requestId: String, dramaId: String, episodeId: String?, confirmedAmount: Int? = null) {
         if (controller !== current || consumedRequest == requestId) return
         consumedRequest=requestId
-        controller.start(dramaId,episodeId)
+        if (confirmedAmount != null && episodeId != null) controller.startConfirmedUnlock(dramaId,episodeId,confirmedAmount)
+        else controller.start(dramaId,episodeId,restartCompleted=true)
     }
     fun surface(controller: ShortDramaPlaybackController, token: String, visible: Boolean) {
         if (controller !== current) return
         if (visible) visibleSurfaces += token else visibleSurfaces -= token
         controller.setVisible(visibleSurfaces.isNotEmpty())
     }
+    fun rechargeSucceeded() { current?.rechargeSucceeded() }
     fun releaseOwner(ownerKey: String) { if (owner == ownerKey) release() }
     fun release() { unlockWatcher?.cancel(); unlockWatcher = null; current?.close(); current = null; visibleSurfaces.clear(); consumedRequest=null; owner = null; drama = null }
     override fun onCleared() { release() }

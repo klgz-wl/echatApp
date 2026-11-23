@@ -39,6 +39,105 @@ class ShortDramaPlaybackControllerTest {
         override suspend fun acknowledgeHomeFeed(batchId: String, displayedThroughIndex: Int, idempotencyKey: String) = Unit
         override suspend fun resolveDramaPreview(resolverUrl: String) = resolveDramaMedia(resolverUrl)
     }
+    @Test fun homeWatchUnlocksAtConfirmedPriceOnlyOnceAndThenPlays() = runBlocking {
+        val g=Gateway().apply { unlocked=false }; val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store())
+        c.startConfirmedUnlock("d","a",5)
+        assertEquals(1,g.keys.size); assertEquals(1,g.plays)
+        assertEquals("a",c.episode?.episodeId); assertNotNull(c.media)
+        c.setVisible(false);c.setVisible(true)
+        assertEquals(1,g.keys.size)
+        c.close();scope.cancel()
+    }
+    @Test fun homeWatchPriceChangeOrExistingEntitlementNeverCharges() = runBlocking {
+        for (entitled in listOf(false,true)) {
+            val g=Gateway().apply { unlocked=entitled;amount=7 };val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+            val c=ShortDramaPlaybackController(g,scope,Store());c.startConfirmedUnlock("d","a",5)
+            assertTrue(g.keys.isEmpty())
+            assertEquals(if(entitled) DramaPlaybackAction.None else DramaPlaybackAction.UnlockRequired,c.action)
+            if(!entitled)assertEquals("PRICE_CHANGED",c.errorCode)
+            c.close();scope.cancel()
+        }
+    }
+    @Test fun homeWatchInsufficientServerBalanceKeepsEpisodeForTopUpWithoutRetryingCharge() = runBlocking {
+        val g=Gateway().apply {unlocked=false;failure="INSUFFICIENT_BALANCE"};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.startConfirmedUnlock("d","a",5)
+        assertEquals(DramaPlaybackAction.TopUpRequired,c.action)
+        c.setVisible(false);c.setVisible(true)
+        assertEquals("a",c.episode?.episodeId);assertEquals(1,g.keys.size)
+        assertEquals(DramaPlaybackAction.UnlockRequired,c.action)
+        c.close();scope.cancel()
+    }
+    @Test fun homeEntitledEpisodeCompletesWithoutTenSecondStopOrAutomaticNext() = runBlocking {
+        val g=Gateway();val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        c.updatePosition(15000,20000)
+        assertTrue(c.playing);assertFalse(c.completed);assertEquals("a",c.episode?.episodeId)
+        c.episodeEnded("a",c.grant!!.authorizationId,advance=false)
+        assertTrue(c.completed);assertFalse(c.playing);assertEquals("a",c.episode?.episodeId)
+        assertEquals(1,g.plays);assertTrue(g.keys.isEmpty())
+        c.close();scope.cancel()
+    }
+    @Test fun watchFullAfterHomeEndReplaysSameEpisodeWithoutRatingOrAnotherCharge() = runBlocking {
+        val g=Gateway();val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        c.updatePosition(20000,20000);c.episodeEnded("a",c.grant!!.authorizationId,advance=false)
+        assertFalse(c.seriesCompleted)
+        val previousReplay=c.replaySerial
+        c.start("d",restartCompleted=true)
+        assertEquals(previousReplay+1,c.replaySerial)
+        assertFalse(c.completed);assertFalse(c.seriesCompleted);assertTrue(c.playing)
+        assertEquals(0L,c.positionMs);assertEquals("a",c.episode?.episodeId)
+        assertEquals(1,g.plays);assertTrue(g.keys.isEmpty());assertNotNull(c.media)
+        c.close();scope.cancel()
+    }
+    @Test fun fullPlayerEntryKeepsInProgressHomePosition() = runBlocking {
+        val g=Gateway();val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d");c.updatePosition(8000,20000)
+        c.start("d",restartCompleted=true)
+        assertEquals(8000L,c.positionMs);assertEquals(1,g.plays);assertFalse(c.seriesCompleted)
+        c.close();scope.cancel()
+    }
+    @Test fun paidWatchWithEnoughBalanceUnlocksAndPlaysExactlyOnce() = runBlocking {
+        val g=Gateway().apply {unlocked=false};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        assertFalse(c.watchPaidEpisode(5));assertEquals(1,g.keys.size);assertEquals(1,g.plays)
+        c.rechargeSucceeded();assertEquals(1,g.keys.size)
+        c.close();scope.cancel()
+    }
+    @Test fun insufficientPaidWatchOnlyContinuesAfterConfirmedRechargeAndOnlyOnce() = runBlocking {
+        val g=Gateway().apply {unlocked=false};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        assertTrue(c.watchPaidEpisode(4));assertTrue(g.keys.isEmpty())
+        c.setVisible(false);c.setVisible(true);assertTrue(g.keys.isEmpty())
+        c.rechargeSucceeded();c.rechargeSucceeded()
+        assertEquals("a",c.episode?.episodeId);assertEquals(1,g.keys.size);assertEquals(1,g.plays)
+        c.close();scope.cancel()
+    }
+    @Test fun rechargeRevalidatesVipAndPriceBeforeCharging() = runBlocking {
+        for(vip in listOf(false,true)) {
+            val g=Gateway().apply {unlocked=false};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+            val c=ShortDramaPlaybackController(g,scope,Store());c.start("d");assertTrue(c.watchPaidEpisode(0))
+            g.reason=if(vip)"VIP_REQUIRED" else "EPISODE_LOCKED";if(!vip)g.amount=7
+            c.rechargeSucceeded();assertTrue(g.keys.isEmpty());assertEquals(0,g.plays)
+            assertEquals(if(vip)DramaPlaybackAction.VipRequired else DramaPlaybackAction.UnlockRequired,c.action)
+            c.close();scope.cancel()
+        }
+    }
+    @Test fun serverInsufficientBalanceUsesSamePurchaseKeyAfterRecharge() = runBlocking {
+        val g=Gateway().apply {unlocked=false;failure="INSUFFICIENT_BALANCE"};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        assertFalse(c.watchPaidEpisode(5));assertEquals(DramaPlaybackAction.TopUpRequired,c.action)
+        g.failure=null;c.rechargeSucceeded();c.rechargeSucceeded()
+        assertEquals(2,g.keys.size);assertEquals(g.keys[0],g.keys[1]);assertEquals(1,g.plays)
+        c.close();scope.cancel()
+    }
+    @Test fun selectingAnotherEpisodeCancelsRechargeContinuation() = runBlocking {
+        val g=Gateway().apply {unlocked=false};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d");assertTrue(c.watchPaidEpisode(0))
+        c.selectEpisode("b");c.rechargeSucceeded();assertTrue(g.keys.isEmpty());assertEquals("b",c.episode?.episodeId)
+        c.close();scope.cancel()
+    }
     @Test fun automaticNextEpisodeWaitsForSubscriptionOrPaymentWithoutUnlocking() = runBlocking {
         for (reason in listOf("VIP_REQUIRED","EPISODE_LOCKED")) {
             val g=Gateway().apply {nextReason=reason};val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
@@ -55,7 +154,7 @@ class ShortDramaPlaybackControllerTest {
         assertEquals("b",c.episode?.episodeId); assertEquals(2,g.plays)
         c.episodeEnded("a","a"); assertEquals(2,g.plays)
         c.episodeEnded("b",c.grant!!.authorizationId)
-        assertTrue(c.completed); assertFalse(c.playing); assertEquals(2,g.plays)
+        assertTrue(c.completed); assertTrue(c.seriesCompleted); assertFalse(c.playing); assertEquals(2,g.plays)
         c.close(); scope.cancel()
     }
     @Test fun sameDramaCanOpenExplicitHistoryEpisode() = runBlocking {

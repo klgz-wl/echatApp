@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -55,6 +56,21 @@ import yumo.achat.app.ui.theme.*
 import yumo.achat.core.backend.*
 
 @Composable
+private fun DramaTransportButton(playing: Boolean, onClick: () -> Unit) {
+    Box(Modifier.size(72.dp).clip(CircleShape).background(Color(0xCC020617))
+        .border(2.dp, DramaGateStart, CircleShape).clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        Box(Modifier.matchParentSize().blur(12.dp).background(Brush.linearGradient(listOf(
+            Color(0x4DD946EF), Color(0x339333EA), Color(0x4D06B6D4)))))
+        Icon(painterResource(if (playing) R.drawable.ic_drama_pause else R.drawable.ic_drama_play),
+            stringResource(if (playing) R.string.drama_pause else R.string.drama_play),
+            tint = Color.White,
+            modifier = Modifier.offset(x = if (playing) 0.dp else 2.dp)
+                .size(width = if (playing) 16.dp else 14.6667.dp, height = 18.6667.dp))
+    }
+}
+
+@Composable
 internal fun DramaPlaybackVisibility(controller: ShortDramaPlaybackController, viewModel: ShortDramaPlayerViewModel) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val token = remember(controller) { UUID.randomUUID().toString() }
@@ -69,22 +85,23 @@ internal fun DramaPlaybackVisibility(controller: ShortDramaPlaybackController, v
 @Composable
 internal fun ShortDramaPlayerRoute(dramaId: String, userId: String, ownerKey: String,
     gateway: ShortDramaPlaybackGateway, viewModel: ShortDramaPlayerViewModel,
-    onBack: () -> Unit, onSubscription: () -> Unit, onTopUp: () -> Unit, preferredEpisodeId: String? = null, requestId: String = "$dramaId|$preferredEpisodeId") {
+    onBack: () -> Unit, onSubscription: () -> Unit, onTopUp: () -> Unit, preferredEpisodeId: String? = null, requestId: String = "$dramaId|$preferredEpisodeId", balance: Int = 0) {
     val controller = viewModel.bind(ownerKey, userId, dramaId, gateway)
     DramaPlaybackVisibility(controller, viewModel)
     LaunchedEffect(controller, requestId) { viewModel.openRequest(controller,requestId,dramaId,preferredEpisodeId) }
-    ShortDramaPlayerScreen(controller, onBack, onSubscription, onTopUp)
+    ShortDramaPlayerScreen(controller, onBack, onSubscription, onTopUp, balance=balance)
 }
 
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, onBack: () -> Unit,
     onSubscription: () -> Unit, onTopUp: () -> Unit,
-    videoContent: (@Composable (ShortDramaPlaybackController, Modifier, Long, Int) -> Unit)? = null) {
+    videoContent: (@Composable (ShortDramaPlaybackController, Modifier, Long, Int) -> Unit)? = null,
+    balance: Int = 0) {
     BackHandler(onBack = onBack)
     var episodesOpen by remember { mutableStateOf(false) }
     var commentsOpen by remember { mutableStateOf(false) }
-    var dismissedCompletion by remember(controller) { mutableStateOf(false) }
+    var dismissedCompletion by remember(controller,controller.seriesCompleted) { mutableStateOf(false) }
     var speedOpen by remember { mutableStateOf(false) }
     var subtitlesOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
@@ -92,19 +109,30 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     var seekPosition by remember(controller.episode?.episodeId, controller.media?.url, controller.subtitleMedia?.url) { mutableLongStateOf(0L) }
     var seekSerial by remember(controller.episode?.episodeId, controller.media?.url, controller.subtitleMedia?.url) { mutableIntStateOf(0) }
     val subtitleWarning = controller.errorCode == "DRAMA_SUBTITLE_ERROR"
+    val vipGate = !controller.loading && controller.action == DramaPlaybackAction.VipRequired
+    val paidGate = !controller.loading && !vipGate && (controller.episode?.amount ?: 0)>0 &&
+        controller.action in setOf(DramaPlaybackAction.UnlockRequired,DramaPlaybackAction.TopUpRequired)
     val detail = controller.detail
     val episode = controller.episode
     var localComments by rememberSaveable(controller) { mutableStateOf(arrayListOf<String>()) }
     var commentDraft by rememberSaveable(controller) { mutableStateOf("") }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AsyncImage(detail?.posterUrl, detail?.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (!controller.loading && !subtitleWarning && (controller.action != DramaPlaybackAction.None || controller.errorCode != null)) {
+            AsyncImage(detail?.posterUrl, detail?.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        }
         if (controller.media != null && (controller.errorCode == null || subtitleWarning) && (controller.action == DramaPlaybackAction.None || subtitleWarning)) {
             if (videoContent == null) DramaVideoSurface(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
             else videoContent(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xBB04050D), Color.Transparent, Color(0x9904050D), Color(0xFF05060F))))
-            .clickable(enabled=controller.media != null && controller.action==DramaPlaybackAction.None) { controller.setPlaying(!controller.playing) })
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp)) {
+            .testTag("drama-playback-touch")
+            .clickable(enabled=controller.media != null && controller.action==DramaPlaybackAction.None) {
+                controller.setPlaying(!controller.playing)
+            })
+        if (vipGate) DramaVipGate(onSubscription)
+        else if (paidGate) DramaPaidEpisodeGate(detail,requireNotNull(episode),controller.errorCode=="PRICE_CHANGED",
+            onWatch={if(controller.watchPaidEpisode(balance))onTopUp()},onClose=onBack)
+        else Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 DramaGlassIcon(R.drawable.ic_drama_back, stringResource(R.string.drama_back_short), onBack)
                 Spacer(Modifier.width(10.dp))
@@ -116,16 +144,14 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                 Spacer(Modifier.width(8.dp))
                 DramaGlassIcon(R.drawable.ic_drama_speed, stringResource(R.string.drama_speed), { speedOpen = true })
                 Spacer(Modifier.width(8.dp))
-                DramaGlassIcon(R.drawable.ic_drama_audio, stringResource(if (controller.muted) R.string.drama_unmute else R.string.drama_mute),
-                    { controller.setMuted(!controller.muted) }, tint = if (controller.muted) AchatPink else Color.White)
+                DramaAudioButton(controller.muted) { controller.setMuted(!controller.muted) }
                 Spacer(Modifier.width(8.dp))
-                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xB20F172A))
-                    .border(1.dp, AchatPink.copy(alpha = .3f), CircleShape).clickable { subtitlesOpen = true }, contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.drama_cc), color = Color(0xFFF0ABFC), fontSize = 12.sp)
-                }
+                DramaSubtitleButton(subtitlesOpen || controller.selectedSubtitleId != null,
+                    controller.grant?.subtitles?.firstOrNull {it.trackId==controller.selectedSubtitleId}?.displayName
+                        ?: stringResource(R.string.drama_subtitle_off)) { subtitlesOpen = true }
             }
             Spacer(Modifier.weight(1f))
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 72.dp), contentAlignment = Alignment.Center) {
                 when {
                     controller.loading && controller.media == null -> CircularProgressIndicator(color = AchatCyan)
                     !subtitleWarning && (controller.action != DramaPlaybackAction.None || controller.errorCode != null) -> {
@@ -149,12 +175,10 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                             }
                         }
                     }
-                    controller.media != null -> Box(Modifier.size(72.dp).clip(CircleShape).background(Color(0xCC020617))
-                        .border(2.dp, AchatPink, CircleShape).clickable { controller.setPlaying(!controller.playing) }, contentAlignment = Alignment.Center) {
-                        Icon(painterResource(if (controller.playing) R.drawable.ic_drama_pause else R.drawable.ic_me_play),
-                            stringResource(if (controller.playing) R.string.drama_pause else R.string.drama_play),
-                            tint = Color.White, modifier = Modifier.size(32.dp))
-                    }
+                    controller.media != null && !controller.completed && !controller.playing ->
+                        DramaTransportButton(controller.playing) {
+                            controller.setPlaying(!controller.playing)
+                        }
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -190,7 +214,15 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                     seekSerial++; dragging = null
                 },
                 enabled = controller.media != null && controller.durationMs > 0,
-                colors = SliderDefaults.colors(thumbColor = AchatCyan, activeTrackColor = AchatCyan, inactiveTrackColor = Color.White.copy(alpha = .1f)))
+                modifier = Modifier.testTag("drama-seek-control"),
+                thumb = {},
+                track = { slider ->
+                    Box(Modifier.fillMaxWidth().height(2.dp).clip(CircleShape)
+                        .background(Color.White.copy(alpha = .1f)).testTag("drama-seek-track")) {
+                        Box(Modifier.fillMaxWidth(slider.value.coerceIn(0f, 1f)).fillMaxHeight()
+                            .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFFB026FF)))))
+                    }
+                })
         }
     }
     if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaBackground,
@@ -200,7 +232,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             if(body.isNotEmpty()) {localComments=ArrayList(listOf(body)+localComments);commentDraft=""}
         },onClose={commentsOpen=false})
     }
-    if (controller.completed && !dismissedCompletion) DramaCompletionDialog(detail?.title.orEmpty()) {dismissedCompletion=true}
+    if (controller.seriesCompleted && !dismissedCompletion) DramaCompletionDialog(detail?.title.orEmpty()) {dismissedCompletion=true}
     unlockOffer?.let { offer ->
         AlertDialog(onDismissRequest = { unlockOffer = null },
             title = { Text(stringResource(R.string.drama_confirm_unlock)) },
@@ -212,21 +244,9 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             }, enabled = offer.amount != null && !controller.loading) { Text(stringResource(R.string.drama_confirm)) } },
             dismissButton = { TextButton(onClick = { unlockOffer = null }) { Text(stringResource(R.string.drama_cancel)) } })
     }
-    if (episodesOpen) ModalBottomSheet(onDismissRequest = { episodesOpen = false }, containerColor = Color(0xFF151329)) {
-        Text(stringResource(R.string.drama_episodes), color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(20.dp))
-        LazyVerticalGrid(GridCells.Adaptive(64.dp), modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(detail?.episodes.orEmpty(), key = { it.episodeId }) { item ->
-                Column(Modifier.clip(RoundedCornerShape(8.dp)).background(if (episode?.episodeId == item.episodeId) AchatCyan.copy(alpha = .25f) else Color(0xFF232139))
-                    .border(1.dp, if (episode?.episodeId == item.episodeId) AchatCyan else Color.White.copy(alpha = .1f), RoundedCornerShape(8.dp))
-                    .clickable { episodesOpen = false; controller.selectEpisode(item.episodeId) }.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(item.episodeNumber.toString(), color = Color.White)
-                    if (item.vip) Text(stringResource(R.string.me_vip_label), color = AchatPink, fontSize = 9.sp)
-                    else if (!item.canPlay) Text(stringResource(R.string.drama_locked), color = AchatMuted, fontSize = 9.sp, maxLines = 1)
-                }
-            }
-        }
-    }
+    if (episodesOpen) DramaEpisodesSheet(detail,episode?.episodeId,
+        playing=controller.playing && controller.media!=null,
+        onSelect={id -> episodesOpen=false;controller.selectEpisode(id)},onDismiss={episodesOpen=false})
     if (speedOpen) ModalBottomSheet(onDismissRequest={speedOpen=false},containerColor=DramaBackground) {
         DramaSheetHeader(stringResource(R.string.drama_speed)) {speedOpen=false}
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -268,8 +288,7 @@ private fun DramaCompletionDialog(title:String,onClose:()->Unit) {
             }
             OutlinedTextField(value=feedback,onValueChange={feedback=it.take(1000)},placeholder={Text(stringResource(R.string.drama_rating_hint))},
                 modifier=Modifier.fillMaxWidth().heightIn(min=120.dp),shape=RoundedCornerShape(16.dp))
-            Text(stringResource(R.string.drama_rating_unavailable),color=AchatMuted,fontSize=12.sp)
-            Button(onClick={},enabled=false,modifier=Modifier.fillMaxWidth()) {Text(stringResource(R.string.drama_rating_send))}
+            Button(onClick=onClose,modifier=Modifier.fillMaxWidth()) {Text(stringResource(R.string.drama_rating_send))}
         }
     }
 }
@@ -317,7 +336,7 @@ internal fun DramaDescriptionLine(description: String, expanded: Boolean = false
 @Composable
 @OptIn(UnstableApi::class)
 internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifier: Modifier = Modifier,
-    seekPosition: Long = 0, seekSerial: Int = 0) {
+    seekPosition: Long = 0, seekSerial: Int = 0, advanceOnEnd: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -329,6 +348,7 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
     val track = controller.grant?.subtitles?.firstOrNull { it.trackId == controller.selectedSubtitleId }
     val episodeId = controller.episode?.episodeId
     val authorizationId = controller.grant?.authorizationId
+    val replaySerial = controller.replaySerial
     val subtitleUrl = controller.subtitleMedia?.url
     val expiry = listOfNotNull(media.expiresAt, controller.grant?.expiresAt, controller.subtitleMedia?.expiresAt)
         .mapNotNull(::previewExpiryMillis).minOrNull() ?: 0L
@@ -337,7 +357,7 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
         unexpired = expiry > System.currentTimeMillis()
         if (unexpired) { delay((expiry - System.currentTimeMillis()).coerceAtLeast(1)); unexpired = false }
     }
-    val player = remember(episodeId, authorizationId, media.url, subtitleUrl) {
+    val player = remember(episodeId, authorizationId, media.url, subtitleUrl, replaySerial) {
         ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = false)).build().apply {
             val builder = MediaItem.Builder().setUri(media.url)
             if (track != null && subtitleUrl != null) builder.setSubtitleConfigurations(listOf(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
@@ -352,16 +372,16 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { hasFrame = true }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED && controller.media?.url == media.url && episodeId != null && authorizationId != null)
-                    controller.episodeEnded(episodeId, authorizationId)
+                if (playbackState == Player.STATE_ENDED && controller.media?.url == media.url && controller.replaySerial == replaySerial && episodeId != null && authorizationId != null)
+                    controller.episodeEnded(episodeId, authorizationId, advance = advanceOnEnd)
             }
             override fun onPlayerError(error: PlaybackException) {
-                if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId) controller.reportMediaError()
+                if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId && controller.replaySerial == replaySerial) controller.reportMediaError()
             }
         }
         player.addListener(listener)
         onDispose {
-            if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId && player.playbackState == Player.STATE_READY)
+            if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId && controller.replaySerial == replaySerial && player.playbackState == Player.STATE_READY)
                 controller.updatePosition(player.currentPosition, player.duration)
             player.removeListener(listener); player.release()
         }
@@ -372,13 +392,16 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
     LaunchedEffect(player, seekSerial) { if (seekSerial > 0) player.seekTo(seekPosition) }
     LaunchedEffect(player) {
         while (true) {
-            if (player.playbackState == Player.STATE_READY && controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId)
+            if (player.playbackState == Player.STATE_READY && controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId && controller.replaySerial == replaySerial)
                 controller.updatePosition(player.currentPosition, player.duration)
             delay(250)
         }
     }
+    Box(modifier) {
     AndroidView(factory = { PlayerView(it).apply {
         useController = false; resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         setShutterBackgroundColor(android.graphics.Color.TRANSPARENT); this.player = player
-    } }, update = { it.player = player }, modifier = modifier.alpha(if (hasFrame) 1f else 0f).testTag(if (hasFrame) "drama-video-frame" else "drama-video-loading"))
+    } }, update = { it.player = player }, modifier = Modifier.fillMaxSize().alpha(if (hasFrame) 1f else 0f).testTag(if (hasFrame) "drama-video-frame" else "drama-video-loading"))
+        if (!hasFrame) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
+    }
 }

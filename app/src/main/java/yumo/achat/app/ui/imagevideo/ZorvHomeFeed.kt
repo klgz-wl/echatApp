@@ -63,6 +63,19 @@ internal fun HomeFeedCardFrame(modifier: Modifier = Modifier, content: @Composab
 }
 
 @Composable
+internal fun HomeCtaArrow() {
+    val cyan = Color(0xFF22D3EE)
+    Box(Modifier.size(24.dp)
+        .shadow(8.dp, CircleShape, clip = false,
+            ambientColor = Color(0x8000F2FE), spotColor = Color(0x8000F2FE))
+        .background(cyan.copy(alpha = .2f), CircleShape)
+        .border(1.dp, cyan.copy(alpha = .4f), CircleShape),
+        contentAlignment = Alignment.Center) {
+        Image(painterResource(R.drawable.ic_home_cta_chevron), null, Modifier.size(5.dp, 8.75.dp))
+    }
+}
+
+@Composable
 internal fun HomeFeaturedCard(template: VisualTemplate, active: Boolean, playbackEnabled: Boolean, useEnabled: Boolean = true, onUse: () -> Unit) {
     HomeFeedCardFrame {
         TemplatePreviewImage(template.toPreviewMedia(), isPlaying = active && playbackEnabled,
@@ -90,8 +103,7 @@ internal fun HomeFeaturedCard(template: VisualTemplate, active: Boolean, playbac
             Spacer(Modifier.width(16.dp))
             Text(stringResource(R.string.home_use_template), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text("›", color = AchatCyan, fontSize = 24.sp, modifier = Modifier.size(24.dp)
-                .background(AchatCyan.copy(alpha = .2f), CircleShape), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            HomeCtaArrow()
         }
     }
 }

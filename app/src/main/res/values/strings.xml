@@ -251,7 +251,7 @@
     <string name="drama_subtitle_retry">Subtitles unavailable. Choose subtitles again</string>
     <string name="drama_open_to_check_access">Open the drama to view episode access</string>
     <string name="home_feed_refresh">Refresh content</string>
-    <string name="drama_top_ten">Top 10 Dramas</string>
+    <string name="drama_top_ten">Top 10 Dramas This Week</string>
     <string name="drama_all">All Short Dramas</string>
     <string name="drama_continue">Continue Watching</string>
 

@@ -13,6 +13,46 @@ import java.time.Instant
 class ShortDramaHomeScreenTest {
     @get:Rule val compose = createComposeRule()
     private val drama = HomeFeedItem("short_drama:drama-1", "short_drama", "drama-1", "Real drama title", "", true)
+    @Test fun entitledVisibleHomePlaysFullEpisodeAndStopsAtNaturalEndWithoutNextOrUnlock() {
+        var active by androidx.compose.runtime.mutableStateOf(false)
+        val gateway=PlayerScreenGateway()
+        val scope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.Main.immediate)
+        val controller=ShortDramaPlaybackController(gateway,scope,object:DramaUnlockStore {
+            override fun pending(dramaId:String,episodeId:String,amount:Int):DramaUnlockIntent=error("Must not charge")
+            override fun clear(intent:DramaUnlockIntent)=Unit
+        })
+        try {
+            compose.setContent {ShortDramaHomeCard(drama,gateway,active,true,{},{},fallbackController=controller,completed=true)}
+            compose.runOnIdle {assertEquals(0,gateway.plays);active=true}
+            compose.waitUntil(15000){controller.completed}
+            compose.runOnIdle {
+                assertEquals(1,gateway.plays);assertEquals(0,gateway.unlocks)
+                assertEquals("episode-3",controller.episode?.episodeId);assertFalse(controller.playing)
+            }
+        } finally {compose.runOnIdle {controller.close();scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()}}
+    }
+    @Test fun freshFullPlaybackRightsCanReturnToCoinGateWithoutPlayingOrCharging() {
+        var details=0
+        val gateway=object:PlayerScreenGateway() {
+            override suspend fun shortDramaDetail(dramaId:String):ShortDramaDetail {
+                val detail=super.shortDramaDetail(dramaId)
+                return if(details++==0)detail else detail.copy(episodes=detail.episodes.map {
+                    it.copy(amount=5,canPlay=false,accessReason="EPISODE_LOCKED")
+                })
+            }
+        }
+        val scope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.Main.immediate)
+        val controller=ShortDramaPlaybackController(gateway,scope,object:DramaUnlockStore {
+            override fun pending(dramaId:String,episodeId:String,amount:Int):DramaUnlockIntent=error("Must not charge")
+            override fun clear(intent:DramaUnlockIntent)=Unit
+        })
+        try {
+            compose.setContent {ShortDramaHomeCard(drama,gateway,true,true,{},{},fallbackController=controller)}
+            compose.waitUntil(5000){compose.onAllNodesWithText("Watch Full Series").fetchSemanticsNodes().isNotEmpty()}
+            compose.onNodeWithText("Watch Full Series").assertIsDisplayed()
+            compose.runOnIdle {assertEquals(0,gateway.plays);assertEquals(0,gateway.unlocks)}
+        } finally {compose.runOnIdle {controller.close();scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()}}
+    }
     @Test fun pausedPreviewDoesNotUseElapsedTimeAndNaturalEndNotifiesOnce() {
         var playing by androidx.compose.runtime.mutableStateOf(false)
         val finishes=java.util.concurrent.atomic.AtomicInteger()

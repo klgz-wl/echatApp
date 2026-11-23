@@ -26,6 +26,8 @@ class ShortDramaPlaybackController(
     var subtitleMedia by mutableStateOf<ResolvedDramaPreview?>(null); private set
     var selectedSubtitleId by mutableStateOf<String?>(null); private set
     var completed by mutableStateOf(false); private set
+    var seriesCompleted by mutableStateOf(false); private set
+    var replaySerial by mutableStateOf(0L); private set
     var loading by mutableStateOf(false); private set
     var errorCode by mutableStateOf<String?>(null); private set
     var action by mutableStateOf(DramaPlaybackAction.None); private set
@@ -47,15 +49,76 @@ class ShortDramaPlaybackController(
     private var resumeAfterMediaError = false
     private var deferredPlay = false
 
-    fun start(dramaId: String, preferredEpisodeId: String? = null) {
+    fun start(dramaId: String, preferredEpisodeId: String? = null, restartCompleted: Boolean = false) {
         if (closed) return
         if (this.dramaId == dramaId && (loading || detail != null)) {
             if (preferredEpisodeId != null && preferredEpisodeId != episode?.episodeId) selectEpisode(preferredEpisodeId)
+            else if (restartCompleted && completed && !loading) {
+                completed = false; seriesCompleted = false; playing = true
+                positionMs = 0; durationMs = 0; replaySerial++
+                media = null; subtitleMedia = null
+                launch { if (grant != null) refresh() else load(episode?.episodeId) }
+            }
             return
         }
         this.dramaId = dramaId
         detail = null; episode = null
         switch { load(preferredEpisodeId) }
+    }
+    /** One explicit Home CTA authorizes only this episode and this quoted amount. */
+    fun startConfirmedUnlock(dramaId: String, episodeId: String, confirmedAmount: Int) {
+        if (closed || loading) return
+        this.dramaId = dramaId
+        switch {
+            fresh(episodeId)
+            val e = episode
+            when {
+                e == null -> action = DramaPlaybackAction.Unavailable
+                e.canPlay -> playIfAllowed()
+                accessAction(e.accessReason) == DramaPlaybackAction.VipRequired -> action = DramaPlaybackAction.VipRequired
+                e.amount != confirmedAmount -> {
+                    action = accessAction(e.accessReason)
+                    errorCode = "PRICE_CHANGED"
+                }
+                confirmedAmount <= 0 -> action = DramaPlaybackAction.Unavailable
+                accessAction(e.accessReason) != DramaPlaybackAction.UnlockRequired -> action = accessAction(e.accessReason)
+                else -> {
+                    val intent = unlockStore.pending(dramaId, episodeId, confirmedAmount)
+                    pendingUnlock = intent
+                    unlock(intent)
+                }
+            }
+        }
+    }
+    private data class RechargeEpisode(val dramaId:String,val episodeId:String,val amount:Int)
+    private var rechargeEpisode:RechargeEpisode?=null
+    private var rechargeConfirmed=false
+
+    /** Returns true only when this explicit episode purchase needs the Top Up route. */
+    fun watchPaidEpisode(balance:Int):Boolean {
+        if(closed || loading || action !in setOf(DramaPlaybackAction.UnlockRequired,DramaPlaybackAction.TopUpRequired))return false
+        val e=episode ?: return false
+        val amount=e.amount?.takeIf {it>0} ?: return false
+        if(accessAction(e.accessReason)==DramaPlaybackAction.VipRequired)return false
+        if(balance<amount || action==DramaPlaybackAction.TopUpRequired) {
+            rechargeEpisode=RechargeEpisode(requireNotNull(dramaId),e.episodeId,amount)
+            action=DramaPlaybackAction.TopUpRequired
+            return true
+        }
+        startConfirmedUnlock(requireNotNull(dramaId),e.episodeId,amount)
+        return false
+    }
+    fun rechargeSucceeded() {
+        if(closed || rechargeEpisode==null)return
+        rechargeConfirmed=true
+        continueAfterRecharge()
+    }
+    private fun continueAfterRecharge() {
+        if(!rechargeConfirmed || loading || closed)return
+        val target=rechargeEpisode ?: return
+        rechargeConfirmed=false;rechargeEpisode=null
+        if(dramaId==target.dramaId && episode?.episodeId==target.episodeId)
+            startConfirmedUnlock(target.dramaId,target.episodeId,target.amount)
     }
     fun selectEpisode(id: String) {
         if (closed || episode?.episodeId == id) return
@@ -64,10 +127,11 @@ class ShortDramaPlaybackController(
         switch { load(id) }
     }
     private fun switch(block: suspend () -> Unit) {
+        rechargeEpisode=null;rechargeConfirmed=false
         generation++; work?.cancel(); renewal?.cancel(); subtitleJob?.cancel(); subtitleVersion++
         grant = null; media = null; subtitleMedia = null; selectedSubtitleId = null
         resumeAfterMediaError = false; deferredPlay = false
-        completed = false
+        completed = false; seriesCompleted = false
         pendingUnlock = null; positionMs = 0; durationMs = 0; loading = false
         launch(block)
     }
@@ -78,7 +142,7 @@ class ShortDramaPlaybackController(
         work = scope.launch {
             try { block() } catch (e: CancellationException) { throw e }
             catch (e: Exception) { if (version == generation && !closed) fail(e) }
-            finally { if (version == generation && !closed) { loading = false; scheduleRenewal() } }
+            finally { if (version == generation && !closed) { loading = false; scheduleRenewal(); continueAfterRecharge() } }
         }
     }
     private suspend fun fresh(id: String?) {
@@ -229,7 +293,10 @@ class ShortDramaPlaybackController(
             grant = null; deferredPlay = false
         }
         action = when (errorCode) {
-            "INSUFFICIENT_BALANCE" -> DramaPlaybackAction.TopUpRequired
+            "INSUFFICIENT_BALANCE" -> {
+                pendingUnlock?.let {rechargeEpisode=RechargeEpisode(it.dramaId,it.episodeId,it.amount)}
+                DramaPlaybackAction.TopUpRequired
+            }
             "VIP_REQUIRED", "VIP_EXPIRED" -> DramaPlaybackAction.VipRequired
             "EPISODE_LOCKED", "PURCHASE_REQUIRED", "UNLOCK_REQUIRED" -> if (episode?.amount != null) DramaPlaybackAction.UnlockRequired else DramaPlaybackAction.Unavailable
             "GRANT_DENIED", "CONTENT_UNAVAILABLE", "MEDIA_UNAVAILABLE", "DRAMA_UNAVAILABLE", "EPISODE_UNAVAILABLE", "NOT_FOUND" -> DramaPlaybackAction.Unavailable
@@ -258,13 +325,14 @@ class ShortDramaPlaybackController(
             if (expires - now() <= 20_000) launch { refresh() } else scheduleRenewal()
         }
     }
-    fun episodeEnded(episodeId: String, authorizationId: String) {
+    fun episodeEnded(episodeId: String, authorizationId: String, advance: Boolean = true) {
         if (closed || loading || completed || episode?.episodeId != episodeId || grant?.authorizationId != authorizationId) return
         renewal?.cancel()
+        if (!advance) { completed = true; seriesCompleted = false; playing = false; return }
         val next = detail?.episodes?.sortedBy { it.episodeNumber }?.let { list ->
             val index=list.indexOfFirst { it.episodeId==episodeId }; if(index>=0) list.getOrNull(index+1) else null
         }
-        if (next == null) { completed=true; playing=false; return }
+        if (next == null) { completed=true; seriesCompleted=true; playing=false; return }
         selectEpisode(next.episodeId)
     }
     @JvmName("changeMuted")

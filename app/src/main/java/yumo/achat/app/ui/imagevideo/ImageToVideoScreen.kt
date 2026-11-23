@@ -241,6 +241,11 @@ internal fun balancePurchaseReturnTarget(navigation: Int, destination: ImageToVi
 internal fun shouldHandleTopUpBack(destination: ImageToVideoDestination, navigation: Int, returnTarget: BottomNavigationRoute?): Boolean =
     destination==ImageToVideoDestination.Templates && navigation==2 && returnTarget!=null
 
+internal suspend fun completeTopUpSuccess(refreshBalance: suspend () -> Boolean, returnToSource: () -> Unit) {
+    returnToSource()
+    refreshBalance()
+}
+
 internal fun routeAfterTopUpSuccess(returnTarget: BottomNavigationRoute?): BottomNavigationRoute? = returnTarget
 
 internal fun routeAfterGenerationTaskCreated(selectedNavigation: Int): BottomNavigationRoute =
@@ -749,9 +754,15 @@ private fun ImageToVideoHomeScreen(
     val dramaSaveableState=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     var subscriptionReturnDestination by rememberSaveable { mutableStateOf(ImageToVideoDestination.Templates) }
     val dramaViewModel: ShortDramaPlayerViewModel = viewModel()
+    val homeFeedViewModel: HomeFeedViewModel = viewModel()
     val dramaOwnerKey = "${startupSession.userId}:${startupSession.epoch}:$homeGateRevision"
     DisposableEffect(dramaOwnerKey) {
-        onDispose { if ((localContext as? Activity)?.isChangingConfigurations != true) dramaViewModel.releaseOwner(dramaOwnerKey) }
+        onDispose {
+            if ((localContext as? Activity)?.isChangingConfigurations != true) {
+                dramaViewModel.releaseOwner(dramaOwnerKey)
+                homeFeedViewModel.releaseOwner(dramaOwnerKey)
+            }
+        }
     }
     var settingsReturnNavigation by rememberSaveable { mutableIntStateOf(0) }
     var backendState by remember { mutableStateOf(AchatBackendUiState()) }
@@ -878,7 +889,7 @@ private fun ImageToVideoHomeScreen(
             if (refreshComplete) refreshedSubscriptionOrder = order
             if (destination == ImageToVideoDestination.Subscription &&
                 subscriptionPayment.stage == yumo.achat.core.billing.SubscriptionPurchaseStage.Success) {
-                destination = ImageToVideoDestination.Templates
+                destination = subscriptionReturnDestination
             }
         }
     }
@@ -1660,18 +1671,18 @@ private fun ImageToVideoHomeScreen(
 
     LaunchedEffect(topUpPaymentController.successSerial) {
         if (topUpPaymentController.successSerial > 0) {
-            if (!refreshRechargeBalance()) return@LaunchedEffect
-            val returnRoute = routeAfterTopUpSuccess(pendingTopUpReturnRoute())
-            if (returnRoute != null) {
-                delay(1_200L)
-                setPendingTopUpReturnRoute(null)
-                selectedNavigation = returnRoute.selectedNavigation
-                selectedResultTask = null
-                destination = returnRoute.destination
-            } else {
-                delay(1_200L)
+            delay(1_200L)
+            completeTopUpSuccess(refreshBalance = { refreshRechargeBalance() }) {
+                val returnRoute = routeAfterTopUpSuccess(pendingTopUpReturnRoute())
+                if (returnRoute != null) {
+                    setPendingTopUpReturnRoute(null)
+                    selectedNavigation = returnRoute.selectedNavigation
+                    selectedResultTask = null
+                    destination = returnRoute.destination
+                    if (returnRoute.destination == ImageToVideoDestination.ShortDramaPlayer) dramaViewModel.rechargeSucceeded()
+                }
+                topUpPaymentController.acknowledgeLegacySuccess()
             }
-            topUpPaymentController.acknowledgeLegacySuccess()
         }
     }
 
@@ -1780,12 +1791,21 @@ private fun ImageToVideoHomeScreen(
                 playbackEnabled = !showTemplateSubscription,
                 visible = destination == ImageToVideoDestination.Templates && selectedNavigation == 0,
                 playbackViewModel = dramaViewModel, ownerKey = dramaOwnerKey, userId = startupSession.userId,
+                feedViewModel = homeFeedViewModel,
                 onOpenDrama = { dramaNavigationSerial++; selectedDramaId = it; selectedDramaEpisodeId=null; destination = ImageToVideoDestination.ShortDramaPlayer },
                 statusContent = { AttributionProfileRetry(authViewModel.attributionProfileRetryRequired, authViewModel::retryProfileRefresh) },
                 onSettings = { navigateFromBottomNavigation(3) },
                 onSubscription = ::navigateFromVipBadge, onBalance = ::navigateFromBalanceBadge,
                 onPreviewSubscription = { subscriptionEntrySource="short_drama_preview";showTemplateSubscription=true },
                 onPreviewTopUp = { navigateFromBalanceBadge();topUpEntrySource="short_drama_unlock" },
+                onPreviewWatch = { drama, episode, amount, sufficient ->
+                    dramaNavigationSerial++; selectedDramaId=drama; selectedDramaEpisodeId=episode
+                    val controller=dramaViewModel.bind(dramaOwnerKey,startupSession.userId,drama,homeFeedGateway)
+                    dramaViewModel.openRequest(controller,"$dramaOwnerKey:$dramaNavigationSerial",drama,episode,
+                        confirmedAmount=amount.takeIf { sufficient })
+                    destination=ImageToVideoDestination.ShortDramaPlayer
+                    if(!sufficient) { navigateToTopUpForInsufficientBalance();topUpEntrySource="short_drama_unlock" }
+                },
                 onNavigation = ::navigateFromBottomNavigation, onUse = ::useTemplate,
                 onExpose = { template, position ->
                     analytics.track("template_expose", mapOf("template_id" to template.templateId,
@@ -1906,6 +1926,7 @@ private fun ImageToVideoHomeScreen(
                 if (drama != null) ShortDramaPlayerRoute(drama, startupSession.userId, dramaOwnerKey, homeFeedGateway, dramaViewModel,
                     onBack = { refreshDiamondBalance(); dramaViewModel.release(); selectedDramaEpisodeId=null; destination = ImageToVideoDestination.Templates; selectedNavigation = 4 },
                     preferredEpisodeId = selectedDramaEpisodeId, requestId = "$dramaOwnerKey:$dramaNavigationSerial",
+                    balance = backendState.diamondBalance,
                     onSubscription = {
                         subscriptionReturnDestination = ImageToVideoDestination.ShortDramaPlayer
                         subscriptionEntrySource = "short_drama_vip"

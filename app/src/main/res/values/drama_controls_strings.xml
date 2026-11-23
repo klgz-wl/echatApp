@@ -1,0 +1,28 @@
+<resources>
+    <string name="drama_language_button">EA</string>
+    <string name="drama_sound_on">Sound on</string>
+    <string name="drama_sound_muted">Muted</string>
+    <string name="drama_episode_close">Close episode selector</string>
+    <string name="drama_episode_progress">%1$d/%2$d</string>
+    <string name="drama_episode_playing">Playing</string>
+    <string name="drama_episode_selected">Selected</string>
+    <string name="drama_episode_unlocked">Unlocked</string>
+    <string name="drama_episode_unavailable">Unavailable</string>
+    <string name="drama_episode_empty">No episodes available</string>
+    <string name="drama_player_vip_subscribe">Subscribe to Unlock All Episodes</string>
+    <string name="drama_paid_badge">EPISODE LOCKED</string>
+    <string name="drama_paid_episode">EPISODE %1$d</string>
+    <string name="drama_paid_title">Watch in HD</string>
+    <string name="drama_paid_description">Unlock this episode to keep watching.</string>
+    <string name="drama_paid_watch">Watch Full Episode</string>
+    <string name="drama_paid_close">Close episode unlock</string>
+    <string name="drama_paid_price_changed">The price has changed. Please confirm the new price.</string>
+    <string name="drama_banner_image_retry">Retry banner image</string>
+    <string name="drama_banner_details">Promotion details</string>
+    <string name="drama_discovery_more">more&gt;</string>
+    <string name="drama_rank_top">TOP %1$d</string>
+    <string name="drama_history_gone">This drama is no longer available.</string>
+    <string name="drama_history_episode_gone">This episode is no longer available.</string>
+    <string name="drama_history_rights">Playback is currently unavailable.</string>
+    <string name="drama_banner_upgrade">Upgrade to Premium+</string>
+</resources>

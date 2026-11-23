@@ -31,3 +31,15 @@
 - Short-drama comments: exact SVG export from Figma `MfqtmQVwTbHwxNJEc3IIjl`, node `1226:5454`, mechanically converted to `ic_drama_comments.xml` with original path/stroke. Catalog/history posters and recommendation copy use live API content; no design sample titles or promotions are embedded.
 
 - Completion rating star: original Figma `MfqtmQVwTbHwxNJEc3IIjl` node `1229:5688` SVG path, converted to `ic_drama_rating_star.xml`. Close control reuses the existing matching exported template-subscription close glyph. Rating inputs are local UI only; Send remains disabled until a real submission contract exists.
+
+- Short drama transport play glyph: Figma file `MfqtmQVwTbHwxNJEc3IIjl`, paused frame `1226:5106`, vector `1226:5013`. Exported SVG path converted without geometry changes into `ic_drama_play.xml`; used at original 14.6667 × 18.6667dp with Figma inset. Existing `ic_drama_pause.xml` matches the supplied pause glyph and is rendered at 16 × 18.6667dp.
+
+- Home CTA arrow: Figma `MfqtmQVwTbHwxNJEc3IIjl`, Home short-drama node `1403:47`; exported original SVG path converted without geometry changes to `ic_home_cta_chevron.xml` (5 × 8.75dp). Shared 24dp cyan circular treatment follows `1403:46` for Use Template and Watch Full Drama.
+
+- Episode selector close glyph: Figma `MfqtmQVwTbHwxNJEc3IIjl`, node `1226:5486`, original SVG stroke path preserved in `ic_drama_episode_close.xml`. Existing Home wave and diamond assets are reused in episode tiles.
+- Orbitron Bold for episode selector typography: official Google Fonts CSS API `https://fonts.googleapis.com/css?family=Orbitron:400,600,700`, static TTF from `fonts.gstatic.com/s/orbitron/v35/yMJMMIlzdpvBhQQL_SC3X9yhF25-T1ny_CmBoWg2.ttf`. Copyright 2018 The Orbitron Project Authors; SIL OFL 1.1 license from `https://raw.githubusercontent.com/google/fonts/main/ofl/orbitron/OFL.txt` retained in docs/licenses and packaged assets/licenses.
+- Muted audio glyph derives the existing Figma speaker outline from `ic_drama_audio.xml`, removes sound-wave paths and adds the user-requested diagonal slash. Normal speaker geometry is unchanged.
+
+- Paid episode gate: Figma `MfqtmQVwTbHwxNJEc3IIjl` node `1226:5340`; padlock exported from `1226:5374` into `ic_drama_paid_lock.xml` with original geometry. Runtime card/background uses the real drama poster rather than mockup-specific episode scenes; existing close/diamond exports reused.
+
+- Short discovery homepage Figma `MfqtmQVwTbHwxNJEc3IIjl` node `1226:4528`: info glyph `1226:4601` and ranking flame `1338:3140` exported as SVG and converted with original paths to `ic_short_banner_info.xml` / `ic_short_rank_fire.xml`. Banner illustration is supplied entirely by the runtime backend poster; client-built gift/ribbon/bow geometry was removed per user correction; crown reuses the existing subscription asset. No mockup benefit text, promotional entitlement or placeholder drama cover is hardcoded.

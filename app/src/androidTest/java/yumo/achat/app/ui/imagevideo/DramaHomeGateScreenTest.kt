@@ -36,14 +36,15 @@ class DramaHomeGateScreenTest {
         compose.onAllNodesWithText("Watch Full Series").assertCountEquals(0)
         compose.runOnIdle{assertEquals(1,subscribe);assertEquals(0,topup);assertEquals(0,player)}
     }
-    @Test fun subscribedPaidEpisodeWatchFullSeriesGoesDirectlyToTopUp() {
+    @Test fun subscribedPaidEpisodeWatchFullSeriesForwardsExactEpisodeAndPrice() {
         var subscribe=0;var topup=0;var player=0
         val g=gateway(true,5,false)
         compose.setContent{ShortDramaHomeCard(item,g,true,true,{player++},{},
-            isVip=true,onSubscribe={subscribe++},onTopUp={topup++},completed=true)}
+            isVip=true,onSubscribe={subscribe++},onTopUp={error("must use paid action")},
+            onWatchPaid={assertEquals("ep",it.episodeId);assertEquals(5,it.amount);player++},completed=true)}
         compose.onNodeWithText("Watch Full Series").assertIsDisplayed().performClick()
         compose.onAllNodesWithText("Subscribe to unlock full episodes").assertCountEquals(0)
-        compose.runOnIdle{assertEquals(1,topup);assertEquals(0,subscribe);assertEquals(0,player)}
+        compose.runOnIdle{assertEquals(0,topup);assertEquals(0,subscribe);assertEquals(1,player)}
     }
     @Test fun subscriptionAndTopUpReturnKeepSameCompletedHomeCard() {
         var visible by mutableStateOf(true);var vip by mutableStateOf(false)
