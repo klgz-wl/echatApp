@@ -25,4 +25,5 @@
     <string name="drama_history_episode_gone">This episode is no longer available.</string>
     <string name="drama_history_rights">Playback is currently unavailable.</string>
     <string name="drama_banner_upgrade">Upgrade to Premium+</string>
+    <string name="drama_banner_play_now">Play Now</string>
 </resources>

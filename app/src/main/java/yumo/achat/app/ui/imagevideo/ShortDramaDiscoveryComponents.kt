@@ -195,7 +195,7 @@ internal fun DramaBanner(gateway:ShortDramaDiscoveryGateway,details:HomeFeedGate
                     .border(1.dp,Color(0xFFF9A8D4).copy(alpha=.4f),RoundedCornerShape(16.dp))
                     .clickable(role=Role.Button){if(isVip==true)onOpen(ad.dramaId,null) else onSubscription()}
                     .padding(horizontal=16.dp,vertical=15.dp),contentAlignment=Alignment.Center) {
-                    Text(stringResource(R.string.drama_banner_upgrade),color=Color.White,fontSize=14.sp,fontWeight=FontWeight.ExtraBold,textAlign=TextAlign.Center)
+                    Text(stringResource(if(isVip==true)R.string.drama_banner_play_now else R.string.drama_banner_upgrade),color=Color.White,fontSize=14.sp,fontWeight=FontWeight.ExtraBold,textAlign=TextAlign.Center)
                 }
                 Row(Modifier.padding(top=20.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
                     ads.indices.forEach {i->Box(Modifier.size(if(i==pager.currentPage)24.dp else 6.dp,if(i==pager.currentPage)4.dp else 6.dp)

@@ -56,7 +56,7 @@ class ZorvHomeFeedScreenTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Use Template").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Zorv").assertIsDisplayed()
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
-        compose.onNodeWithText("LIVE").assertIsDisplayed()
+        compose.onNodeWithText("LIVE").assertDoesNotExist()
         compose.onAllNodesWithText("Hot").assertCountEquals(0)
         compose.onAllNodesWithText("New").assertCountEquals(0)
         compose.onNodeWithText("HOME").assertIsSelected()

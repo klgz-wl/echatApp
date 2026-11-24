@@ -94,7 +94,8 @@ class DramaDiscoveryScreenTest {
         }
         var opened:Pair<String,String?>?=null
         compose.setContent {ShortDramaDiscoveryScreen(gateway,0,true,{}, {error("Member must enter playback")},{},{},{},{d,e->opened=d to e},PlayerScreenGateway())}
-        compose.onNodeWithText("Upgrade to Premium+").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Upgrade to Premium+").assertDoesNotExist()
+        compose.onNodeWithText("Play Now").assertIsDisplayed().performClick()
         compose.runOnIdle {assertEquals("banner-drama" to null,opened)}
     }
     @Test fun bannerCanAutoAdvanceContinuouslyAndResumeAfterManualSwipe() {

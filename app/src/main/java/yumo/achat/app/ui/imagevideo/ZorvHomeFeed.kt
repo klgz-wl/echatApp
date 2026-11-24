@@ -77,18 +77,19 @@ internal fun HomeCtaArrow() {
 
 @Composable
 internal fun HomeFeaturedCard(template: VisualTemplate, active: Boolean, playbackEnabled: Boolean, useEnabled: Boolean = true, onUse: () -> Unit) {
+    val imageTemplate = template.mimeType.startsWith("image/")
     HomeFeedCardFrame {
         TemplatePreviewImage(template.toPreviewMedia(), isPlaying = active && playbackEnabled,
             contentDescription = template.name, modifier = Modifier.fillMaxSize(), videoPlaybackEnabled = active)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x66070613), Color.Transparent, Color(0xFF070613)))))
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween,
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = if (imageTemplate) Arrangement.SpaceBetween else Arrangement.End,
             verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .2f))
+            if (imageTemplate) Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .2f))
                 .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(6.dp).background(Color(0xFFFF304B), CircleShape))
                 Spacer(Modifier.width(4.dp))
-                Text(stringResource(if (template.mimeType.startsWith("image/")) R.string.nav_image else R.string.home_live), color = Color.White, fontSize = 12.sp)
+                Text(stringResource(R.string.nav_image), color = Color.White, fontSize = 12.sp)
             }
             TemplateVipBadge(template.vip)
         }
@@ -99,8 +100,10 @@ internal fun HomeFeaturedCard(template: VisualTemplate, active: Boolean, playbac
             .clickable(enabled = useEnabled && template.homeGenerationTemplate() != null, role = Role.Button, onClick = onUse)
             .padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
-            Image(painterResource(R.drawable.home_use_wave), null, Modifier.size(20.dp))
-            Spacer(Modifier.width(16.dp))
+            if (imageTemplate) {
+                Image(painterResource(R.drawable.home_use_wave), null, Modifier.size(20.dp))
+                Spacer(Modifier.width(16.dp))
+            }
             Text(stringResource(R.string.home_use_template), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             HomeCtaArrow()
