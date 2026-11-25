@@ -70,6 +70,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -718,6 +719,14 @@ private fun ImageToVideoHomeScreen(
     val attributionRuntime = authViewModel.attribution
     val homeGateRevision by attributionRuntime?.homeGateRevision?.collectAsState()
         ?: remember { mutableStateOf(0L) }
+    val shortMenuEnabled=authViewModel.shortMenuAccess.isB
+    val menuLifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(menuLifecycle,authViewModel) {
+        fun update()=authViewModel.shortMenuAccess.setForeground(menuLifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+        val observer=LifecycleEventObserver {_,_->update()}
+        menuLifecycle.addObserver(observer);update()
+        onDispose {menuLifecycle.removeObserver(observer);authViewModel.shortMenuAccess.setForeground(false)}
+    }
     val screenScope = rememberCoroutineScope()
     var accountActionBusy by remember { mutableStateOf(false) }
     var accountActionError by remember { mutableStateOf<String?>(null) }
@@ -747,6 +756,7 @@ private fun ImageToVideoHomeScreen(
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var selectedNavigation by rememberSaveable { mutableIntStateOf(0) }
     var homeHasBeenOpened by rememberSaveable { mutableStateOf(selectedNavigation == 0) }
+    val renderedNavigation=resolvedBottomNavigationIndex(selectedNavigation,shortMenuEnabled)
     var selectedDramaId by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf<String?>(null) }
     var selectedDramaEpisodeId by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf<String?>(null) }
     var showDramaHistory by rememberSaveable(startupSession.userId, startupSession.epoch, homeGateRevision) { mutableStateOf(false) }
@@ -876,7 +886,7 @@ private fun ImageToVideoHomeScreen(
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { refreshComplete = false }
         try {
-            val profile = repository.userProfileSnapshot()
+            val profile = authViewModel.refreshProfileForShortMenu(startupSession)
             if (ownsSession()) applyProfile(profile)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { refreshComplete = false }
@@ -1273,6 +1283,7 @@ private fun ImageToVideoHomeScreen(
     }
 
     fun navigateFromBottomNavigation(navigationIndex: Int) {
+        if(navigationIndex==4 && !shortMenuEnabled)return
         if (navigationIndex == 0) homeHasBeenOpened = true
         val route = routeFromBottomNavigation(navigationIndex)
         val previousNavigation = selectedNavigation
@@ -1437,13 +1448,19 @@ private fun ImageToVideoHomeScreen(
         }
     }
 
+    LaunchedEffect(shortMenuEnabled) {analytics.mode(if(shortMenuEnabled)"B" else "A")}
+    LaunchedEffect(shortMenuEnabled,selectedNavigation,destination) {
+        if(!shortMenuEnabled && selectedNavigation==4 && destination==ImageToVideoDestination.Templates) {
+            homeHasBeenOpened=true;selectedNavigation=0
+        }
+    }
     LaunchedEffect(analytics) {
         analytics.initialize()
     }
 
     LaunchedEffect(startupSession, startupProfile) {
         analytics.identify(startupSession.userId)
-        analytics.mode(if (startupProfile.isNew == true) "B" else "A")
+        analytics.mode(if (shortMenuEnabled) "B" else "A")
         applyProfile(startupProfile)
         topUpPaymentViewModel.syncSession(startupSession)
         topUpPaymentViewModel.startReconciliation()
@@ -1453,7 +1470,6 @@ private fun ImageToVideoHomeScreen(
         authViewModel.collectAttributionProfiles(startupSession) { profile ->
             if (analytics.currentUserId() == startupSession.userId) {
                 applyProfile(profile)
-                analytics.mode(if (profile.isNew == true) "B" else "A")
             }
         }
     }
@@ -1768,6 +1784,7 @@ private fun ImageToVideoHomeScreen(
         if (route != null) { selectedNavigation = route.selectedNavigation; destination = route.destination; setPendingTopUpReturnRoute(null) }
     }
 
+    CompositionLocalProvider(LocalShortMenuVisible provides shortMenuEnabled) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -1789,7 +1806,7 @@ private fun ImageToVideoHomeScreen(
                 gateway = homeFeedGateway,
                 balance = backendState.diamondBalance, isVip = backendState.isVip,
                 playbackEnabled = !showTemplateSubscription,
-                visible = destination == ImageToVideoDestination.Templates && selectedNavigation == 0,
+                visible = destination == ImageToVideoDestination.Templates && renderedNavigation == 0,
                 playbackViewModel = dramaViewModel, ownerKey = dramaOwnerKey, userId = startupSession.userId,
                 feedViewModel = homeFeedViewModel,
                 onOpenDrama = { dramaNavigationSerial++; selectedDramaId = it; selectedDramaEpisodeId=null; destination = ImageToVideoDestination.ShortDramaPlayer },
@@ -1817,13 +1834,13 @@ private fun ImageToVideoHomeScreen(
         }
         when (destination) {
             ImageToVideoDestination.Templates -> {
-                if (selectedNavigation == 4) {
+                if (renderedNavigation == 4) {
                     dramaSaveableState.SaveableStateProvider("short:$dramaOwnerKey") { ShortDramaDiscoveryScreen(homeFeedGateway, backendState.diamondBalance, backendState.isVip,
                         onSettings={navigateFromBottomNavigation(3)},onSubscription=::navigateFromVipBadge,onBalance=::navigateFromBalanceBadge,
                         onNavigation=::navigateFromBottomNavigation,onHistory={showDramaHistory=true},
                         onOpen={id,episode -> dramaNavigationSerial++;selectedDramaId=id;selectedDramaEpisodeId=episode;destination=ImageToVideoDestination.ShortDramaPlayer},
                         detailGateway=homeFeedGateway) }
-                } else if (selectedNavigation != 0) {
+                } else if (renderedNavigation != 0) {
                     TemplateBrowserScreen(
                         onWatchHistory = { showDramaHistory=true },
                         topUpShowVipBadge = topUpEntrySource != "short_drama_unlock",
@@ -1924,7 +1941,7 @@ private fun ImageToVideoHomeScreen(
             ImageToVideoDestination.ShortDramaPlayer -> {
                 val drama = selectedDramaId
                 if (drama != null) ShortDramaPlayerRoute(drama, startupSession.userId, dramaOwnerKey, homeFeedGateway, dramaViewModel,
-                    onBack = { refreshDiamondBalance(); dramaViewModel.release(); selectedDramaEpisodeId=null; destination = ImageToVideoDestination.Templates; selectedNavigation = 4 },
+                    onBack = { refreshDiamondBalance(); dramaViewModel.release(); selectedDramaEpisodeId=null; destination = ImageToVideoDestination.Templates; selectedNavigation = if(shortMenuEnabled)4 else 0 },
                     preferredEpisodeId = selectedDramaEpisodeId, requestId = "$dramaOwnerKey:$dramaNavigationSerial",
                     balance = backendState.diamondBalance,
                     onSubscription = {
@@ -2097,6 +2114,7 @@ private fun ImageToVideoHomeScreen(
                 onConfirm = { performAccountAction(true) },
             )
         }
+    }
     }
 }
 

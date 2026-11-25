@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -16,6 +17,7 @@ import yumo.achat.app.analytics.AnalyticsConsent
 import yumo.achat.app.attribution.AchatAttributionRuntime
 import yumo.achat.app.attribution.AppsFlyerBackendAttribution
 import yumo.achat.app.ui.imagevideo.HomeStartupController
+import yumo.achat.app.ui.imagevideo.ShortMenuAccessController
 import yumo.achat.app.ui.imagevideo.createAchatRepository
 import yumo.achat.core.backend.AuthSession
 import yumo.achat.core.backend.UserProfile
@@ -29,6 +31,26 @@ internal class AuthAttributionUi(private val runtime: AppsFlyerBackendAttributio
 
 internal class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val repository = createAchatRepository(application)
+    val shortMenuAccess = ShortMenuAccessController(viewModelScope,loadIsB={owner ->
+        if(currentMenuOwner()!=owner)throw CancellationException("Menu account changed")
+        val profile=repository.userProfileSnapshot()
+        if(currentMenuOwner()!=owner)throw CancellationException("Menu account changed")
+        profile.isNew
+    })
+    private fun menuOwner(session:AuthSession)="${session.userId}:${session.epoch}"
+    private suspend fun currentMenuOwner()=repository.savedSession()?.let(::menuOwner)
+    private fun bindShortMenu(session:AuthSession,profile:UserProfile,expectedRevision:Long) {
+        val owner=menuOwner(session)
+        shortMenuAccess.bind(owner,profile.isNew==true)
+        shortMenuAccess.accept(owner,profile.isNew,expectedRevision)
+    }
+    suspend fun refreshProfileForShortMenu(session:AuthSession):UserProfile {
+        val expected=shortMenuAccess.revision
+        val owner=menuOwner(session)
+        val profile=repository.userProfileSnapshot()
+        if(currentMenuOwner()==owner)shortMenuAccess.accept(owner,profile.isNew,expected)
+        return profile
+    }
     private var acquisitionAuthorized by mutableStateOf(AnalyticsConsent.granted(application))
     private val configuredRuntime by lazy { AchatAttributionRuntime.get(application) }
     private val runtime get() = if (acquisitionAuthorized && BuildConfig.ENABLE_APPSFLYER) configuredRuntime else null
@@ -51,6 +73,11 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
         private set
 
     suspend fun authenticateStartup(onSessionReady: () -> Unit): Pair<AuthSession, UserProfile>? {
+        var sideRevision=shortMenuAccess.revision
+        suspend fun loadProfileForSide():UserProfile {
+            sideRevision=shortMenuAccess.revision
+            return repository.loadStartupProfile()
+        }
         val generation = operationGeneration
         val session = repository.authenticateStartup()
         checkOperation(generation)
@@ -62,12 +89,13 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
         onSessionReady()
         runtime?.resumeRestoredSessionAttribution()
         val result = if (resumePendingAuthentication) {
-            startupController.resumeAfterAuthentication(session, repository::loadStartupProfile)
+            startupController.resumeAfterAuthentication(session, ::loadProfileForSide)
         } else {
-            startupController.restoreSession(session, repository::loadStartupProfile)
+            startupController.restoreSession(session, ::loadProfileForSide)
         }
         checkOperation(generation)
         pendingAuthenticatedSession = null
+        bindShortMenu(result.first,result.second,sideRevision)
         return result
     }
 
@@ -97,6 +125,11 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
         onAuthFlowStart: () -> Unit,
         generation: Long,
     ): Pair<AuthSession, UserProfile> {
+        var sideRevision=shortMenuAccess.revision
+        suspend fun loadProfileForSide():UserProfile {
+            sideRevision=shortMenuAccess.revision
+            return repository.loadStartupProfile()
+        }
         val saved = repository.authenticateStartup()
         checkOperation(generation)
         val result = if (saved != null) {
@@ -106,9 +139,9 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
             onAuthFlowStart()
             runtime?.resumeRestoredSessionAttribution()
             if (resumePendingAuthentication) {
-                startupController.resumeAfterAuthentication(saved, repository::loadStartupProfile)
+                startupController.resumeAfterAuthentication(saved, ::loadProfileForSide)
             } else {
-                startupController.restoreSession(saved, repository::loadStartupProfile)
+                startupController.restoreSession(saved, ::loadProfileForSide)
             }
         } else {
             startupController.startup(
@@ -126,15 +159,17 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
                         pendingAuthenticatedSession = it
                     }
                 },
-                profile = repository::loadStartupProfile,
+                profile = ::loadProfileForSide,
             )
         }
         checkOperation(generation)
         pendingAuthenticatedSession = null
+        bindShortMenu(result.first,result.second,sideRevision)
         return result
     }
 
     fun pauseForLoginChoice() {
+        shortMenuAccess.clear()
         operationGeneration++
         pendingAuthenticatedSession = null
         attributionProfileRetryRequired = false
@@ -171,6 +206,7 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
                 source.reportReceipts.value == receipt
             if (!isCurrent()) return@collectAttributionProfileWork
             try {
+                val sideRevision=shortMenuAccess.revision
                 val profile = startupController.refreshAttributionProfile(
                     attempts = BuildConfig.ATTRIBUTION_RETRY_ATTEMPTS,
                     retryIntervalMillis = BuildConfig.ATTRIBUTION_RETRY_INTERVAL_MS.toLong(),
@@ -179,6 +215,7 @@ internal class AuthViewModel(application: Application) : AndroidViewModel(applic
                 )
                 if (profile != null && isCurrent()) {
                     attributionProfileRetryRequired = false
+                    shortMenuAccess.accept(menuOwner(session),profile.isNew,sideRevision)
                     onProfile(profile)
                 }
             } catch (cancelled: CancellationException) {

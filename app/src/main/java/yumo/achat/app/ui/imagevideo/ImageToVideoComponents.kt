@@ -33,6 +33,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -1166,8 +1167,13 @@ private fun PhotoGlyph(modifier: Modifier = Modifier) {
     }
 }
 
+internal val LocalShortMenuVisible=compositionLocalOf {false}
+internal fun resolvedBottomNavigationIndex(index:Int,shortVisible:Boolean)=if(index==4 && !shortVisible)0 else index
+
 @Composable
 internal fun BottomNavigation(selectedIndex: Int, onSelect: (Int) -> Unit, fullBleed: Boolean = false) {
+    val shortVisible=LocalShortMenuVisible.current
+    val visibleIndex=resolvedBottomNavigationIndex(selectedIndex,shortVisible)
     val shape = RoundedCornerShape(if (fullBleed) 0.dp else 12.dp)
     Row(
         modifier = Modifier
@@ -1180,10 +1186,10 @@ internal fun BottomNavigation(selectedIndex: Int, onSelect: (Int) -> Unit, fullB
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround,
     ) {
-        NavItem(stringResource(R.string.nav_home), R.drawable.ic_nav_home, selectedIndex == 0) { onSelect(0) }
-        NavItem(stringResource(R.string.nav_short), R.drawable.ic_nav_short, selectedIndex == 4) { onSelect(4) }
-        NavItem(stringResource(R.string.nav_video), R.drawable.ic_nav_video, selectedIndex == 5) { onSelect(5) }
-        NavItem(stringResource(R.string.nav_image), R.drawable.ic_nav_image, selectedIndex == 1) { onSelect(1) }
+        NavItem(stringResource(R.string.nav_home), R.drawable.ic_nav_home, visibleIndex == 0) { onSelect(0) }
+        if(shortVisible) NavItem(stringResource(R.string.nav_short), R.drawable.ic_nav_short, visibleIndex == 4) { onSelect(4) }
+        NavItem(stringResource(R.string.nav_video), R.drawable.ic_nav_video, visibleIndex == 5) { onSelect(5) }
+        NavItem(stringResource(R.string.nav_image), R.drawable.ic_nav_image, visibleIndex == 1) { onSelect(1) }
     }
 }
 
