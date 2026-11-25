@@ -247,6 +247,7 @@
     <string name="drama_close">Close</string>
     <string name="drama_subtitles">Subtitles</string>
     <string name="drama_subtitle_off">Off</string>
+    <string name="drama_subtitles_empty">No subtitles available</string>
     <string name="drama_description_unavailable">No description available yet.</string>
     <string name="drama_subtitle_retry">Subtitles unavailable. Choose subtitles again</string>
     <string name="drama_open_to_check_access">Open the drama to view episode access</string>

@@ -27,7 +27,13 @@ internal open class PlayerScreenGateway(var locked: Boolean = false) : ShortDram
     override suspend fun playDramaEpisode(dramaId: String, episodeId: String): DramaPlaybackGrant { plays++; return grant() }
     override suspend fun refreshDramaGrant(grant: String) = grant()
     override suspend fun resolveDramaMedia(resolverUrl: String) = ResolvedDramaPreview("android.resource://yumo.achat.app/raw/drama_test_video", expiry())
-    override suspend fun resolveDramaSubtitle(resolverUrl: String): ResolvedDramaPreview { subtitles++; return ResolvedDramaPreview("https://example.test/subtitle.vtt", expiry()) }
+    override suspend fun resolveDramaSubtitle(resolverUrl: String): ResolvedDramaPreview {
+        subtitles++
+        val context=androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val subtitle=File(context.cacheDir,"drama_test_subtitles.vtt")
+        context.resources.openRawResource(yumo.achat.app.R.raw.drama_test_subtitles).use {input->subtitle.outputStream().use {input.copyTo(it)}}
+        return ResolvedDramaPreview(android.net.Uri.fromFile(subtitle).toString(),expiry())
+    }
     override suspend fun unlockDramaEpisode(dramaId: String, episodeId: String, confirmedAmount: Int, idempotencyKey: String) { assertEquals(5, confirmedAmount); unlocks++; locked = false }
     override suspend fun homeFeed(requestId: String) = HomeFeedBatch("empty", 0, emptyList())
     override suspend fun acknowledgeHomeFeed(batchId: String, displayedThroughIndex: Int, idempotencyKey: String) = Unit
@@ -78,6 +84,15 @@ class ShortDramaPlayerScreenTest {
         compose.onNodeWithContentDescription("Play episode").performClick()
         compose.onNodeWithContentDescription("Pause episode").assertDoesNotExist()
         compose.runOnIdle { assertTrue(state.playing); assertEquals(1, gateway.plays) }
+    }
+    @Test fun subtitleFailureDoesNotDisableMainVideoPauseAndResume() {
+        val gateway=PlayerScreenGateway();val state=create(gateway)
+        compose.setContent{ShortDramaPlayerScreen(state,{},{},{},videoContent={_,modifier,_,_->Box(modifier)})}
+        compose.runOnIdle{state.start("drama");state.reportSubtitleError()}
+        compose.onNodeWithTag("drama-playback-touch").performClick()
+        compose.runOnIdle{assertFalse(state.playing);assertEquals(1,gateway.plays)}
+        compose.onNodeWithContentDescription("Play episode").performClick()
+        compose.runOnIdle{assertTrue(state.playing);assertEquals(1,gateway.plays)}
     }
     @Test fun tappingPlayingVideoPausesImmediatelyAndPausedControlPersistsUntilResume() {
         val gateway=PlayerScreenGateway();val state=create(gateway)
@@ -146,18 +161,31 @@ class ShortDramaPlayerScreenTest {
         compose.onNodeWithContentDescription("Real drama").assertDoesNotExist()
         compose.runOnIdle {assertEquals(1,gateway.plays);assertEquals(0,gateway.unlocks)}
     }
+    @Test fun missingSubtitleTracksShowUnavailableWithoutAnOffOption() {
+        val gateway=object:PlayerScreenGateway(){override suspend fun playDramaEpisode(dramaId:String,episodeId:String)=
+            super.playDramaEpisode(dramaId,episodeId).copy(subtitles=emptyList())}
+        val state=create(gateway)
+        compose.setContent{ShortDramaPlayerScreen(state,{},{},{},videoContent={_,modifier,_,_->Box(modifier)})}
+        compose.runOnIdle{state.start("drama");assertNull(state.selectedSubtitleId)}
+        compose.onNodeWithContentDescription("Subtitles").performClick()
+        compose.onNodeWithText("No subtitles available").assertIsDisplayed()
+        compose.onNodeWithText("Off").assertDoesNotExist()
+    }
     @Test fun subtitleLanguageButtonUsesEaAndHighlightsWhileChoosingOrEnabled() {
         val gateway=PlayerScreenGateway();val state=create(gateway)
         compose.setContent {ShortDramaPlayerScreen(state,{},{},{},videoContent={_,modifier,_,_->Box(modifier)})}
-        compose.runOnIdle {state.start("drama")}
+        compose.runOnIdle {state.start("drama");assertEquals("en",state.selectedSubtitleId)}
+        compose.onNodeWithContentDescription("Subtitles").assertIsSelected()
         compose.onNodeWithContentDescription("Subtitles").performClick()
         compose.onNodeWithText("English").performClick()
         compose.onNodeWithContentDescription("Subtitles").assertIsSelected()
         compose.onNodeWithText("EA").assertIsDisplayed()
         compose.runOnIdle {assertEquals("en",state.selectedSubtitleId);assertEquals(1,gateway.plays);assertEquals(0,gateway.unlocks)}
         compose.onNodeWithContentDescription("Subtitles").performClick()
-        compose.onNodeWithText("Off").performClick()
-        compose.onNodeWithContentDescription("Subtitles").assertIsNotSelected()
+        compose.onNodeWithText("Off").assertDoesNotExist()
+        compose.onNodeWithText("English").assertIsDisplayed()
+        compose.onNodeWithText("English").performClick()
+        compose.onNodeWithContentDescription("Subtitles").assertIsSelected()
     }
     @Test fun muteUsesSlashedSpeakerAndChangesVolumeStateWithoutRestartingPlayback() {
         val gateway=PlayerScreenGateway();val state=create(gateway)

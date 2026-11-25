@@ -166,17 +166,20 @@ class ShortDramaPlaybackController(
     }
     private suspend fun resolve(value: DramaPlaybackGrant) {
         val version = generation
+        subtitleJob?.cancel()
+        val subtitleSerial=++subtitleVersion
+        subtitleMedia=null
+        val track=value.subtitles.firstOrNull {it.trackId==selectedSubtitleId} ?: value.subtitles.firstOrNull()
+        selectedSubtitleId=track?.trackId
+        if(track==null)subtitleMedia=null
         val resolved = HomeLoadDiagnostics.timed("full_resolver") {gateway.resolveDramaMedia(value.mediaResolver)}
         ensureCurrent(version); validateExpiry(resolved.expiresAt); media = resolved
         action = DramaPlaybackAction.None
-        val track = value.subtitles.firstOrNull { it.trackId == selectedSubtitleId }
-        if (track == null) { selectedSubtitleId = null; subtitleMedia = null }
-        else {
-            val subtitleSerial = subtitleVersion
+        if (track != null && subtitleSerial==subtitleVersion && selectedSubtitleId==track.trackId) {
             try {
                 val resolvedSubtitle = gateway.resolveDramaSubtitle(track.resolverUrl)
                 ensureCurrent(version)
-                if (subtitleSerial == subtitleVersion) { validateExpiry(resolvedSubtitle.expiresAt); subtitleMedia = resolvedSubtitle }
+                if (subtitleSerial == subtitleVersion && selectedSubtitleId==track.trackId) { validateExpiry(resolvedSubtitle.expiresAt); subtitleMedia = resolvedSubtitle }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { if (version == generation && subtitleSerial == subtitleVersion) subtitleFailed() }
         }
@@ -282,6 +285,7 @@ class ShortDramaPlaybackController(
         if (!allowExpired && expiry <= now()) throw HomeFeedServiceException("DRAMA_EXPIRED")
         return expiry
     }
+    internal fun reportSubtitleError(){if(!closed)subtitleFailed()}
     private fun subtitleFailed() {
         subtitleMedia = null; selectedSubtitleId = null
         errorCode = "DRAMA_SUBTITLE_ERROR"; action = DramaPlaybackAction.Retry

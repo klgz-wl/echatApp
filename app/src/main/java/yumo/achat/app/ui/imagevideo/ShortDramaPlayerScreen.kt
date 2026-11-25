@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -91,12 +93,18 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     var subtitlesOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
     var unlockOffer by remember { mutableStateOf<ShortDramaEpisode?>(null) }
-    var seekPosition by remember(controller.episode?.episodeId, controller.media?.url, controller.subtitleMedia?.url) { mutableLongStateOf(0L) }
-    var seekSerial by remember(controller.episode?.episodeId, controller.media?.url, controller.subtitleMedia?.url) { mutableIntStateOf(0) }
+    var seekPosition by remember(controller.episode?.episodeId,controller.grant?.authorizationId,controller.media?.url,controller.replaySerial) { mutableLongStateOf(0L) }
+    var seekSerial by remember(controller.episode?.episodeId,controller.grant?.authorizationId,controller.media?.url,controller.replaySerial) { mutableIntStateOf(0) }
     val subtitleWarning = controller.errorCode == "DRAMA_SUBTITLE_ERROR"
     val vipGate = !controller.loading && controller.action == DramaPlaybackAction.VipRequired
     val paidGate = !controller.loading && !vipGate && (controller.episode?.amount ?: 0)>0 &&
         controller.action in setOf(DramaPlaybackAction.UnlockRequired,DramaPlaybackAction.TopUpRequired)
+    val captions=remember(controller,controller.episode?.episodeId,controller.grant?.authorizationId,
+        controller.media?.url,controller.selectedSubtitleId,controller.subtitleMedia?.url,controller.replaySerial){DramaCaptionState()}
+    var footerHeight by remember {mutableIntStateOf(0)}
+    val density=LocalDensity.current
+    val captionBottom=with(density){footerHeight.toDp()}+32.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val captionTop=88.dp+WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val detail = controller.detail
     val episode = controller.episode
     var localComments by rememberSaveable(controller) { mutableStateOf(arrayListOf<String>()) }
@@ -106,14 +114,10 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             AsyncImage(detail?.posterUrl, detail?.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
         if (controller.media != null && (controller.errorCode == null || subtitleWarning) && (controller.action == DramaPlaybackAction.None || subtitleWarning)) {
-            if (videoContent == null) DramaVideoSurface(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
+            if (videoContent == null) DramaVideoSurface(controller, Modifier.fillMaxSize(), seekPosition, seekSerial,captionState=captions)
             else videoContent(controller, Modifier.fillMaxSize(), seekPosition, seekSerial)
         }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xBB04050D), Color.Transparent, Color(0x9904050D), Color(0xFF05060F))))
-            .testTag("drama-playback-touch")
-            .clickable(enabled=controller.media != null && controller.action==DramaPlaybackAction.None) {
-                controller.setPlaying(!controller.playing)
-            })
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xBB04050D),Color.Transparent,Color(0x9904050D),Color(0xFF05060F)))))
         if (vipGate) DramaVipGate(onSubscription)
         else if (paidGate) DramaPaidEpisodeGate(detail,requireNotNull(episode),controller.errorCode=="PRICE_CHANGED",
             onWatch={if(controller.watchPaidEpisode(balance))onTopUp()},onClose=onBack)
@@ -133,7 +137,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                 Spacer(Modifier.width(8.dp))
                 DramaSubtitleButton(subtitlesOpen || controller.selectedSubtitleId != null,
                     controller.grant?.subtitles?.firstOrNull {it.trackId==controller.selectedSubtitleId}?.displayName
-                        ?: stringResource(R.string.drama_subtitle_off)) { subtitlesOpen = true }
+                        ?: stringResource(R.string.drama_subtitles)) { subtitlesOpen = true }
             }
             Spacer(Modifier.weight(1f))
             Box(Modifier.fillMaxWidth().heightIn(min = 72.dp), contentAlignment = Alignment.Center) {
@@ -170,6 +174,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             if (subtitleWarning) TextButton(onClick = { subtitlesOpen = true }) {
                 Text(stringResource(R.string.drama_subtitle_retry), color = AchatCyan)
             }
+            Column(Modifier.fillMaxWidth().testTag("drama-player-footer").onSizeChanged{footerHeight=it.height}) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     detail?.tags?.firstOrNull()?.let {
@@ -199,6 +204,18 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                     seekSerial++;dragging=null
                 },enabled=controller.media!=null && controller.durationMs>0,
                 modifier=Modifier.testTag("drama-seek-control"),trackTag="drama-seek-track")
+            }
+        }
+        if(!vipGate && !paidGate && footerHeight>0) {
+            Box(Modifier.fillMaxSize().padding(top=captionTop,bottom=captionBottom,start=20.dp,end=20.dp)) {
+                if(controller.selectedSubtitleId!=null && controller.subtitleMedia!=null)DramaCaptionOverlay(captions,Modifier.fillMaxSize())
+                // Keep native subtitle rendering below the transparent video touch target.
+                Box(Modifier.fillMaxSize().testTag("drama-playback-touch")
+                    .clickable(enabled=controller.media!=null && (controller.action==DramaPlaybackAction.None || subtitleWarning),
+                        interactionSource=remember {MutableInteractionSource()},indication=null) {
+                        controller.setPlaying(!controller.playing)
+                    })
+            }
         }
     }
     if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaBackground,
@@ -227,7 +244,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     if (subtitlesOpen) ModalBottomSheet(onDismissRequest={subtitlesOpen=false},containerColor=DramaBackground) {
         DramaSheetHeader(stringResource(R.string.drama_subtitles)) {subtitlesOpen=false}
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            DramaOptionRow(stringResource(R.string.drama_subtitle_off),stringResource(R.string.drama_subtitle_off),controller.selectedSubtitleId==null) {controller.selectSubtitle(null);subtitlesOpen=false}
+            if(controller.grant?.subtitles.isNullOrEmpty())Text(stringResource(R.string.drama_subtitles_empty),color=AchatMuted)
             controller.grant?.subtitles.orEmpty().forEach { track ->
                 DramaOptionRow(track.displayName.ifBlank {track.language},track.language.uppercase(java.util.Locale.ROOT),controller.selectedSubtitleId==track.trackId) {
                     controller.selectSubtitle(track.trackId);subtitlesOpen=false
@@ -303,7 +320,7 @@ internal fun DramaDescriptionLine(description: String, expanded: Boolean = false
 @Composable
 @OptIn(UnstableApi::class)
 internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifier: Modifier = Modifier,
-    seekPosition: Long = 0, seekSerial: Int = 0, advanceOnEnd: Boolean = true, onFirstFrame:()->Unit={}) {
+    seekPosition: Long = 0, seekSerial: Int = 0, advanceOnEnd: Boolean = true, onFirstFrame:()->Unit={},captionState:DramaCaptionState?=null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -325,23 +342,63 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
         if (unexpired) { delay((expiry - System.currentTimeMillis()).coerceAtLeast(1)); unexpired = false }
     }
     val firstFrameCallback by rememberUpdatedState(onFirstFrame)
-    val prepareStarted=remember(episodeId,authorizationId,media.url,subtitleUrl,replaySerial,advanceOnEnd){System.nanoTime()}
-    val player = remember(episodeId, authorizationId, media.url, subtitleUrl, replaySerial,advanceOnEnd) {
-        ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = false))
-            .apply {if(!advanceOnEnd)setLoadControl(androidx.media3.exoplayer.DefaultLoadControl.Builder().setBufferDurationsMs(1500,10000,250,750).build())}.build().apply {
-            val builder = MediaItem.Builder().setUri(media.url)
-            if (track != null && subtitleUrl != null) builder.setSubtitleConfigurations(listOf(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
-                .setMimeType(MimeTypes.TEXT_VTT).setLanguage(track.language).setLabel(track.displayName).setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build()))
-            setMediaItem(builder.build(), controller.positionMs)
-            repeatMode = Player.REPEAT_MODE_OFF
-            prepare()
+    var timeline by remember(episodeId,authorizationId,media.url,subtitleUrl,track?.trackId){mutableStateOf<DramaCaptionTimeline?>(null)}
+    LaunchedEffect(episodeId,authorizationId,media.url,subtitleUrl,track?.trackId) {
+        if(subtitleUrl!=null && track!=null) {
+            try {
+                val prepared=prepareDramaSubtitle(context,subtitleUrl)
+                timeline=parseDramaCaptionTimeline(prepared.bytes)
+                if(yumo.achat.app.BuildConfig.DEBUG)android.util.Log.d("DramaSubtitleSync",
+                    "event=ready position_ms=${controller.positionMs} duration_ms=${controller.durationMs} first_cue_ms=${prepared.summary.firstCueMs} last_cue_end_ms=${prepared.summary.lastCueEndMs}")
+            }
+            catch(e:kotlinx.coroutines.CancellationException){throw e}
+            catch(_:Exception){
+                if(controller.episode?.episodeId==episodeId && controller.grant?.authorizationId==authorizationId &&
+                    controller.selectedSubtitleId==track.trackId && controller.subtitleMedia?.url==subtitleUrl)controller.reportSubtitleError()
+            }
+        }
+    }
+    val subtitlePending=track!=null && (subtitleUrl==null || timeline==null)
+    val activeCaptions by rememberUpdatedState(captionState)
+    val activeTimeline by rememberUpdatedState(timeline)
+    val activeSubtitlePending by rememberUpdatedState(subtitlePending)
+    val prepareStarted=remember(episodeId,authorizationId,media.url,replaySerial,advanceOnEnd){System.nanoTime()}
+    val player=remember(episodeId,authorizationId,media.url,replaySerial,advanceOnEnd) {
+        ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context,cacheEnabled=false))
+            .apply {if(!advanceOnEnd)setLoadControl(androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                .setBufferDurationsMs(1500,10000,250,750).build())}.build().apply {
+                setMediaItem(MediaItem.fromUri(media.url),controller.positionMs)
+                repeatMode=Player.REPEAT_MODE_OFF;prepare()
+            }
+    }
+    val localCaptions=remember(player,track?.trackId,subtitleUrl){DramaCaptionState()}
+    val renderedCaptions=captionState ?: localCaptions
+    LaunchedEffect(player,timeline,renderedCaptions,subtitlePending) {
+        renderedCaptions.cues=emptyList()
+        while(true) {
+            val cues=if(subtitlePending)emptyList() else timeline?.at(player.currentPosition.coerceAtLeast(0),
+                player.duration,player.playbackState==Player.STATE_ENDED || controller.completed).orEmpty()
+            if(renderedCaptions.cues!=cues) {
+                renderedCaptions.cues=cues
+                if(yumo.achat.app.BuildConfig.DEBUG)android.util.Log.d("DramaSubtitleSync",
+                    "event=cue count=${cues.size} position_ms=${player.currentPosition} duration_ms=${player.duration}")
+            }
+            delay(50)
         }
     }
     var hasFrame by remember(player) { mutableStateOf(false) }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { if(!hasFrame)HomeLoadDiagnostics.record("full_first_frame",prepareStarted);hasFrame = true;firstFrameCallback() }
+            override fun onPositionDiscontinuity(oldPosition:Player.PositionInfo,newPosition:Player.PositionInfo,reason:Int) {
+                activeCaptions?.cues=if(activeSubtitlePending)emptyList() else activeTimeline?.at(
+                    newPosition.positionMs,player.duration,player.playbackState==Player.STATE_ENDED).orEmpty()
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if(playbackState==Player.STATE_READY && controller.episode?.episodeId==episodeId && controller.grant?.authorizationId==authorizationId) {
+                    controller.updatePosition(player.currentPosition,player.duration)
+                }
+                if(playbackState==Player.STATE_ENDED)activeCaptions?.cues=emptyList()
                 if (playbackState == Player.STATE_ENDED && controller.media?.url == media.url && controller.replaySerial == replaySerial && episodeId != null && authorizationId != null)
                     controller.episodeEnded(episodeId, authorizationId, advance = advanceOnEnd)
             }
@@ -353,12 +410,14 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
         onDispose {
             if (controller.episode?.episodeId == episodeId && controller.media?.url == media.url && controller.grant?.authorizationId == authorizationId && controller.replaySerial == replaySerial && player.playbackState == Player.STATE_READY)
                 controller.updatePosition(player.currentPosition, player.duration)
+            activeCaptions?.cues=emptyList()
             player.removeListener(listener); player.release()
         }
     }
-    LaunchedEffect(player, controller.playing, controller.speed, controller.muted, resumed, unexpired) {
-        player.playWhenReady = controller.playing && resumed && unexpired; player.setPlaybackSpeed(controller.speed); player.volume = if (controller.muted) 0f else 1f
+    LaunchedEffect(player, controller.playing, controller.speed, controller.muted, resumed, unexpired,subtitlePending) {
+        player.playWhenReady = controller.playing && resumed && unexpired && !subtitlePending; player.setPlaybackSpeed(controller.speed); player.volume = if (controller.muted) 0f else 1f
     }
+    LaunchedEffect(player,controller.completed){if(controller.completed)activeCaptions?.cues=emptyList()}
     LaunchedEffect(player, seekSerial) { if (seekSerial > 0) player.seekTo(seekPosition) }
     LaunchedEffect(player) {
         while (true) {
@@ -371,7 +430,13 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
     AndroidView(factory = { PlayerView(it).apply {
         useController = false; resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         setShutterBackgroundColor(android.graphics.Color.TRANSPARENT); this.player = player
-    } }, update = { it.player = player }, modifier = Modifier.fillMaxSize().alpha(if (hasFrame) 1f else 0f).testTag(if (hasFrame) "drama-video-frame" else "drama-video-loading"))
-        if (!hasFrame) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
+        subtitleView?.visibility=android.view.View.GONE
+    } }, update = { it.player = player;it.subtitleView?.visibility=android.view.View.GONE }, modifier = Modifier.fillMaxSize().alpha(if (hasFrame) 1f else 0f).testTag(if (hasFrame) "drama-video-frame" else "drama-video-loading"))
+        if(captionState==null) {
+            Box(Modifier.fillMaxSize().padding(top=88.dp,bottom=180.dp,start=20.dp,end=20.dp)) {
+                DramaCaptionOverlay(localCaptions,Modifier.fillMaxSize())
+            }
+        }
+        if (!hasFrame || subtitlePending) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
     }
 }

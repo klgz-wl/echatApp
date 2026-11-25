@@ -24,20 +24,44 @@ class ShortDramaPlaybackControllerTest {
         var unlockHeld: CompletableDeferred<Unit>? = null
         var subtitleExpiry: String? = null
         var subtitleFailure = false
+        var mediaResolverHeld:CompletableDeferred<Unit>?=null
+        var offeredSubtitles=listOf(DramaSubtitle("en","en","English","vtt","subtitle"))
         var amount: Int? = 5; var reason = "EPISODE_LOCKED"
         var unlocked = true; var failure: String? = null; var playFailure = false
         val keys = mutableListOf<String>()
         var held: CompletableDeferred<Unit>? = null
         override suspend fun shortDramaDetail(dramaId: String): ShortDramaDetail { detailHeld?.await(); return ShortDramaDetail(dramaId,"Drama","", emptyList(),listOf(ShortDramaEpisode("a",3,"A",amount,false,unlocked,reason),ShortDramaEpisode("b",4,"B",if(nextReason=="allowed")0 else 5,nextReason=="VIP_REQUIRED",nextReason=="allowed",nextReason)),2) }
-        private fun grant(id: String) = DramaPlaybackGrant(id,id,"media/$id",expiry,listOf(DramaSubtitle("en","en","English","vtt","subtitle")))
+        private fun grant(id: String) = DramaPlaybackGrant(id,id,"media/$id",expiry,offeredSubtitles)
         override suspend fun playDramaEpisode(dramaId: String, episodeId: String): DramaPlaybackGrant { plays++; if (playFailure) throw HomeFeedServiceException("HOME_NETWORK_ERROR"); if (episodeId == "a") held?.await(); return grant(episodeId) }
         override suspend fun refreshDramaGrant(grant: String): DramaPlaybackGrant { refreshes++; refreshFailure?.let { throw HomeFeedServiceException(it) }; return grant(grant) }
-        override suspend fun resolveDramaMedia(resolverUrl: String) = ResolvedDramaPreview(resolverUrl,mediaExpiry ?: expiry)
+        override suspend fun resolveDramaMedia(resolverUrl: String):ResolvedDramaPreview {mediaResolverHeld?.await();return ResolvedDramaPreview(resolverUrl,mediaExpiry ?: expiry)}
         override suspend fun resolveDramaSubtitle(resolverUrl: String): ResolvedDramaPreview { if (subtitleFailure) error("subtitle failure"); return ResolvedDramaPreview(resolverUrl,subtitleExpiry ?: expiry) }
         override suspend fun unlockDramaEpisode(dramaId: String, episodeId: String, confirmedAmount: Int, idempotencyKey: String) { keys += idempotencyKey; unlockHeld?.await(); failure?.let { throw HomeFeedServiceException(it) }; unlocked = true }
         override suspend fun homeFeed(requestId: String): HomeFeedBatch = error("unused")
         override suspend fun acknowledgeHomeFeed(batchId: String, displayedThroughIndex: Int, idempotencyKey: String) = Unit
         override suspend fun resolveDramaPreview(resolverUrl: String) = resolveDramaMedia(resolverUrl)
+    }
+    @Test fun languageChangedDuringMainResolverCannotBeOverwrittenByDefaultTrack()=runBlocking {
+        val hold=CompletableDeferred<Unit>()
+        val g=Gateway().apply {mediaResolverHeld=hold;offeredSubtitles=listOf(
+            DramaSubtitle("en","en","English","vtt","subtitle-en"),DramaSubtitle("fr","fr","French","vtt","subtitle-fr"))}
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+        c.selectSubtitle("fr");assertEquals("subtitle-fr",c.subtitleMedia?.url)
+        hold.complete(Unit);yield()
+        assertEquals("fr",c.selectedSubtitleId);assertEquals("subtitle-fr",c.subtitleMedia?.url)
+        assertEquals(1,g.plays);c.close();scope.cancel()
+    }
+    @Test fun firstServerSubtitleIsSelectedByDefaultAndEmptyListStaysUnavailable() {
+        for(available in listOf(true,false)) {
+            val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+            val g=Gateway().apply {offeredSubtitles=if(available)listOf(DramaSubtitle("fr","fr","French","vtt","subtitle"),DramaSubtitle("en","en","English","vtt","subtitle")) else emptyList()}
+            val c=ShortDramaPlaybackController(g,scope,Store());c.start("d")
+            assertEquals(if(available)"fr" else null,c.selectedSubtitleId)
+            assertEquals(available,c.subtitleMedia!=null)
+            if(available){c.selectSubtitle("en");c.setVisible(false);c.setVisible(true);assertEquals("en",c.selectedSubtitleId)}
+            assertEquals(1,g.plays);c.close();scope.cancel()
+        }
     }
     @Test fun homeWatchUnlocksAtConfirmedPriceOnlyOnceAndThenPlays() = runBlocking {
         val g=Gateway().apply { unlocked=false }; val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
@@ -306,7 +330,7 @@ class ShortDramaPlaybackControllerTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val current = java.time.Instant.parse(g.expiry).toEpochMilli() - 300_000
         val c = ShortDramaPlaybackController(g,scope,Store(),now = { current },wait = { waits += it; tick.await() })
-        c.start("d"); assertEquals(280_000L,waits.last())
+        c.start("d"); assertEquals(220_000L,waits.last())
         c.selectSubtitle("en"); assertEquals(220_000L,waits.last()); assertNotNull(c.subtitleMedia)
         c.selectSubtitle(null); assertEquals(280_000L,waits.last()); assertNull(c.subtitleMedia)
         g.subtitleFailure = true; c.selectSubtitle("en"); assertNotNull(c.media); assertNotNull(c.errorCode)
