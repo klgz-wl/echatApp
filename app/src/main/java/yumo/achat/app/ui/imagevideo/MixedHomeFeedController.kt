@@ -113,7 +113,7 @@ class MixedHomeFeedController(
                     try {
                         val current = batch
                         if (current == null) {
-                            val result = gateway.homeFeed(requestId)
+                            val result = HomeLoadDiagnostics.timed("feed") {gateway.homeFeed(requestId)}
                             if (!owns(token)) return@launch
                             if (result.items.isEmpty()) {
                                 exhausted = true

@@ -87,17 +87,20 @@ internal fun ZorvHomeFeed(
     val context=LocalContext.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     var foreground by remember(lifecycle) {mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))}
-    val warmup=remember(gateway,isVip) {DramaPreviewWarmupController(gateway,scope)}
-    val videoBuffer=remember(gateway,isVip) {DramaPreviewBuffer(context)}
+    val warmup=remember(gateway,isVip,ownerKey,playbackViewModel) {DramaPreviewWarmupController(gateway,scope,fullPlaybackAvailable=playbackViewModel!=null && gateway is ShortDramaPlaybackGateway)}
+    val videoBuffer=remember(gateway,isVip,ownerKey) {DramaPreviewBuffer(context)}
+    val templateBuffer=remember(gateway,ownerKey){HomeTemplateVideoBuffer(context)}
     DisposableEffect(lifecycle) {
         val observer=LifecycleEventObserver {_,_->foreground=lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)}
         lifecycle.addObserver(observer);onDispose {lifecycle.removeObserver(observer)}
     }
-    DisposableEffect(warmup,videoBuffer) {onDispose {warmup.close();videoBuffer.close()}}
+    DisposableEffect(warmup){onDispose{warmup.close()}}
+    DisposableEffect(videoBuffer){onDispose{videoBuffer.close()}}
+    DisposableEffect(templateBuffer){onDispose{templateBuffer.close()}}
     val prepareEnabled=visible && foreground && playbackEnabled
     val hasEntries=controller.entries.isNotEmpty()
-    LaunchedEffect(prepareEnabled,hasEntries,warmup,videoBuffer) {
-        if(!prepareEnabled || !hasEntries){warmup.clear();videoBuffer.update(emptyList(),0)}
+    LaunchedEffect(prepareEnabled,hasEntries,warmup,videoBuffer,templateBuffer) {
+        if(!prepareEnabled || !hasEntries){warmup.clear();videoBuffer.update(emptyList(),0);templateBuffer.update(emptyList(),0,false)}
         if(!hasEntries)completedPreviews=arrayListOf()
     }
     if (!visible) return
@@ -115,18 +118,24 @@ internal fun ZorvHomeFeed(
             val entries = controller.entries
             val page = pager.currentPage.coerceIn(entries.indices)
             val currentEntry=entries[page]
+            var startupSettled by remember(currentEntry.key,prepareEnabled){mutableStateOf(currentEntry.item.kind !in setOf("short_drama","video_template"))}
+            // A failed cold request must not permanently starve the next card.
+            LaunchedEffect(currentEntry.key,prepareEnabled){if(prepareEnabled){delay(3000);startupSettled=true}}
+
             val currentGate=previewGate(currentEntry.key in completedPreviews,warmup.states[currentEntry.key]?.firstEpisode,isVip)
             val endGateVisible=currentGate in setOf(DramaPreviewGate.Subscribe,DramaPreviewGate.Unlock)
-            LaunchedEffect(entries,page,prepareEnabled,warmup) {
-                if(prepareEnabled)warmup.setWindow(entries,page) else warmup.clear()
+            LaunchedEffect(entries,page,prepareEnabled,warmup,startupSettled) {
+                if(prepareEnabled)warmup.setWindow(entries,page,allowNextMedia=startupSettled) else warmup.clear()
             }
-            val preparedStates=warmup.states.values.filter {it.firstEpisode!=null && it.media!=null && !it.expired}
-            SideEffect {videoBuffer.update(if(prepareEnabled)preparedStates else emptyList(),page)}
+            val preparedStates=warmup.states.values.filter {(it.position==page || startupSettled) && it.firstEpisode!=null && !it.usesFullPlayback && it.media!=null && !it.expired}
+            SideEffect {
+                videoBuffer.update(if(prepareEnabled)preparedStates else emptyList(),page)
+                templateBuffer.update(if(prepareEnabled)entries else emptyList(),page,startupSettled)
+            }
             // Template bytes use their existing cache; authorized drama samples stay in bounded RAM.
-            val nearby = (page - 1..page + 1).filter { it in entries.indices && it != page }
+            val nearby = listOf(page + 1).filter { startupSettled && it in entries.indices }
                 .map { entries[it].item }.filter { it.kind == "video_template" || it.kind == "image_template" }
-            TemplateMediaPreloader(nearby.filter { it.kind == "video_template" && it.fileUrl.isNotBlank() }
-                .map { TemplateVideoPreloadTarget(it.fileUrl, 256 * 1024L) }, (nearby.map {it.coverUrl}+warmup.states.values.map {it.entry.item.coverUrl}).filter {it.isNotBlank()}.distinct())
+            TemplateMediaPreloader(emptyList(), (nearby.map {it.coverUrl}+warmup.states.values.map {it.entry.item.coverUrl}).filter {it.isNotBlank()}.distinct())
             val settled = entries.getOrNull(pager.settledPage)
             LaunchedEffect(settled?.key, lifecycle, controller) {
                 lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -149,16 +158,17 @@ internal fun ZorvHomeFeed(
                 val item = entry.item
                 val active = index == pager.currentPage
                 when (item.kind) {
-                    "video_template", "image_template" -> HomeFeaturedCard(item.visualTemplate(), active, playbackEnabled,
-                        useEnabled = item.generationTemplate() != null) {
-                        onUse(item.generationTemplate())
+                    "video_template", "image_template" -> CompositionLocalProvider(LocalHomeTemplatePlayback provides
+                        if(active)HomeTemplatePlayback(templateBuffer,entry.key,index){startupSettled=true} else null) {
+                        HomeFeaturedCard(item.visualTemplate(), active, playbackEnabled,
+                            useEnabled = item.generationTemplate() != null) {onUse(item.generationTemplate())}
                     }
                     "short_drama" -> {
                         ShortDramaHomeCard(item,gateway,active,playbackEnabled,
                             onOpen={savedHomePage=index;onOpenDrama(item.resourceId)},onRefresh=controller::refresh,
                             isVip=isVip,onSubscribe=onPreviewSubscription,
                             playbackViewModel=playbackViewModel,ownerKey=ownerKey,userId=userId,
-                            sharedWarmup=warmup,preparedEntry=entry,videoBuffer=videoBuffer,
+                            sharedWarmup=warmup,preparedEntry=entry,videoBuffer=videoBuffer,onStartupSettled={if(active)startupSettled=true},
                             onTopUp=onPreviewTopUp,
                             onWatchPaid={episode -> savedHomePage=index;onPreviewWatch(item.resourceId,episode.episodeId,requireNotNull(episode.amount),balance>=requireNotNull(episode.amount))},
                             completed=entry.key in completedPreviews,
@@ -247,13 +257,13 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
     sharedWarmup:DramaPreviewWarmupController?=null,preparedEntry:HomeFeedEntry?=null,videoBuffer:DramaPreviewBuffer?=null,
     ownerKey:String="",userId:String="",
     onWatchPaid: ((ShortDramaEpisode)->Unit)?=null,
-    onTopUp:()->Unit=onOpen,completed:Boolean?=null,onPreviewCompleted:()->Unit={}) {
+    onTopUp:()->Unit=onOpen,completed:Boolean?=null,onPreviewCompleted:()->Unit={},onStartupSettled:()->Unit={}) {
     var expandedDetails by remember { mutableStateOf(false) }
     var localFinished by remember(item.id,item.preview) { mutableStateOf(false) }
     val finished=completed ?: localFinished
     var progress by remember(item.id) { mutableFloatStateOf(0f) }
     val scope=rememberCoroutineScope()
-    val localWarmup=remember(gateway,isVip,sharedWarmup) {if(sharedWarmup==null)DramaPreviewWarmupController(gateway,scope) else null}
+    val localWarmup=remember(gateway,isVip,sharedWarmup,playbackViewModel,fallbackController) {if(sharedWarmup==null)DramaPreviewWarmupController(gateway,scope,fullPlaybackAvailable=gateway is ShortDramaPlaybackGateway && (playbackViewModel!=null || fallbackController!=null)) else null}
     val preparation=sharedWarmup ?: requireNotNull(localWarmup)
     val entry=preparedEntry ?: HomeFeedEntry(item,"local:${item.id}",0)
     DisposableEffect(localWarmup) {onDispose {localWarmup?.close()}}
@@ -270,6 +280,9 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
     val restricted=state?.restricted==true
     LaunchedEffect(expired,active){if(expired && active)onPreviewExpired()}
     val description = metadata?.description?.takeIf { it.isNotBlank() } ?: item.description
+    LaunchedEffect(active,failed,expired,metadataFailed,finished,metadata,item.preview) {
+        if(active && (failed || expired || metadataFailed || finished || (metadata!=null && firstEpisode==null) || (metadata!=null && firstEpisode?.canPlay!=true && item.preview==null)))onStartupSettled()
+    }
     val formalGateway = gateway as? ShortDramaPlaybackGateway
     val fullController = if (active && playbackEnabled && firstEpisode?.canPlay == true) {
         if (playbackViewModel != null && formalGateway != null) playbackViewModel.bind(ownerKey,userId,item.resourceId,formalGateway) else fallbackController
@@ -300,7 +313,7 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
         if(showPoster) AsyncImage(item.coverUrl,item.title,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
         if(fullController==null && !showPoster && !firstFrame) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
         if (fullController != null) {
-            if (fullController.media != null) DramaVideoSurface(fullController,Modifier.fillMaxSize(),advanceOnEnd=false)
+            if (fullController.media != null) DramaVideoSurface(fullController,Modifier.fillMaxSize(),advanceOnEnd=false,onFirstFrame=onStartupSettled)
             else if (fullController.loading) CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
             if (!rightsBlocked && fullController.errorCode != null) TextButton(onClick=fullController::retry,modifier=Modifier.align(Alignment.Center)) {
                 Text(stringResource(R.string.drama_retry_playback),color=AchatCyan)
@@ -309,7 +322,7 @@ internal fun ShortDramaHomeCard(item: HomeFeedItem, gateway: HomeFeedGateway, ac
         if (fullController == null) resolved?.let { media ->
             if(active && firstEpisode!=null && !failed && !finished) DramaPreviewSurface(media.url,playbackEnabled,restricted,Modifier.fillMaxSize(),
                 onProgress={progress=it},onFinished={localFinished=true;progress=1f;onPreviewCompleted()},onError={videoBuffer?.discard(entry.key);state.mediaFailed=true;state.media=null},
-                buffer=videoBuffer,preloadKey=entry.key,onFirstFrame={firstFrame=true})
+                buffer=videoBuffer,preloadKey=entry.key,onFirstFrame={firstFrame=true;onStartupSettled()})
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x66070613), Color.Transparent, Color(0xFF070613)))))
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {

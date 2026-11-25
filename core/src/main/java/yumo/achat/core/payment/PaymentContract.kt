@@ -42,12 +42,27 @@ import java.util.TimeZone
     @SerialName("fulfillment_status") val fulfillmentStatus: String? = null,
     val trigger: String? = null,
 ) {
+    // This proof is assigned only after an authenticated, epoch-checked repository response.
+    // It is deliberately absent from the wire format, data-class copy, and persisted snapshots.
+    @kotlinx.serialization.Transient
+    private var authenticatedOwnerUserId: String? = null
+
+    internal fun bindAuthenticatedOwner(userId: String): RecoveredPaymentOrder {
+        validateFields()
+        if(userId.isBlank())throw PaymentFailure.InvalidResponse
+        return copy().apply { authenticatedOwnerUserId=userId }
+    }
     fun validate(userId: String): RecoveredPaymentOrder {
-        if (orderId.isBlank() || productId.isBlank() || obfuscatedAccountId != userId || obfuscatedProfileId != orderId ||
+        validateFields()
+        if(userId.isBlank() || authenticatedOwnerUserId!=userId)throw PaymentFailure.InvalidResponse
+        return this
+    }
+    private fun validateFields() {
+        fun validIdentifier(value:String)=value.length in 1..64 && value.none {it.isWhitespace() || it.isISOControl()}
+        if (orderId.isBlank() || productId.isBlank() || !validIdentifier(obfuscatedAccountId) || !validIdentifier(obfuscatedProfileId) ||
             !amount.isFinite() || amount < 0 || !currency.matches(Regex("[A-Z]{3}")) ||
             status !in setOf("pending", "paid") || (status == "paid" && fulfillmentStatus == "fulfilled") ||
             (paymentMethod == "google_play" && providerProductId.isNullOrBlank())) throw PaymentFailure.InvalidResponse
-        return this
     }
 }
 @Serializable data class InitializedPayment(

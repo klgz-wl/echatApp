@@ -147,7 +147,7 @@ class ShortDramaPlaybackController(
     }
     private suspend fun fresh(id: String?) {
         val version = generation
-        val result = gateway.shortDramaDetail(requireNotNull(dramaId))
+        val result = HomeLoadDiagnostics.timed("full_detail") {gateway.shortDramaDetail(requireNotNull(dramaId))}
         ensureCurrent(version)
         detail = result
         episode = result.episodes.firstOrNull { it.episodeId == id } ?: if (id == null) result.episodes.minByOrNull { it.episodeNumber } else null
@@ -160,13 +160,13 @@ class ShortDramaPlaybackController(
         deferredPlay = false
         if (grant != null) { refresh(); return }
         val version = generation
-        val result = gateway.playDramaEpisode(requireNotNull(dramaId),e.episodeId)
+        val result = HomeLoadDiagnostics.timed("full_authorization") {gateway.playDramaEpisode(requireNotNull(dramaId),e.episodeId)}
         ensureCurrent(version); validateExpiry(result.expiresAt); grant = result
         resolve(result)
     }
     private suspend fun resolve(value: DramaPlaybackGrant) {
         val version = generation
-        val resolved = gateway.resolveDramaMedia(value.mediaResolver)
+        val resolved = HomeLoadDiagnostics.timed("full_resolver") {gateway.resolveDramaMedia(value.mediaResolver)}
         ensureCurrent(version); validateExpiry(resolved.expiresAt); media = resolved
         action = DramaPlaybackAction.None
         val track = value.subtitles.firstOrNull { it.trackId == selectedSubtitleId }

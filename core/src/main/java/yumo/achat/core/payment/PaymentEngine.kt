@@ -171,6 +171,17 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
             } else mutable.value = PaymentViewState(session.epoch)
         }
     }
+    private fun validateRecoveryIdentity(remote:RecoveredPaymentOrder,session:Session) {
+        records.filter {it.orderId==remote.orderId}.forEach {local ->
+            val localSku=local.initialized?.takeIf {it.channelType=="official"}?.sdkParams?.productId
+                ?: local.officialFallbackProductId
+            if(local.userId!=session.userId || local.productId!=remote.productId ||
+                local.obfuscatedAccountId?.takeIf(String::isNotBlank)?.let {it!=remote.obfuscatedAccountId}==true ||
+                local.obfuscatedProfileId?.takeIf(String::isNotBlank)?.let {it!=remote.obfuscatedProfileId}==true ||
+                (remote.paymentMethod=="google_play" && !localSku.isNullOrBlank() && localSku!=remote.providerProductId) ||
+                local.stage==PaymentStage.SUCCESS)throw PaymentFailure.InvalidResponse
+        }
+    }
     suspend fun buy(productId: String, source: String, product: yumo.achat.core.wallet.CoinProduct? = null) = guarded { session ->
         if (config.baseUrl.isBlank()) {
             mutable.value = PaymentViewState(session.epoch, PaymentRecord(UUID.randomUUID().toString(), session.userId, productId, source, stage = PaymentStage.FAILED, error = "unavailable"))
@@ -184,7 +195,9 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         mutable.value = PaymentViewState(session.epoch, busy = true)
         val recovered = try {
-            repository.recover(productId, session)?.validate(session.userId).also { owner(session) }
+            repository.recover(productId, session).also { owner(session) }
+                ?.validate(session.userId)
+                ?.also { validateRecoveryIdentity(it,session) }
                 ?.let { remote ->
                     val kind = orders.productKind(remote.productId, session)
                     owner(session)
@@ -211,15 +224,17 @@ class PaymentEngine @Inject constructor(private val storage: PaymentStorage, pri
         }
         if (recovered != null) {
             val official = recovered.paymentMethod == "google_play"
-            val record = PaymentRecord(UUID.randomUUID().toString(), session.userId, recovered.productId, "restored",
-                orderId = recovered.orderId,
+            val previous=records.lastOrNull {it.userId==session.userId && it.orderId==recovered.orderId}
+            val snapshot=previous ?: PaymentRecord(UUID.randomUUID().toString(),session.userId,recovered.productId,"restored",
+                orderId=recovered.orderId,quotePrice=recovered.amount,quoteCurrency=recovered.currency,quoteSource="server_snapshot")
+            val record = snapshot.copy(
                 stage = if (recovered.status == "paid") PaymentStage.AWAITING_FULFILLMENT else PaymentStage.UNCERTAIN,
-                initialized = if (official) InitializedPayment(recovered.orderId, "official", "google_play", "sdk",
-                    PaymentSdkParams(recovered.providerProductId)) else null,
-                quotePrice = recovered.amount, quoteCurrency = recovered.currency, quoteSource = "server_snapshot",
+                initialized = if (official) previous?.initialized?.takeIf {it.channelType=="official"}
+                    ?: InitializedPayment(recovered.orderId,"official","google_play","sdk",PaymentSdkParams(recovered.providerProductId)) else null,
                 obfuscatedAccountId = recovered.obfuscatedAccountId, obfuscatedProfileId = recovered.obfuscatedProfileId,
-                officialFallbackProductId = recovered.providerProductId,
-                recoveryRequired = true, recoveredPaymentMethod = recovered.paymentMethod, recoveredTrigger = recovered.trigger, productType = "diamond")
+                officialFallbackProductId = recovered.providerProductId ?: previous?.officialFallbackProductId,
+                recoveryRequired = true, recoveredPaymentMethod = recovered.paymentMethod, recoveredTrigger = recovered.trigger,
+                productType = "diamond", error=null,retryAction=null,openedAt=null,deadline=null,officialCheckoutReleased=false)
             save(record, session, false)
             return@guarded
         }

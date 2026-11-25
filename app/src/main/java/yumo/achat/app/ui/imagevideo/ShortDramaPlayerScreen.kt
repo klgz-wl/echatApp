@@ -336,7 +336,7 @@ internal fun DramaDescriptionLine(description: String, expanded: Boolean = false
 @Composable
 @OptIn(UnstableApi::class)
 internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifier: Modifier = Modifier,
-    seekPosition: Long = 0, seekSerial: Int = 0, advanceOnEnd: Boolean = true) {
+    seekPosition: Long = 0, seekSerial: Int = 0, advanceOnEnd: Boolean = true, onFirstFrame:()->Unit={}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -357,8 +357,11 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
         unexpired = expiry > System.currentTimeMillis()
         if (unexpired) { delay((expiry - System.currentTimeMillis()).coerceAtLeast(1)); unexpired = false }
     }
-    val player = remember(episodeId, authorizationId, media.url, subtitleUrl, replaySerial) {
-        ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = false)).build().apply {
+    val firstFrameCallback by rememberUpdatedState(onFirstFrame)
+    val prepareStarted=remember(episodeId,authorizationId,media.url,subtitleUrl,replaySerial,advanceOnEnd){System.nanoTime()}
+    val player = remember(episodeId, authorizationId, media.url, subtitleUrl, replaySerial,advanceOnEnd) {
+        ExoPlayer.Builder(context).setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = false))
+            .apply {if(!advanceOnEnd)setLoadControl(androidx.media3.exoplayer.DefaultLoadControl.Builder().setBufferDurationsMs(1500,10000,250,750).build())}.build().apply {
             val builder = MediaItem.Builder().setUri(media.url)
             if (track != null && subtitleUrl != null) builder.setSubtitleConfigurations(listOf(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
                 .setMimeType(MimeTypes.TEXT_VTT).setLanguage(track.language).setLabel(track.displayName).setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build()))
@@ -370,7 +373,7 @@ internal fun DramaVideoSurface(controller: ShortDramaPlaybackController, modifie
     var hasFrame by remember(player) { mutableStateOf(false) }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() { hasFrame = true }
+            override fun onRenderedFirstFrame() { if(!hasFrame)HomeLoadDiagnostics.record("full_first_frame",prepareStarted);hasFrame = true;firstFrameCallback() }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED && controller.media?.url == media.url && controller.replaySerial == replaySerial && episodeId != null && authorizationId != null)
                     controller.episodeEnded(episodeId, authorizationId, advance = advanceOnEnd)

@@ -102,8 +102,10 @@ class DramaDiscoveryScreenTest {
         val gateway=object:DiscoveryTestGateway() {
             override suspend fun shortDramaAds()=(1..3).map {ShortDramaAd("ad$it","drama$it","Banner $it","Offer","Info","Play now","play")}
         }
-        compose.setContent {ShortDramaDiscoveryScreen(gateway,0,false,{},{},{},{},{},{_,_->},PlayerScreenGateway())}
-        compose.waitUntil(5000){compose.onAllNodesWithTag("drama-banner-pager").fetchSemanticsNodes().isNotEmpty()}
+        val details=object:PlayerScreenGateway(){override suspend fun shortDramaDetail(dramaId:String)=super.shortDramaDetail(dramaId)
+            .copy(posterUrl="android.resource://yumo.achat.app/drawable/hero_portrait")}
+        compose.setContent {ShortDramaDiscoveryScreen(gateway,0,false,{},{},{},{},{},{_,_->},details)}
+        compose.waitUntil(5000){compose.onAllNodesWithTag("drama-banner-poster-ready").fetchSemanticsNodes().isNotEmpty()}
         compose.mainClock.autoAdvance=false
         fun page(value:String)=SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription,value)
         compose.onNodeWithTag("drama-banner-pager").assert(page("1/3"))
@@ -129,6 +131,25 @@ class DramaDiscoveryScreenTest {
         compose.mainClock.advanceTimeBy(1100)
         compose.onNodeWithTag("drama-banner-pager").assert(page("1/3"))
         compose.mainClock.autoAdvance=true
+    }
+    @Test fun bannerDoesNotAdvanceWhileCurrentPosterMetadataIsLoading() {
+        val hold=kotlinx.coroutines.CompletableDeferred<Unit>()
+        val calls=mutableListOf<String>()
+        val gateway=object:DiscoveryTestGateway(){override suspend fun shortDramaAds()=(1..3).map {
+            ShortDramaAd("ad$it","drama$it","Banner $it","Offer","Info","Play now","play")}}
+        val details=object:PlayerScreenGateway(){override suspend fun shortDramaDetail(dramaId:String):ShortDramaDetail {
+            calls+=dramaId;hold.await()
+            return super.shortDramaDetail(dramaId).copy(posterUrl="android.resource://yumo.achat.app/drawable/hero_portrait")
+        }}
+        compose.setContent {DramaBanner(gateway,details,{_,_->},{},false)}
+        compose.waitUntil(5000){calls.size==2}
+        compose.mainClock.autoAdvance=false
+        compose.mainClock.advanceTimeBy(7000)
+        compose.onNodeWithTag("drama-banner-pager").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.StateDescription,"1/3"))
+        compose.runOnIdle{hold.complete(Unit)}
+        compose.mainClock.autoAdvance=true
+        compose.waitUntil(5000){compose.onAllNodesWithTag("drama-banner-poster-ready").fetchSemanticsNodes().isNotEmpty()}
     }
     @Test fun rankingExpandsFromFourToTenAndRoutesRealEpisode() {
         var opened:Pair<String,String?>?=null

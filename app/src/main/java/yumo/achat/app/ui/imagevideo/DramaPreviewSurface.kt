@@ -32,6 +32,7 @@ internal fun DramaPreviewSurface(url:String,playing:Boolean,restricted:Boolean,m
     val failure by rememberUpdatedState(onError)
     val progress by rememberUpdatedState(onProgress)
     val firstFrame by rememberUpdatedState(onFirstFrame)
+    val prepareStarted=remember(url,restricted,buffer,preloadKey){System.nanoTime()}
     val player=remember(url,restricted,buffer,preloadKey){
         val prepared=buffer?.createPlayer(context,preloadKey,url,restricted) ?: ExoPlayer.Builder(context)
             .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context,cacheEnabled=false)).build().apply {
@@ -45,7 +46,7 @@ internal fun DramaPreviewSurface(url:String,playing:Boolean,restricted:Boolean,m
     var frame by remember(player){mutableStateOf(false)}
     DisposableEffect(player,lifecycle){
         val listener=object:Player.Listener {
-            override fun onRenderedFirstFrame(){frame=true;firstFrame()}
+            override fun onRenderedFirstFrame(){if(!frame)HomeLoadDiagnostics.record("preview_first_frame",prepareStarted);frame=true;firstFrame()}
             override fun onPlayerError(error:PlaybackException){failure()}
             override fun onPlaybackStateChanged(state:Int){
                 if(state==Player.STATE_ENDED && playbackProgress.ended()){player.pause();finished()}

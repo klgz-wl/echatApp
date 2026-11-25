@@ -15,7 +15,7 @@ class PaymentRecoveryProductScopeTest {
     private class Api : PaymentRepository {
         var recovered: RecoveredPaymentOrder? = null
         val statusQueries = mutableListOf<String>()
-        override suspend fun recover(productId: String, session: Session) = recovered
+        override suspend fun recover(productId: String, session: Session) = recovered?.bindAuthenticatedOwner(session.userId)
         override suspend fun createOrder(productId: String, requestId: String, session: Session): PaymentBusinessOrder = error("factory creates")
         override suspend fun initialize(orderId: String, session: Session) = InitializedPayment(orderId, "official", "google_play", "sdk", PaymentSdkParams("sku-$orderId"))
         override suspend fun status(orderId: String, session: Session): PaymentOrderStatus {

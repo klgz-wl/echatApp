@@ -521,19 +521,34 @@ private fun TemplatePreviewVideo(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
     val progressCallback = rememberUpdatedState(onProgress)
-    val binding = remember(url, cacheEnabled) {
-        val player = ExoPlayer.Builder(context)
+    val homePlayback = LocalHomeTemplatePlayback.current.takeIf { cacheEnabled }
+    val homeFirstFrame = rememberUpdatedState(homePlayback?.onFirstFrame)
+    val binding = remember(url, cacheEnabled, homePlayback?.buffer, homePlayback?.key) {
+        val prepareStarted = android.os.SystemClock.elapsedRealtime()
+        var reportedFrame = false
+        val player = homePlayback?.buffer?.createPlayer(context,homePlayback.key,url,homePlayback.index) ?: ExoPlayer.Builder(context)
             .setMediaSourceFactory(TemplateVideoCache.mediaSourceFactory(context, cacheEnabled = cacheEnabled))
             .build()
         val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() = firstFrameCallback.value()
+            override fun onRenderedFirstFrame() {
+                if (!reportedFrame) {
+                    reportedFrame = true
+                    if (homePlayback != null && yumo.achat.app.BuildConfig.DEBUG) android.util.Log.d("HomeStartup",
+                        "kind=video_template stage=prepare_to_first_frame elapsed_ms=${android.os.SystemClock.elapsedRealtime()-prepareStarted}")
+                }
+                homeFirstFrame.value?.invoke()
+                firstFrameCallback.value()
+            }
 
-            override fun onPlayerError(error: PlaybackException) = playbackErrorCallback.value()
+            override fun onPlayerError(error: PlaybackException) {
+                homePlayback?.buffer?.discard(homePlayback.key)
+                playbackErrorCallback.value()
+            }
         }
         player.addListener(listener)
         player.apply {
             repeatMode = Player.REPEAT_MODE_ONE
-            setMediaItem(MediaItem.fromUri(url))
+            if (homePlayback == null) setMediaItem(MediaItem.fromUri(url))
             prepare()
         }
         TemplatePlayerBinding(player, listener)

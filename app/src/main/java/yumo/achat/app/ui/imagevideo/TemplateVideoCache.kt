@@ -81,7 +81,7 @@ internal object TemplateVideoCache {
         }
     }
 
-    private fun cacheDataSourceFactory(
+    internal fun cacheDataSourceFactory(
         context: Context,
         networkConfiguration: TemplateVideoNetworkConfiguration,
     ): CacheDataSource.Factory {

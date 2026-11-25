@@ -62,7 +62,8 @@ class ApiPaymentRepository @Inject constructor(private val api: PaymentServiceAp
             if (failure.status == 409 && failure.reason == "PAYMENT_RECOVERY_REQUIRES_REVIEW") throw PaymentFailure.RecoveryRequiresReview
             throw failure
         }
-        return data.order?.validate(session.userId)
+        owner(session)
+        return data.order?.bindAuthenticatedOwner(session.userId)
     }
     override suspend fun initialize(orderId: String, session: Session): InitializedPayment {
         owner(session)

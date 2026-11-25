@@ -131,7 +131,7 @@ class PaymentServerRecoveryTest {
         val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
         val api = object : PaymentRepository by f.api {
             override suspend fun recover(productId: String, session: yumo.achat.core.auth.Session): RecoveredPaymentOrder? {
-                entered.complete(Unit); release.await(); return order()
+                entered.complete(Unit); release.await(); return order().bindAuthenticatedOwner(session.userId)
             }
         }
         val engine = f.engine(api)

@@ -19,6 +19,7 @@ import kotlin.math.abs
 internal class DramaPreviewBuffer(context:Context) {
     @Volatile private var currentIndex=0
     @Volatile private var closed=false
+    private var lastIndex:Int?=null
     private val registered=mutableMapOf<String,MediaItem>()
     private val ready=java.util.Collections.synchronizedSet(mutableSetOf<String>())
     val sourceCount get()=registered.size
@@ -44,8 +45,10 @@ internal class DramaPreviewBuffer(context:Context) {
     fun update(states:List<DramaPreviewWarmupState>,index:Int) {
         if(closed)return
         currentIndex=index
-        val candidates=states.filter {it.firstEpisode!=null && it.media!=null && !it.expired && it.expiresAtMs>System.currentTimeMillis()}
+        val candidates=states.filter {it.firstEpisode!=null && !it.usesFullPlayback && it.media!=null && !it.expired && it.expiresAtMs>System.currentTimeMillis()}
         val desired=candidates.associate {it.entry.key to item(it.entry.key,it.media!!.url,it.restricted)}
+        if(lastIndex==index && registered==desired)return
+        lastIndex=index
         registered.keys.toList().filter {registered[it]!=desired[it]}.forEach {key -> registered.remove(key)?.let(manager::remove);ready.remove(key)}
         candidates.forEach {state -> val value=desired.getValue(state.entry.key)
             if(registered[state.entry.key]!=value){registered[state.entry.key]=value;manager.add(value,state.position)}

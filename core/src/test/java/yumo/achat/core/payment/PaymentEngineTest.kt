@@ -215,7 +215,7 @@ class PaymentEngineTest {
             recoverCalls++
             recoverProducts += productId
             recoverFailure?.let { throw it }
-            return recovered
+            return recovered?.bindAuthenticatedOwner(session.userId)
         }
         override suspend fun createOrder(productId: String, requestId: String, session: Session) = error("Engine uses injected factory")
         override suspend fun close(orderId: String, session: Session) = status(orderId, session)

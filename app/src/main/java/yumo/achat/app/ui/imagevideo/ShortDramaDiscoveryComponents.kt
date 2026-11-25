@@ -1,5 +1,7 @@
 package yumo.achat.app.ui.imagevideo
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +21,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import coil.request.ImageRequest
+import coil.size.Scale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -39,7 +46,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.collectLatest
 import yumo.achat.app.R
 import yumo.achat.app.ui.theme.*
@@ -123,6 +129,9 @@ internal fun HistoryCard(entry:DramaHistoryEntry,modifier:Modifier,onClick:()->U
 
 @Composable
 internal fun DramaBanner(gateway:ShortDramaDiscoveryGateway,details:HomeFeedGateway,onOpen:(String,String?)->Unit,onSubscription:()->Unit,isVip:Boolean?) {
+    val scope=rememberCoroutineScope()
+    val posters=remember(gateway,details){DramaBannerLoader(scope,details::shortDramaDetail)}
+    DisposableEffect(posters){onDispose{posters.close()}}
     var ads by remember(gateway){mutableStateOf<List<ShortDramaAd>>(emptyList())}
     var failed by remember(gateway){mutableStateOf(false)}
     var loading by remember(gateway){mutableStateOf(true)}
@@ -135,34 +144,43 @@ internal fun DramaBanner(gateway:ShortDramaDiscoveryGateway,details:HomeFeedGate
     if(loading){Box(Modifier.fillMaxWidth().height(457.dp),contentAlignment=Alignment.Center){CircularProgressIndicator(color=DiscoveryCyan)};return}
     if(failed){TextButton(onClick={revision++}){Text(stringResource(R.string.drama_banner_retry),color=DiscoveryCyan)};return}
     if(ads.isEmpty())return
-    val pager=rememberPagerState {ads.size}
+    LaunchedEffect(posters,ads){posters.load(ads.map {it.dramaId})}
+    val looping=ads.size>1
+    val initialPage=if(looping) (Int.MAX_VALUE/2/ads.size)*ads.size else 0
+    val pager=rememberPagerState(initialPage=initialPage) {if(looping)Int.MAX_VALUE else ads.size}
+    val context=LocalContext.current
+    val density=LocalDensity.current
+    val configuration=LocalConfiguration.current
+    val posterWidth=with(density){(configuration.screenWidthDp.dp-80.dp).roundToPx()}.coerceAtLeast(1)
+    val posterHeight=with(density){220.dp.roundToPx()}
+    val imageReadiness=remember(posters){mutableStateMapOf<Int,Boolean>()}
     val dragged by pager.interactionSource.collectIsDraggedAsState()
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle){mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))}
     DisposableEffect(lifecycle){val observer=LifecycleEventObserver{_,_->resumed=lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)};lifecycle.addObserver(observer);onDispose{lifecycle.removeObserver(observer)}}
-    LaunchedEffect(pager,resumed,ads,info) {
+    LaunchedEffect(pager,resumed,ads,info,posters,imageReadiness) {
         if(resumed && info==null && ads.size>1) {
-            snapshotFlow {Triple(pager.settledPage,pager.isScrollInProgress,dragged)}
-                .filter {!it.second && !it.third}
+            snapshotFlow {
+                val poster=posters.states[ads[pager.settledPage%ads.size].dramaId]
+                Triple(pager.settledPage,dragged,imageReadiness[pager.settledPage]==true || poster?.failed==true)
+            }
                 .collectLatest { settled ->
+                    if(settled.second || !settled.third)return@collectLatest
                     delay(2000)
-                    if(!pager.isScrollInProgress && !dragged) pager.animateScrollToPage((settled.first+1)%ads.size)
+                    if(!pager.isScrollInProgress && !dragged) pager.animateScrollToPage(settled.first+1,
+                        animationSpec=tween(450,easing=FastOutSlowInEasing))
                 }
         }
     }
-    val positionLabel=stringResource(R.string.drama_episode_progress,pager.settledPage+1,ads.size)
-    HorizontalPager(pager,modifier=Modifier.fillMaxWidth().heightIn(min=457.dp).testTag("drama-banner-pager").semantics {stateDescription=positionLabel},key={ads[it].adId}) { index ->
-        val ad=ads[index]
-        var poster by remember(details,ad.dramaId){mutableStateOf("")}
-        var posterTitle by remember(details,ad.dramaId){mutableStateOf("")}
-        var posterFailed by remember(details,ad.dramaId){mutableStateOf(false)}
-        var posterLoading by remember(details,ad.dramaId){mutableStateOf(true)}
-        var posterReady by remember(details,ad.dramaId){mutableStateOf(false)}
-        var posterRevision by remember(details,ad.dramaId){mutableIntStateOf(0)}
-        LaunchedEffect(details,ad.dramaId,posterRevision) {
-            posterLoading=true;posterFailed=false;posterReady=false
-            try {val detail=details.shortDramaDetail(ad.dramaId);poster=detail.posterUrl;posterTitle=detail.title;posterFailed=poster.isBlank()}
-            catch(e:CancellationException){throw e}catch(_:Exception){posterFailed=true}finally{posterLoading=false}
+    val positionLabel=stringResource(R.string.drama_episode_progress,pager.settledPage%ads.size+1,ads.size)
+    HorizontalPager(pager,modifier=Modifier.fillMaxWidth().heightIn(min=457.dp).testTag("drama-banner-pager").semantics {stateDescription=positionLabel},beyondViewportPageCount=1,key={"$it-${ads[it%ads.size].adId}"}) { virtualIndex ->
+        val ad=ads[virtualIndex%ads.size]
+        DisposableEffect(virtualIndex){onDispose{imageReadiness.remove(virtualIndex)}}
+        val state=posters.states[ad.dramaId]
+        val poster=state?.detail?.posterUrl.orEmpty()
+        val posterTitle=state?.detail?.title.orEmpty()
+        val posterRequest=remember(context,poster,posterWidth,posterHeight,state?.revision) {
+            ImageRequest.Builder(context).data(poster).size(posterWidth,posterHeight).scale(Scale.FIT).build()
         }
         val shape=RoundedCornerShape(24.dp)
         Box(Modifier.fillMaxWidth().heightIn(min=457.dp).shadow(12.dp,shape,clip=false,ambientColor=Color(0xFF8B5CF6).copy(alpha=.18f),spotColor=Color(0xFF8B5CF6).copy(alpha=.18f))
@@ -171,14 +189,14 @@ internal fun DramaBanner(gateway:ShortDramaDiscoveryGateway,details:HomeFeedGate
             Column(Modifier.fillMaxWidth().heightIn(min=457.dp).padding(horizontal=20.dp).padding(top=8.dp,bottom=18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                 Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center) {
                     when {
-                        posterLoading -> CircularProgressIndicator(color=DiscoveryCyan,modifier=Modifier.size(24.dp))
-                        posterFailed -> TextButton(onClick={posterRevision++}) {
+                        state==null || state.loading -> CircularProgressIndicator(color=DiscoveryCyan,modifier=Modifier.size(24.dp))
+                        state.failed -> TextButton(onClick={posters.retry(ad.dramaId)}) {
                             Text(stringResource(R.string.drama_banner_image_retry),color=DiscoveryCyan,fontSize=11.sp,textAlign=TextAlign.Center)
                         }
-                        else -> key(posterRevision) {
-                            AsyncImage(poster,posterTitle,Modifier.fillMaxSize()
-                                .testTag(if(posterReady)"drama-banner-poster-ready" else "drama-banner-poster-loading"),
-                                contentScale=ContentScale.Fit,onSuccess={posterReady=true},onError={posterFailed=true})
+                        else -> key(state.revision) {
+                            AsyncImage(posterRequest,posterTitle,Modifier.fillMaxSize()
+                                .testTag(if(imageReadiness[virtualIndex]==true)"drama-banner-poster-ready" else "drama-banner-poster-loading"),
+                                contentScale=ContentScale.Fit,onLoading={imageReadiness[virtualIndex]=false},onSuccess={imageReadiness[virtualIndex]=true},onError={state.failed=true})
                         }
                     }
                 }
@@ -198,8 +216,8 @@ internal fun DramaBanner(gateway:ShortDramaDiscoveryGateway,details:HomeFeedGate
                     Text(stringResource(if(isVip==true)R.string.drama_banner_play_now else R.string.drama_banner_upgrade),color=Color.White,fontSize=14.sp,fontWeight=FontWeight.ExtraBold,textAlign=TextAlign.Center)
                 }
                 Row(Modifier.padding(top=20.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
-                    ads.indices.forEach {i->Box(Modifier.size(if(i==pager.currentPage)24.dp else 6.dp,if(i==pager.currentPage)4.dp else 6.dp)
-                        .background(if(i==pager.currentPage)DiscoveryCyan else Color.White.copy(alpha=.3f),CircleShape))}
+                    ads.indices.forEach {i->Box(Modifier.size(if(i==pager.currentPage%ads.size)24.dp else 6.dp,if(i==pager.currentPage%ads.size)4.dp else 6.dp)
+                        .background(if(i==pager.currentPage%ads.size)DiscoveryCyan else Color.White.copy(alpha=.3f),CircleShape))}
                 }
             }
             Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(28.dp)

@@ -95,7 +95,7 @@ class ShortDramaHomeScreenTest {
         val item=drama.copy(preview=HomeFeedPreview("/preview",Instant.now().plusSeconds(300).toString()))
         compose.setContent{ShortDramaHomeCard(item,gateway,true,true,{},{})}
         compose.onNodeWithText("Watch Full Drama").assertIsDisplayed()
-        compose.waitUntil(5000){gateway.previewRequests>0}
+        compose.runOnIdle{assertEquals(0,gateway.previewRequests)}
         compose.onAllNodes(hasTestTag("template-video-frame") or hasTestTag("template-video-loading")).assertCountEquals(0)
         compose.runOnIdle{ready.complete(Unit)}
         compose.waitUntil(15_000){compose.onAllNodesWithTag("template-video-frame").fetchSemanticsNodes().isNotEmpty()}

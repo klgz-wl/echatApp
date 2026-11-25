@@ -59,7 +59,7 @@ class DramaPreviewPreloadTest {
     @Test fun normalStartupDoesNotFlashPosterWhileWaitingForVideo() {
         val ready=kotlinx.coroutines.CompletableDeferred<Unit>()
         val item=HomeFeedItem("drama","short_drama","d","Loading drama","",true,preview=HomeFeedPreview("/preview",expiry()))
-        val gateway=object:PlayerScreenGateway(){
+        val gateway=object:PlayerScreenGateway(locked=true){
             override suspend fun resolveDramaPreview(resolverUrl:String):ResolvedDramaPreview{ready.await();return ResolvedDramaPreview("android.resource://yumo.achat.app/raw/drama_test_video",expiry())}
         }
         compose.setContent{ShortDramaHomeCard(item,gateway,true,true,{},{})}

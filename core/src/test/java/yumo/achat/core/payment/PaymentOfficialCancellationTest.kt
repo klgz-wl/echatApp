@@ -15,7 +15,7 @@ class PaymentOfficialCancellationTest {
     private class Api : PaymentRepository {
         var recovery: RecoveredPaymentOrder? = null
         val statuses = mutableMapOf<String, PaymentOrderStatus>()
-        override suspend fun recover(productId: String, session: Session) = recovery
+        override suspend fun recover(productId: String, session: Session) = recovery?.bindAuthenticatedOwner(session.userId)
         override suspend fun createOrder(productId: String, requestId: String, session: Session): PaymentBusinessOrder = error("factory owns create")
         override suspend fun close(orderId: String, session: Session): PaymentOrderStatus = error("official close is not allowed")
         override suspend fun initialize(orderId: String, session: Session) = InitializedPayment(orderId, "official", "google_play", "sdk", PaymentSdkParams("sku-$orderId"))
@@ -57,7 +57,7 @@ class PaymentOfficialCancellationTest {
         engine = f.engine(); engine.restore()
         assertNull(engine.state.value.record)
         f.api.recovery = RecoveredPaymentOrder(old.orderId!!, old.productId, "pending", "user", old.orderId,
-            1.99, "USD", paymentMethod = "google_play", providerProductId = "old-sku", fulfillmentStatus = "pending")
+            1.99, "USD", paymentMethod = "google_play", providerProductId = old.initialized!!.sdkParams!!.productId, fulfillmentStatus = "pending")
         engine.buy("coins-500", "store")
         assertEquals("coins-500", engine.state.value.record!!.productId)
         assertNotEquals(old.orderId, engine.state.value.record!!.orderId)
@@ -67,7 +67,7 @@ class PaymentOfficialCancellationTest {
         val f = Fixture(); f.login(); val engine = f.engine(); val old = f.launched(engine)
         engine.officialResult(old.key, cancelledOrUnavailable = true, userCancelled = true)
         f.api.recovery = RecoveredPaymentOrder(old.orderId!!, old.productId, "paid", "user", old.orderId,
-            1.99, "USD", paymentMethod = "google_play", providerProductId = "old-sku", fulfillmentStatus = "pending")
+            1.99, "USD", paymentMethod = "google_play", providerProductId = old.initialized!!.sdkParams!!.productId, fulfillmentStatus = "pending")
         engine.buy("coins-500", "store")
         assertEquals(1, f.creates.size)
         assertEquals(old.orderId, engine.state.value.record!!.orderId)

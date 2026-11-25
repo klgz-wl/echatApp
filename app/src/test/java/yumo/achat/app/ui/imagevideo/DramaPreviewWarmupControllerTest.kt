@@ -9,7 +9,7 @@ class DramaPreviewWarmupControllerTest {
     private val expiry="2030-01-01T00:00:00Z"
     private fun entry(id:String,index:Int)=HomeFeedEntry(HomeFeedItem(id,"short_drama",id,id,"",true,
         preview=HomeFeedPreview("/preview/$id",expiry)),"batch",index)
-    private class Gateway:HomeFeedGateway {
+    private open class Gateway:HomeFeedGateway {
         var details=mutableListOf<String>();var resolvers=mutableListOf<String>()
         var hold:CompletableDeferred<Unit>?=null
         override suspend fun shortDramaDetail(dramaId:String):ShortDramaDetail {
@@ -22,14 +22,39 @@ class DramaPreviewWarmupControllerTest {
         override suspend fun homeFeed(requestId:String):HomeFeedBatch=error("Prefetch must not request Feed")
         override suspend fun acknowledgeHomeFeed(batchId:String,displayedThroughIndex:Int,idempotencyKey:String)=error("Prefetch must not ACK")
     }
+    @Test fun nextMediaWaitsForCurrentAndEntitledCardsNeverResolvePreviews() {
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val g=object:Gateway(){override suspend fun shortDramaDetail(dramaId:String)=super.shortDramaDetail(dramaId).let {
+            if(dramaId=="d2")it.copy(episodes=it.episodes.map {ep->ep.copy(canPlay=true)}) else it
+        }}
+        val c=DramaPreviewWarmupController(g,scope,now={0});val entries=(0..3).map{entry("d$it",it)}
+        c.setWindow(entries,0,allowNextMedia=false)
+        assertEquals(listOf("d0","d1"),g.details)
+        assertEquals(listOf("/preview/d0"),g.resolvers)
+        c.setWindow(entries,0,allowNextMedia=true)
+        assertEquals(listOf("/preview/d0","/preview/d1"),g.resolvers)
+        c.setWindow(entries,1,allowNextMedia=true)
+        assertFalse(g.resolvers.contains("/preview/d2"))
+        assertEquals(2,c.states.size);c.close();scope.cancel()
+    }
+    @Test fun previewOnlyHostsStillResolveEntitledPreviewsWithoutFormalSideEffects() {
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        val g=object:Gateway(){override suspend fun shortDramaDetail(dramaId:String)=super.shortDramaDetail(dramaId).let {
+            it.copy(episodes=it.episodes.map {ep->ep.copy(canPlay=true)})
+        }}
+        val c=DramaPreviewWarmupController(g,scope,now={0},fullPlaybackAvailable=false)
+        c.setWindow(listOf(entry("d",0)),0)
+        assertEquals(listOf("/preview/d"),g.resolvers)
+        assertNotNull(c.states.values.single().media);c.close();scope.cancel()
+    }
     @Test fun neighborRequestsAreReusedWhenItBecomesCurrentAndWindowStaysBounded() {
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined);val g=Gateway()
         val c=DramaPreviewWarmupController(g,scope,now={0})
         val entries=(0..5).map{entry("d$it",it)}
-        c.setWindow(entries,1);assertEquals(setOf("d0","d1","d2"),g.details.toSet())
+        c.setWindow(entries,1);assertEquals(setOf("d1","d2"),g.details.toSet())
         val ready=c.states[entries[2].key]!!;assertNotNull(ready.detail);assertNotNull(ready.media)
         c.setWindow(entries,2);assertSame(ready,c.states[entries[2].key]);assertEquals(1,g.resolvers.count{it=="/preview/d2"})
-        assertEquals(3,c.states.size);assertNull(c.states[entries[0].key]);c.close();scope.cancel()
+        assertEquals(2,c.states.size);assertNull(c.states[entries[0].key]);c.close();scope.cancel()
     }
     @Test fun reusedWarmupIsDiscardedWhenAuthorizationExpiresBeforeEntry() {
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined);val g=Gateway();var now=0L

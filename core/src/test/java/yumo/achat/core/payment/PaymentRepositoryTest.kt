@@ -62,7 +62,7 @@ class PaymentRepositoryTest {
         val order = Json.decodeFromString<PaymentEnvelope<RecoveredPaymentData>>("""{"data":{"order":{"order_id":"order","product_id":"server-product","status":"pending","obfuscated_account_id":"user","obfuscated_profile_id":"order","amount":7.25,"currency":"USD","payment_method":"google_play","provider_product_id":"server-sku","fulfillment_status":"pending","trigger":"manual"}}}""").requireData().order!!
         api.recovered = order
         assertEquals(order, repo.recover("selected-product", sessions.current!!))
-        for (invalid in listOf(order.copy(obfuscatedAccountId = "other"), order.copy(obfuscatedProfileId = "wrong"),
+        for (invalid in listOf(order.copy(obfuscatedAccountId = ""), order.copy(obfuscatedProfileId = ""),
             order.copy(amount = Double.NaN), order.copy(amount = -1.0), order.copy(currency = "bad"),
             order.copy(productId = ""), order.copy(status = "cancelled"), order.copy(status = "paid", fulfillmentStatus = "fulfilled"))) {
             api.recovered = invalid
@@ -71,6 +71,32 @@ class PaymentRepositoryTest {
         api.recoveryReviewRequired = true
         try { repo.recover("selected-product", sessions.current!!); fail("Review required ignored") }
         catch (_: PaymentFailure.RecoveryRequiresReview) { }
+    }
+    @Test fun `authenticated recovery preserves independent opaque Play identifiers`() = runBlocking {
+        val sessions=SessionCoordinator(MemoryStorage());sessions.saveLogin(AuthResponse("token","refresh","user"))
+        val api=Api();val config=PaymentConfiguration("https://test.example/payment-api/v1/","test",10,600,3000,100,3,5000)
+        val order=RecoveredPaymentOrder("order","coins","pending","account-hash","profile-hash",7.25,"USD","google_play","sku","pending")
+        api.recovered=order
+        val recovered=ApiPaymentRepository(api,config,sessions,Json).recover("coins",sessions.current!!)!!
+        assertEquals("account-hash",recovered.obfuscatedAccountId)
+        assertEquals("profile-hash",recovered.obfuscatedProfileId)
+        recovered.validate("user")
+        Unit
+    }
+    @Test fun `recovery response from an obsolete session cannot receive owner proof`() = runBlocking {
+        val sessions=SessionCoordinator(MemoryStorage());sessions.saveLogin(AuthResponse("token","refresh","user"))
+        val original=sessions.current!!
+        val api=Api().apply {recovered=RecoveredPaymentOrder("order","coins","pending","account-hash","profile-hash",7.25,"USD")}
+        val switched=object:PaymentServiceApi by api {
+            override suspend fun recover(url:String,productId:String?,session:Session):Response<PaymentEnvelope<RecoveredPaymentData>> {
+                val response=api.recover(url,productId,session)
+                sessions.saveLogin(AuthResponse("other-token","other-refresh","other"))
+                return response
+            }
+        }
+        val config=PaymentConfiguration("https://test.example/payment-api/v1/","test",10,600,3000,100,3,5000)
+        try {ApiPaymentRepository(switched,config,sessions,Json).recover("coins",original);fail("Old response adopted")}
+        catch(_:ServiceFailure.Superseded) {}
     }
     @Test fun `service order uses durable UUID and configured trigger with ownership validation`() = runBlocking {
         val sessions = SessionCoordinator(MemoryStorage()); sessions.saveLogin(AuthResponse("token", "refresh", "user"))
