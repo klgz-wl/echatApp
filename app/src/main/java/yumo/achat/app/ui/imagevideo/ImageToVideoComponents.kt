@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -621,7 +620,10 @@ internal fun MyTaskVideoPlayer(
     var hasRenderedFirstFrame by remember(url) { mutableStateOf(false) }
     var positionMs by remember(url) { mutableStateOf(0L) }
     var durationMs by remember(url) { mutableStateOf(0L) }
-    var controlsRevealed by remember(url) { mutableStateOf(true) }
+    var muted by remember(url){mutableStateOf(false)}
+    var speed by remember(url){mutableStateOf(1f)}
+    var speedOpen by remember(url){mutableStateOf(false)}
+    var dragging by remember(url){mutableStateOf<Float?>(null)}
     var posterRetrySerial by remember(posterUrl) { mutableIntStateOf(0) }
     var posterHasError by remember(posterUrl) { mutableStateOf(false) }
     val binding = remember(url) {
@@ -666,6 +668,8 @@ internal fun MyTaskVideoPlayer(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(binding.player,muted,speed){binding.player.volume=if(muted)0f else 1f;binding.player.setPlaybackSpeed(speed)}
+
     LaunchedEffect(binding.player, isPlaying, lifecycleStarted) {
         binding.player.playWhenReady = shouldPlayVideo(isPlaying, lifecycleStarted)
     }
@@ -675,13 +679,6 @@ internal fun MyTaskVideoPlayer(
             positionMs = binding.player.currentPosition.coerceAtLeast(0L)
             durationMs = binding.player.duration.coerceAtLeast(0L)
             delay(250L)
-        }
-    }
-
-    LaunchedEffect(isPlaying, controlsRevealed) {
-        if (isPlaying && controlsRevealed) {
-            delay(1_100L)
-            controlsRevealed = false
         }
     }
 
@@ -699,7 +696,7 @@ internal fun MyTaskVideoPlayer(
                 }
             },
             update = { playerView -> playerView.player = binding.player },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag(if(hasRenderedFirstFrame)"result-video-frame" else "result-video-loading"),
         )
         AnimatedVisibility(
             visible = posterUrl.isNotBlank() && !hasRenderedFirstFrame,
@@ -726,7 +723,7 @@ internal fun MyTaskVideoPlayer(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { controlsRevealed = true },
+                    onClick = onPlayToggle,
                 ),
         )
         if (posterHasError && !hasRenderedFirstFrame) {
@@ -753,22 +750,16 @@ internal fun MyTaskVideoPlayer(
                 .align(Alignment.BottomCenter)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)))),
         )
-        AnimatedVisibility(
-            visible = (!isPlaying || controlsRevealed) && !posterHasError,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.Center),
-        ) {
-            HexPlayButton(
-                isPlaying = isPlaying,
-                modifier = Modifier
-                    .size(76.dp)
-                    .semantics { contentDescription = playDescription }
-                    .clickable {
-                        controlsRevealed = !isPlaying
-                        onPlayToggle()
-                    },
-            )
+        if(!isPlaying && (!posterHasError || hasRenderedFirstFrame)) {
+            PlaybackTransportButton(false,Modifier.align(Alignment.Center).testTag("result-video-transport")
+                .semantics {contentDescription=playDescription},onClick=onPlayToggle)
+        }
+        if(isPlaying && !hasRenderedFirstFrame && !posterHasError) {
+            CircularProgressIndicator(color=AchatCyan,modifier=Modifier.align(Alignment.Center).size(28.dp))
+        }
+        Row(Modifier.align(Alignment.TopEnd).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+            DramaGlassIcon(R.drawable.ic_drama_speed,stringResource(R.string.drama_speed),{speedOpen=true})
+            DramaAudioButton(muted){muted=!muted}
         }
         Column(
             modifier = Modifier
@@ -776,34 +767,20 @@ internal fun MyTaskVideoPlayer(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Slider(
-                value = myTaskPlaybackProgress(positionMs, durationMs),
-                onValueChange = { progress ->
-                    val seekPosition = myTaskSeekPosition(progress, durationMs)
-                    binding.player.seekTo(seekPosition)
-                    positionMs = seekPosition
-                    controlsRevealed = true
-                },
-                enabled = durationMs > 0L,
-                colors = SliderDefaults.colors(
-                    thumbColor = AchatCyan,
-                    activeTrackColor = AchatCyan,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.28f),
-                    disabledThumbColor = AchatCyan.copy(alpha = 0.7f),
-                    disabledActiveTrackColor = AchatCyan.copy(alpha = 0.7f),
-                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.2f),
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .semantics { contentDescription = progressDescription },
-            )
+            PlaybackSeekControl(value=dragging ?: myTaskPlaybackProgress(positionMs,durationMs),
+                onValueChange={dragging=it},onValueChangeFinished={
+                    val target=myTaskSeekPosition(dragging ?: myTaskPlaybackProgress(positionMs,durationMs),durationMs)
+                    binding.player.seekTo(target);positionMs=target;dragging=null
+                },enabled=durationMs>0L,
+                modifier=Modifier.fillMaxWidth().testTag("result-video-seek-control").semantics {contentDescription=progressDescription},
+                trackTag="result-video-seek-track")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatMyTaskPlaybackTime(positionMs), color = Color.White, fontSize = 10.sp)
+                Text(formatMyTaskPlaybackTime(dragging?.let {myTaskSeekPosition(it,durationMs)} ?: positionMs), color = Color.White, fontSize = 10.sp)
                 Text(formatMyTaskPlaybackTime(durationMs), color = Color.White, fontSize = 10.sp)
             }
         }
     }
+    if(speedOpen) PlaybackSpeedSheet(speed,onSelect={speed=it;speedOpen=false},onDismiss={speedOpen=false})
 }
 
 @Composable

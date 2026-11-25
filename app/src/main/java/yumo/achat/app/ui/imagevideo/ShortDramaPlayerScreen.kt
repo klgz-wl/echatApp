@@ -56,21 +56,6 @@ import yumo.achat.app.ui.theme.*
 import yumo.achat.core.backend.*
 
 @Composable
-private fun DramaTransportButton(playing: Boolean, onClick: () -> Unit) {
-    Box(Modifier.size(72.dp).clip(CircleShape).background(Color(0xCC020617))
-        .border(2.dp, DramaGateStart, CircleShape).clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center) {
-        Box(Modifier.matchParentSize().blur(12.dp).background(Brush.linearGradient(listOf(
-            Color(0x4DD946EF), Color(0x339333EA), Color(0x4D06B6D4)))))
-        Icon(painterResource(if (playing) R.drawable.ic_drama_pause else R.drawable.ic_drama_play),
-            stringResource(if (playing) R.string.drama_pause else R.string.drama_play),
-            tint = Color.White,
-            modifier = Modifier.offset(x = if (playing) 0.dp else 2.dp)
-                .size(width = if (playing) 16.dp else 14.6667.dp, height = 18.6667.dp))
-    }
-}
-
-@Composable
 internal fun DramaPlaybackVisibility(controller: ShortDramaPlaybackController, viewModel: ShortDramaPlayerViewModel) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val token = remember(controller) { UUID.randomUUID().toString() }
@@ -176,7 +161,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
                         }
                     }
                     controller.media != null && !controller.completed && !controller.playing ->
-                        DramaTransportButton(controller.playing) {
+                        PlaybackTransportButton(controller.playing) {
                             controller.setPlaying(!controller.playing)
                         }
                 }
@@ -207,22 +192,13 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
             DramaDescriptionLine(detail?.description.orEmpty(), detailsOpen) { detailsOpen = !detailsOpen }
             var dragging by remember(controller.episode?.episodeId) { mutableStateOf<Float?>(null) }
             val fraction = if (controller.durationMs > 0) (controller.positionMs.toFloat() / controller.durationMs).coerceIn(0f, 1f) else 0f
-            Slider(value = dragging ?: fraction, onValueChange = { dragging = it },
-                onValueChangeFinished = {
-                    seekPosition = ((dragging ?: fraction) * controller.durationMs).toLong()
-                    controller.updatePosition(seekPosition, controller.durationMs)
-                    seekSerial++; dragging = null
-                },
-                enabled = controller.media != null && controller.durationMs > 0,
-                modifier = Modifier.testTag("drama-seek-control"),
-                thumb = {},
-                track = { slider ->
-                    Box(Modifier.fillMaxWidth().height(2.dp).clip(CircleShape)
-                        .background(Color.White.copy(alpha = .1f)).testTag("drama-seek-track")) {
-                        Box(Modifier.fillMaxWidth(slider.value.coerceIn(0f, 1f)).fillMaxHeight()
-                            .background(Brush.horizontalGradient(listOf(AchatCyan, Color(0xFFB026FF)))))
-                    }
-                })
+            PlaybackSeekControl(value=dragging ?: fraction,onValueChange={dragging=it},
+                onValueChangeFinished={
+                    seekPosition=((dragging ?: fraction)*controller.durationMs).toLong()
+                    controller.updatePosition(seekPosition,controller.durationMs)
+                    seekSerial++;dragging=null
+                },enabled=controller.media!=null && controller.durationMs>0,
+                modifier=Modifier.testTag("drama-seek-control"),trackTag="drama-seek-track")
         }
     }
     if (commentsOpen) ModalBottomSheet(onDismissRequest={commentsOpen=false},containerColor=DramaBackground,
@@ -247,16 +223,7 @@ internal fun ShortDramaPlayerScreen(controller: ShortDramaPlaybackController, on
     if (episodesOpen) DramaEpisodesSheet(detail,episode?.episodeId,
         playing=controller.playing && controller.media!=null,
         onSelect={id -> episodesOpen=false;controller.selectEpisode(id)},onDismiss={episodesOpen=false})
-    if (speedOpen) ModalBottomSheet(onDismissRequest={speedOpen=false},containerColor=DramaBackground) {
-        DramaSheetHeader(stringResource(R.string.drama_speed)) {speedOpen=false}
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            listOf(.5f,.75f,1f,1.25f,1.5f,2f).forEach { value ->
-                DramaOptionRow(if(value==1f) stringResource(R.string.drama_speed_normal) else "${value}×", "${value}×",controller.speed==value) {
-                    controller.setSpeed(value);speedOpen=false
-                }
-            }
-        }
-    }
+    if(speedOpen) PlaybackSpeedSheet(controller.speed,onSelect={controller.setSpeed(it);speedOpen=false},onDismiss={speedOpen=false})
     if (subtitlesOpen) ModalBottomSheet(onDismissRequest={subtitlesOpen=false},containerColor=DramaBackground) {
         DramaSheetHeader(stringResource(R.string.drama_subtitles)) {subtitlesOpen=false}
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -294,7 +261,7 @@ private fun DramaCompletionDialog(title:String,onClose:()->Unit) {
 }
 
 @Composable
-private fun DramaSheetHeader(title:String,onClose:()->Unit) {
+internal fun DramaSheetHeader(title:String,onClose:()->Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
         Text(title,color=AchatCyan,fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
         Box(Modifier.size(36.dp).clip(CircleShape).background(DramaGlass).clickable(onClick=onClose),contentAlignment=Alignment.Center) {
@@ -304,7 +271,7 @@ private fun DramaSheetHeader(title:String,onClose:()->Unit) {
 }
 
 @Composable
-private fun DramaOptionRow(title:String,badge:String,selected:Boolean,onClick:()->Unit) {
+internal fun DramaOptionRow(title:String,badge:String,selected:Boolean,onClick:()->Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if(selected)DramaGlass else Color(0xFF0F0C1E))
         .border(1.dp,if(selected)AchatCyan else Color.White.copy(alpha=.08f),RoundedCornerShape(16.dp)).clickable(onClick=onClick).padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
         Text(title,color=Color.White,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,modifier=Modifier.weight(1f))
@@ -313,7 +280,7 @@ private fun DramaOptionRow(title:String,badge:String,selected:Boolean,onClick:()
 }
 
 @Composable
-private fun DramaGlassIcon(icon: Int, description: String, onClick: () -> Unit, tint: Color = Color.White) {
+internal fun DramaGlassIcon(icon: Int, description: String, onClick: () -> Unit, tint: Color = Color.White) {
     Box(Modifier.size(36.dp).clip(CircleShape).background(Color(0x990F172A))
         .border(1.dp, Color.White.copy(alpha = .1f), CircleShape).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(painterResource(icon), description, tint = tint, modifier = Modifier.size(20.dp))
