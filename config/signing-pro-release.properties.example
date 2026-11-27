@@ -1,0 +1,5 @@
+# Copy to signing-pro-release.local.properties and fill the real Pro upload key.
+storeFile=
+storePassword=
+keyAlias=
+keyPassword=

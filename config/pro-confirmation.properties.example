@@ -1,0 +1,7 @@
+# Copy to pro-confirmation.local.properties after real platform acceptance.
+confirmed=false
+applicationId=com.zorv.pro
+# Register package/signing fingerprints, backend app, AppsFlyer, ThinkingData and Play products.
+# Evidence: .core-scaffold/pro-platform-evidence.local.json (same fields as original evidence; Pro package only).
+# Signing: config/signing-pro-release.local.properties; never copy development signing.
+# Firebase remains disabled until a genuine Pro google-services.json is supplied.

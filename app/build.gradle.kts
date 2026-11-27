@@ -26,6 +26,9 @@ val mode = common.getProperty("kit.prod.mode", "DEV_REUSE")
 check(mode in setOf("DEV_REUSE", "FORMAL")) { "kit.prod.mode must be DEV_REUSE or FORMAL" }
 val devProperties = readProperties("config/dev.properties")
 val prodProperties = readProperties("config/prod.properties")
+val proProperties = readProperties("config/pro.properties")
+val proSigningProperties = readProperties("config/signing-pro-release.local.properties")
+val proConfirmationProperties = readProperties("config/pro-confirmation.local.properties")
 val signingProperties = readProperties("config/signing.local.properties")
 val formalSigningProperties = readProperties("config/signing-release.local.properties")
 val prodConfirmationProperties = readProperties("config/prod-confirmation.local.properties")
@@ -57,13 +60,18 @@ val flavorApplicationIds = mapOf(
     },
 )
 
-val flavorConfigurations = listOf("dev", "prod").associateWith { env ->
+val flavorConfigurations = listOf("dev", "prod", "pro").associateWith { env ->
     Properties().apply {
         putAll(common)
+        if (env == "pro") putAll(prodProperties)
         putAll(readProperties("config/$env.properties"))
-        setProperty("applicationId", flavorApplicationIds.getValue(env))
+        setProperty("applicationId", if (env == "pro") proProperties.getProperty("applicationId") else flavorApplicationIds.getValue(env))
         setProperty("build.string.ACHAT_CLIENT_VERSION", getProperty("app.version.name"))
-        val endpointKey = if (env == "prod" && mode == "DEV_REUSE") "dev" else env
+        val endpointKey = when {
+            env == "pro" -> "prod"
+            env == "prod" && mode == "DEV_REUSE" -> "dev"
+            else -> env
+        }
         flavorEndpoints.getValue(endpointKey).forEach { (key, value) ->
             setProperty("build.string.$key", value)
         }
@@ -111,6 +119,13 @@ android {
         }
     }
 
+    signingConfigs.create("formalPro") {
+        storeFile = proSigningProperties.getProperty("storeFile")?.let { rootProject.file(it) }
+        storePassword = proSigningProperties.getProperty("storePassword")
+        keyAlias = proSigningProperties.getProperty("keyAlias")
+        keyPassword = proSigningProperties.getProperty("keyPassword")
+    }
+
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("sharedDev")
@@ -134,7 +149,11 @@ android {
                 versionCode = config.getProperty("app.version.code").toInt()
                 versionName = config.getProperty("app.version.name")
                 signingConfig = signingConfigs.getByName(
-                    if (env == "prod" && mode == "FORMAL") "formal" else "sharedDev",
+                    when {
+                        env == "pro" -> "formalPro"
+                        env == "prod" && mode == "FORMAL" -> "formal"
+                        else -> "sharedDev"
+                    },
                 )
                 manifestPlaceholders["appLabel"] = config.getProperty("app.display.name", "Achat")
                 manifestPlaceholders["attributionStorageName"] = config.getProperty("build.string.STORAGE_NAME")
@@ -148,7 +167,7 @@ android {
                 val wsUrl = config.getProperty("build.string.CORE_STREAM_URL") + "/connection/websocket"
                 buildConfigField("String", "ACHAT_API_BASE_URL", quoted(baseUrl))
                 buildConfigField("String", "ACHAT_WS_URL", quoted(wsUrl))
-                buildConfigField("String", "PROD_CONFIG_STATUS", quoted(mode))
+                buildConfigField("String", "PROD_CONFIG_STATUS", quoted(if (env == "pro") "FORMAL" else mode))
                 val expectedKeys = (common.stringPropertyNames() + devProperties.stringPropertyNames() + config.stringPropertyNames())
                     .filter { it.startsWith("build.") }
                     .toSet()
@@ -397,6 +416,111 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
         ).forEach { field ->
             check("""$field = false""" in text) {
                 "prodRelease BuildConfig $field must stay false until the Firebase SDK/sink is wired"
+            }
+        }
+    }
+}
+
+
+// Pro has no Firebase registration yet. Never reuse the original app's registration.
+val proGoogleServices = file("src/pro/google-services.json")
+if (!proGoogleServices.isFile) {
+    listOf("ENABLE_FIREBASE_ANALYTICS", "ENABLE_FIREBASE_CRASHLYTICS", "ENABLE_FIREBASE_MESSAGING").forEach { flag ->
+        check(flavorConfigurations.getValue("pro").getProperty("build.boolean.$flag") == "false") {
+            "Pro requires a genuine app/src/pro/google-services.json before enabling $flag"
+        }
+    }
+    tasks.matching { it.name in setOf("processProDebugGoogleServices", "processProReleaseGoogleServices") }
+        .configureEach { enabled = false }
+}
+
+tasks.register("verifyProFormalRelease") {
+    notCompatibleWithConfigurationCache("Reads Pro signing and release confirmation files.")
+    doLast {
+        val config = flavorConfigurations.getValue("pro")
+        check(config.getProperty("applicationId") == "com.zorv.pro") { "Pro package must be com.zorv.pro" }
+        check(proConfirmationProperties.getProperty("confirmed") == "true" &&
+            proConfirmationProperties.getProperty("applicationId") == "com.zorv.pro") {
+            "Confirm Pro release independently in config/pro-confirmation.local.properties"
+        }
+        val certificate = signingCertificate(proSigningProperties, "Pro release")
+        val store = rootProject.file(proSigningProperties.getProperty("storeFile")).canonicalFile
+        check(store != rootProject.file("config/shared-dev.jks").canonicalFile) { "Pro release cannot use sharedDev signing" }
+        signingProperties.getProperty("storeFile")?.takeIf(String::isNotBlank)?.let {
+            check(store != rootProject.file(it).canonicalFile) { "Pro release cannot use sharedDev signing" }
+        }
+        val devCertificate = rootProject.file("config/dev-certificate.der")
+        check(devCertificate.isFile) { "Missing sharedDev certificate fingerprint" }
+        check(!devCertificate.readBytes().contentEquals(certificate.encoded)) { "Pro release cannot use sharedDev certificate" }
+    }
+}
+
+tasks.register("verifyProReleaseRuntimeConfig") {
+    dependsOn("generateProReleaseBuildConfig")
+    val buildConfig = layout.buildDirectory.file("generated/source/buildConfig/pro/release/yumo/achat/app/BuildConfig.java")
+    inputs.file(buildConfig)
+    doLast {
+        val text = buildConfig.get().asFile.readText()
+        val config = flavorConfigurations.getValue("pro")
+        val expected = mapOf(
+            "APPLICATION_ID" to "com.zorv.pro",
+            "VERSION_NAME" to config.getProperty("app.version.name"),
+            "ACHAT_CLIENT_VERSION" to config.getProperty("app.version.name"),
+            "TD_APP_ID" to proProperties.getProperty("build.string.TD_APP_ID"),
+            "APPSFLYER_DEV_KEY" to proProperties.getProperty("build.string.APPSFLYER_DEV_KEY"),
+            "ACHAT_API_BASE_URL" to "https://release.zorv.date",
+            "ACHAT_WS_URL" to "wss://release.zorv.date/connection/websocket",
+            "PAYMENT_FLOW" to "SERVICE",
+        ) + flavorEndpoints.getValue("prod")
+        expected.forEach { (field, value) ->
+            check("$field = ${quoted(value)}" in text) { "Pro release runtime mismatch: $field" }
+        }
+        check("VERSION_CODE = ${config.getProperty("app.version.code")};" in text) { "Pro release version code mismatch" }
+        listOf("ENABLE_SECURE_WINDOW", "ENABLE_REGION_RESTRICTION").forEach { field ->
+            check("$field = true" in text) { "Pro release must enable $field" }
+        }
+        check(config.getProperty("build.string.BLOCKED_REGION_CODES").split(',').toSet() == setOf("CN", "TW", "HK", "MO")) {
+            "Pro release blocked region configuration mismatch"
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name in setOf("assembleProRelease", "bundleProRelease", "packageProRelease", "packageProReleaseBundle", "signProReleaseBundle")) {
+        dependsOn("verifyProFormalRelease", "verifyProReleaseRuntimeConfig", "verifyProFullChainEvidence")
+    }
+}
+
+tasks.register("verifyProFullChainEvidence") {
+    notCompatibleWithConfigurationCache("Reads local platform-evidence.json during execution.")
+    doLast {
+        val evidence = rootProject.file(".core-scaffold/pro-platform-evidence.local.json")
+        check(evidence.isFile) {
+            "缺少真实平台验收证据：.core-scaffold/pro-platform-evidence.local.json"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val value = JsonSlurper().parse(evidence) as Map<String, Any?>
+        check(value["package_name"] == "com.zorv.pro") { "真实平台验收证据包名不匹配" }
+        check(value["backend_environment"] == "release") { "真实平台验收证据后端环境不匹配" }
+        check((value["distribution"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少distribution" }
+        check((value["device"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少device" }
+        check((value["tester_account"] as? String).orEmpty().isNotBlank()) { "真实平台验收证据缺少tester_account" }
+        check((value["play_product_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少play_product_ids" }
+        check((value["verified_order_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少verified_order_ids" }
+        check((value["verified_generation_task_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少verified_generation_task_ids" }
+        check((value["wallet_transaction_ids"] as? List<*>)?.isNotEmpty() == true) { "真实平台验收证据缺少wallet_transaction_ids" }
+        listOf(
+            "device_platform_verified",
+            "play_billing_verified",
+            "payment_fulfillment_verified",
+            "generation_verified",
+            "backend_api_smoke_verified",
+            "wallet_reconciliation_verified",
+            "attribution_verified",
+            "analytics_console_verified",
+        ).forEach { key ->
+            check(value[key] == true) {
+                "真实平台验收证据缺少或未通过：$key"
             }
         }
     }
