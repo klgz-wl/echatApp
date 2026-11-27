@@ -15,15 +15,24 @@
 
 Pro 调试包：`app/build/outputs/apk/pro/debug/app-pro-debug.apk`。Android Studio 选择 `proDebug`。调试包连接正式后端，并复用原有区域限制；调试签名不能用于正式发布。
 
-## 正式发布
+## 生成正式签名验证包
 
-1. 服务端登记 `com.zorv.pro`，配置对应的应用、商品及支付映射。AppsFlyer、数数、Google Play 等平台完成新包名和正式证书的登记。编译成功不代表真实平台验收完成。
-2. 按 `config/signing-pro-release.properties.example` 创建 `config/signing-pro-release.local.properties`，填入真实上传签名。该配置与原版分别维护，禁止开发签名。
-3. 按 `config/pro-confirmation.properties.example` 创建 `config/pro-confirmation.local.properties`。验收后填写包名及 `confirmed=true`。
-4. 提供 `.core-scaffold/pro-platform-evidence.local.json`，字段沿用原版 `verifyCoreFullChainEvidence` 的结构，但 `package_name` 必须为 `com.zorv.pro`；禁止复用原版验收结果。
-5. 运行 `./gradlew --no-configuration-cache :app:bundleProRelease`。所有 Pro release 打包入口均依赖独立签名、运行配置和平台验收门禁。
+专用 Pro 目录只需准备 Pro 签名和本机 SDK 配置，不需要原版或 sharedDev 私钥。
 
-目前 Firebase 三项能力均关闭。没有 Pro 的真实 `app/src/pro/google-services.json` 时仅跳过 Pro 的 Google Services 生成步骤，不复制或伪造原版注册信息；启用任何 Firebase 能力前必须补齐 Pro 注册文件。Google 登录等平台能力仍须按新包名和证书完成实际登记与验收。
+1. 按 `config/signing-pro-release.properties.example` 创建 `config/signing-pro-release.local.properties`，填入真实上传签名。该配置与原版分别维护，禁止开发签名。
+2. 运行 `./gradlew --no-configuration-cache :app:bundleProRelease :app:assembleProRelease`。所有 Pro release 打包入口强制独立正式签名及运行配置检查，首次打包不要求已有平台验收记录。
+3. AAB 输出至 `app/build/outputs/bundle/proRelease/app-pro-release.aab`；APK 输出至 `app/build/outputs/apk/pro/release/app-pro-release.apk`。记录包名、版本、签名指纹、提交号和产物 SHA-256 后用于实际平台验收。
+
+签名包生成成功不代表可以对外上架。原版 Zorv 的打包和发布检查保持不变。
+
+## 上架前验收
+
+1. 服务端登记 `com.zorv.pro`，配置对应的应用、商品及支付映射。AppsFlyer、数数、Google Play 等平台完成新包名和正式证书的登记，使用实际渠道包验证登录、归因、支付、履约和埋点。
+2. 按 `config/pro-confirmation.properties.example` 创建 `config/pro-confirmation.local.properties`。真实验收完成后才填写包名及 `confirmed=true`。
+3. 提供 `.core-scaffold/pro-platform-evidence.local.json`，字段沿用原版 `verifyCoreFullChainEvidence` 的结构，但 `package_name` 必须为 `com.zorv.pro`；禁止复用原版验收结果或伪造记录。
+4. 对外上架前运行 `./gradlew --no-configuration-cache :app:verifyProPublicationReadiness`。该任务聚合 Pro 签名、运行配置、独立发布确认及真实平台验收检查，不执行上传。
+
+目前 Firebase 三项能力均关闭，Pro 的 Crashlytics 混淆映射上传任务也同步关闭，原版行为不变。没有 Pro 的真实 `app/src/pro/google-services.json` 时仅跳过 Pro 的 Google Services 生成步骤，不复制或伪造原版注册信息；启用任何 Firebase 能力前必须补齐 Pro 注册文件。Google 登录等平台能力仍须按新包名和证书完成实际登记与验收。
 
 ## 专用打包目录的签名验证
 
@@ -33,4 +42,4 @@ Pro 调试包：`app/build/outputs/apk/pro/debug/app-pro-debug.apk`。Android St
 .\gradlew.bat --gradle-user-home "$env:LOCALAPPDATA\Gradle\zorv-pro" --no-configuration-cache :app:verifyProReleaseSigning
 ```
 
-该任务只验证 Pro keystore、私钥密码、alias、证书有效期和开发证书隔离，输出公开 SHA-256 指纹；不依赖发布确认或平台验收。实际 release 打包继续要求独立发布确认、运行配置和真实平台验收，不能以签名验证通过代替发布验收。
+该任务只验证 Pro keystore、私钥密码、alias、证书有效期和开发证书隔离，输出公开 SHA-256 指纹；不依赖发布确认或平台验收。release 打包继续检查签名和运行配置；独立发布确认及真实平台验收通过 `verifyProPublicationReadiness` 在上架前检查，不能以签名验证通过代替发布验收。

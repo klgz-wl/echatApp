@@ -434,6 +434,12 @@ if (!proGoogleServices.isFile) {
         .configureEach { enabled = false }
 }
 
+// Firebase runtime flags do not control the Gradle plugin's release mapping upload.
+if (flavorConfigurations.getValue("pro").getProperty("build.boolean.ENABLE_FIREBASE_CRASHLYTICS") != "true") {
+    tasks.matching { it.name in setOf("uploadCrashlyticsMappingFileProDebug", "uploadCrashlyticsMappingFileProRelease") }
+        .configureEach { enabled = false }
+}
+
 tasks.register("verifyProReleaseSigning") {
     notCompatibleWithConfigurationCache("Reads only Pro release signing and the public development certificate.")
     doLast {
@@ -499,7 +505,7 @@ tasks.register("verifyProReleaseRuntimeConfig") {
 
 tasks.configureEach {
     if (name in setOf("assembleProRelease", "bundleProRelease", "packageProRelease", "packageProReleaseBundle", "signProReleaseBundle")) {
-        dependsOn("verifyProFormalRelease", "verifyProReleaseRuntimeConfig", "verifyProFullChainEvidence")
+        dependsOn("verifyProReleaseSigning", "verifyProReleaseRuntimeConfig")
     }
 }
 
@@ -536,4 +542,11 @@ tasks.register("verifyProFullChainEvidence") {
             }
         }
     }
+}
+
+// Build a signed package first; confirm publication readiness after real platform acceptance.
+tasks.register("verifyProPublicationReadiness") {
+    group = "verification"
+    description = "Checks Pro signing, runtime configuration, release confirmation and real platform evidence before publication."
+    dependsOn("verifyProFormalRelease", "verifyProReleaseRuntimeConfig", "verifyProFullChainEvidence")
 }
