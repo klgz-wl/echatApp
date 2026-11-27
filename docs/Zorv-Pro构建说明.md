@@ -24,3 +24,13 @@ Pro 调试包：`app/build/outputs/apk/pro/debug/app-pro-debug.apk`。Android St
 5. 运行 `./gradlew --no-configuration-cache :app:bundleProRelease`。所有 Pro release 打包入口均依赖独立签名、运行配置和平台验收门禁。
 
 目前 Firebase 三项能力均关闭。没有 Pro 的真实 `app/src/pro/google-services.json` 时仅跳过 Pro 的 Google Services 生成步骤，不复制或伪造原版注册信息；启用任何 Firebase 能力前必须补齐 Pro 注册文件。Google 登录等平台能力仍须按新包名和证书完成实际登记与验收。
+
+## 专用打包目录的签名验证
+
+仅配置 Pro 正式签名的目录不需要原版或 sharedDev 私钥。不要使用全变体 `signingReport` 作为必经检查，它可能在缺少开发签名的 devDebug 上失败。
+
+```powershell
+.\gradlew.bat --gradle-user-home "$env:LOCALAPPDATA\Gradle\zorv-pro" --no-configuration-cache :app:verifyProReleaseSigning
+```
+
+该任务只验证 Pro keystore、私钥密码、alias、证书有效期和开发证书隔离，输出公开 SHA-256 指纹；不依赖发布确认或平台验收。实际 release 打包继续要求独立发布确认、运行配置和真实平台验收，不能以签名验证通过代替发布验收。

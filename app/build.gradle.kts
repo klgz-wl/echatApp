@@ -434,15 +434,9 @@ if (!proGoogleServices.isFile) {
         .configureEach { enabled = false }
 }
 
-tasks.register("verifyProFormalRelease") {
-    notCompatibleWithConfigurationCache("Reads Pro signing and release confirmation files.")
+tasks.register("verifyProReleaseSigning") {
+    notCompatibleWithConfigurationCache("Reads only Pro release signing and the public development certificate.")
     doLast {
-        val config = flavorConfigurations.getValue("pro")
-        check(config.getProperty("applicationId") == "com.zorv.pro") { "Pro package must be com.zorv.pro" }
-        check(proConfirmationProperties.getProperty("confirmed") == "true" &&
-            proConfirmationProperties.getProperty("applicationId") == "com.zorv.pro") {
-            "Confirm Pro release independently in config/pro-confirmation.local.properties"
-        }
         val certificate = signingCertificate(proSigningProperties, "Pro release")
         val store = rootProject.file(proSigningProperties.getProperty("storeFile")).canonicalFile
         check(store != rootProject.file("config/shared-dev.jks").canonicalFile) { "Pro release cannot use sharedDev signing" }
@@ -452,6 +446,24 @@ tasks.register("verifyProFormalRelease") {
         val devCertificate = rootProject.file("config/dev-certificate.der")
         check(devCertificate.isFile) { "Missing sharedDev certificate fingerprint" }
         check(!devCertificate.readBytes().contentEquals(certificate.encoded)) { "Pro release cannot use sharedDev certificate" }
+        val fingerprint = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+            .joinToString(":") { "%02X".format(it) }
+        println("Pro release signing verified: ${proSigningProperties.getProperty("keyAlias")}")
+        println("SHA-256: $fingerprint")
+        println("Valid until: ${certificate.notAfter.toInstant()}")
+    }
+}
+
+tasks.register("verifyProFormalRelease") {
+    dependsOn("verifyProReleaseSigning")
+    notCompatibleWithConfigurationCache("Reads Pro signing and release confirmation files.")
+    doLast {
+        val config = flavorConfigurations.getValue("pro")
+        check(config.getProperty("applicationId") == "com.zorv.pro") { "Pro package must be com.zorv.pro" }
+        check(proConfirmationProperties.getProperty("confirmed") == "true" &&
+            proConfirmationProperties.getProperty("applicationId") == "com.zorv.pro") {
+            "Confirm Pro release independently in config/pro-confirmation.local.properties"
+        }
     }
 }
 
