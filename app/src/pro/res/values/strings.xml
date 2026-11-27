@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">zorv pro</string>
     <string name="zorv_brand_title">zorv pro</string>
+    <string name="login_brand">zorv pro</string>
+    <string name="login_account_caption">Log in with your account to access your zorv pro model and workspace.</string>
 </resources>

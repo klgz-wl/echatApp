@@ -43,3 +43,10 @@ Pro 调试包：`app/build/outputs/apk/pro/debug/app-pro-debug.apk`。Android St
 ```
 
 该任务只验证 Pro keystore、私钥密码、alias、证书有效期和开发证书隔离，输出公开 SHA-256 指纹；不依赖发布确认或平台验收。release 打包继续检查签名和运行配置；独立发布确认及真实平台验收通过 `verifyProPublicationReadiness` 在上架前检查，不能以签名验证通过代替发布验收。
+
+## Pro 测试环境真机开发包
+
+- 变体 `proDevDebug`，包名 `yumo.achat.app`，桌面名称 `zorv pro`，版本 `2.0.0`（versionCode 2）。与原Zorv开发版共用同一安装身份和sharedDev签名，二者会互相更新，不能并存；可与两个正式版共存。
+- 配置顺序 common → dev → proDev。复用原dev的测试API/支付/WebSocket/CDN、AppsFlyer Dev key、数数App ID/接收地址、深链及Firebase开关，不继承Pro正式SDK身份。正式 `dev`、`prod`、`pro` 配置保持不变。
+- Pro资源复用 `src/pro/res`，Firebase注册文件复用原dev真实的 `yumo.achat.app` 注册JSON，副本保持一致，不伪造新应用注册。关闭正式区域限制和安全窗口，不生成 `proDevRelease`。
+- 构建：`./gradlew --no-configuration-cache :app:assembleProDevDebug`；安装 `app/build/outputs/apk/proDev/debug/app-proDev-debug.apk`，安装后检查包名、版本、可调试标识及前台Activity。签名冲突或降级失败时停止，不自动卸载已有应用；旧 `com.zorv.pro.dev` 如仍存在由用户决定是否删除。

@@ -60,14 +60,16 @@ val flavorApplicationIds = mapOf(
     },
 )
 
-val flavorConfigurations = listOf("dev", "prod", "pro").associateWith { env ->
+val flavorConfigurations = listOf("dev", "prod", "pro", "proDev").associateWith { env ->
     Properties().apply {
         putAll(common)
         if (env == "pro") putAll(prodProperties)
+        if (env == "proDev") putAll(devProperties)
         putAll(readProperties("config/$env.properties"))
-        setProperty("applicationId", if (env == "pro") proProperties.getProperty("applicationId") else flavorApplicationIds.getValue(env))
+        setProperty("applicationId", if (env in setOf("pro", "proDev")) getProperty("applicationId") else flavorApplicationIds.getValue(env))
         setProperty("build.string.ACHAT_CLIENT_VERSION", getProperty("app.version.name"))
         val endpointKey = when {
+            env == "proDev" -> "dev"
             env == "pro" -> "prod"
             env == "prod" && mode == "DEV_REUSE" -> "dev"
             else -> env
@@ -185,6 +187,8 @@ android {
         }
     }
 
+    sourceSets.getByName("proDev").res.srcDir("src/pro/res")
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -194,6 +198,12 @@ android {
         compose = true
         buildConfig = true
         resValues = true
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().withFlavor("environment" to "proDev")) { variant ->
+        if (variant.buildType != "debug") variant.enable = false
     }
 }
 
@@ -422,22 +432,23 @@ tasks.register("verifyProdReleaseRuntimeConfig") {
 }
 
 
-// Pro has no Firebase registration yet. Never reuse the original app's registration.
-val proGoogleServices = file("src/pro/google-services.json")
-if (!proGoogleServices.isFile) {
-    listOf("ENABLE_FIREBASE_ANALYTICS", "ENABLE_FIREBASE_CRASHLYTICS", "ENABLE_FIREBASE_MESSAGING").forEach { flag ->
-        check(flavorConfigurations.getValue("pro").getProperty("build.boolean.$flag") == "false") {
-            "Pro requires a genuine app/src/pro/google-services.json before enabling $flag"
+// Each Pro variant needs its own genuine Firebase registration before enabling Firebase.
+listOf("pro", "proDev").forEach { flavor ->
+    val config = flavorConfigurations.getValue(flavor)
+    val taskFlavor = flavor.replaceFirstChar { it.uppercase() }
+    if (!file("src/$flavor/google-services.json").isFile) {
+        listOf("ENABLE_FIREBASE_ANALYTICS", "ENABLE_FIREBASE_CRASHLYTICS", "ENABLE_FIREBASE_MESSAGING").forEach { flag ->
+            check(config.getProperty("build.boolean.$flag") == "false") {
+                "$flavor requires a genuine google-services.json before enabling $flag"
+            }
         }
+        tasks.matching { it.name in setOf("process${taskFlavor}DebugGoogleServices", "process${taskFlavor}ReleaseGoogleServices") }
+            .configureEach { enabled = false }
     }
-    tasks.matching { it.name in setOf("processProDebugGoogleServices", "processProReleaseGoogleServices") }
-        .configureEach { enabled = false }
-}
-
-// Firebase runtime flags do not control the Gradle plugin's release mapping upload.
-if (flavorConfigurations.getValue("pro").getProperty("build.boolean.ENABLE_FIREBASE_CRASHLYTICS") != "true") {
-    tasks.matching { it.name in setOf("uploadCrashlyticsMappingFileProDebug", "uploadCrashlyticsMappingFileProRelease") }
-        .configureEach { enabled = false }
+    if (config.getProperty("build.boolean.ENABLE_FIREBASE_CRASHLYTICS") != "true") {
+        tasks.matching { it.name in setOf("uploadCrashlyticsMappingFile${taskFlavor}Debug", "uploadCrashlyticsMappingFile${taskFlavor}Release") }
+            .configureEach { enabled = false }
+    }
 }
 
 tasks.register("verifyProReleaseSigning") {
